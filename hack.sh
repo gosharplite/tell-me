@@ -65,7 +65,6 @@ options=(
     "analyze-project"
     "code-review"
     "ext-dependency"
-    "open-source"
     "code-only"
     "cheat-sheet"
 )
@@ -141,10 +140,6 @@ case "$ACTION" in
 
     "ext-dependency")
         send_prompt "List all external dependencies found in this code. Show if authentication is needed and how it is provided."
-        ;;
-
-    "open-source")
-        send_prompt "I am planning to open-source this project. Please review the code for any hardcoded secrets, sensitive paths, or missing licenses."
         ;;
 
     "code-only")
