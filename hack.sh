@@ -107,7 +107,32 @@ case "$ACTION" in
         ;;
 
     "analyze-project")
-        send_prompt "Please analyze the following project."
+        # Create a temporary file to hold the project dump content
+        DUMP_FILE=$(mktemp) || { echo "Failed to create temporary file." >&2; exit 1; }
+        
+        # Ensure the temporary file is cleaned up on script exit
+        trap 'rm -f "$DUMP_FILE"' EXIT
+
+        echo "Gathering project statistics..."
+        
+        # Run dump.sh, redirecting main content to the temp file.
+        # The stats from dump.sh (on stderr) will be displayed to the user.
+        "$BASE_DIR/dump.sh" . > "$DUMP_FILE"
+
+        # Show the current path being analyzed
+        echo -e "\033[0;36m[Path] $(pwd)\033[0m"
+
+        # Ask for user confirmation, showing the stats first.
+        read -p "Do you want to proceed with sending this data for analysis? (y/N) " -n 1 -r
+        echo # Move to a new line for cleaner output
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "Proceeding with analysis..."
+            # Pipe the captured content from the temp file to the 'a' script
+            cat "$DUMP_FILE" | "$BASE_DIR/a" "Please analyze the following project."
+        else
+            echo "Analysis aborted by user."
+        fi
         ;;
 
     "code-review")
