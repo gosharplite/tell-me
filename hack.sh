@@ -23,25 +23,21 @@ done
 # --- FUNCTIONS ---
 
 # Function to get a cached or new Google Cloud access token.
-# This mirrors the efficient caching logic from the main 'a' script.
 get_token() {
     local token_cache="${TMPDIR:-/tmp}/gemini_token.txt"
     local token=""
     local mtime
     
-    # Get file modification time in a cross-platform way (macOS/Linux).
     if [[ "$OSTYPE" == "darwin"* ]]; then
         mtime=$(stat -f %m "$token_cache" 2>/dev/null || echo 0)
     else
         mtime=$(stat -c %Y "$token_cache" 2>/dev/null || echo 0)
     fi
 
-    # Check if a valid, non-expired token exists in the cache (55 min expiry).
     if [[ -f "$token_cache" && $(($(date +%s) - mtime)) -lt 3300 ]]; then
         token=$(cat "$token_cache")
     fi
 
-    # If no valid token, fetch a new one and update the cache.
     if [[ -z "$token" ]]; then
         token=$(gcloud auth print-access-token --scopes=https://www.googleapis.com/auth/generative-language)
         if [[ -n "$token" ]]; then
@@ -54,98 +50,117 @@ get_token() {
     echo "$token"
 }
 
+# Helper function to dump the project and send a specific prompt
+analyze_with_prompt() {
+    local user_prompt="$1"
+    
+    # Create a temporary file to hold the project dump content
+    local dump_file=$(mktemp) || { echo "Failed to create temporary file." >&2; exit 1; }
+    
+    # Ensure the temporary file is cleaned up
+    trap 'rm -f "$dump_file"' RETURN
+
+    echo "Gathering project statistics..."
+    
+    # Run dump.sh to temp file, displaying stderr stats to user
+    "$BASE_DIR/dump.sh" . > "$dump_file"
+
+    # Show the current path being analyzed
+    echo -e "\033[0;36m[Path] $(pwd)\033[0m"
+    echo "Processing..."
+
+    # Pipe the dump + prompt to the 'a' script immediately (Confirmation removed)
+    cat "$dump_file" | "$BASE_DIR/a" "$user_prompt"
+}
+
 # --- MAIN EXECUTION ---
 
-# 1. Define the options for the interactive menu.
+# 1. Define the options
 options=(
     "list-models"
     "analyze-project"
-    "code-only"
     "code-review"
     "ext-dependency"
-    "cheat-sheet"
     "open-source"
+    "code-only"
+    "cheat-sheet"
 )
 
-# 2. Use fzf to prompt the user for a selection.
+# 2. FZF Selection
 ACTION=$(printf "%s\n" "${options[@]}" | fzf --prompt="Select an action > ")
 
-# Exit if the user made no selection (e.g., pressed Esc).
 if [[ -z "$ACTION" ]]; then
-    echo "No selection made. Aborting."
+    echo "No selection made."
     exit 0
 fi
 
 echo "Action selected: '${ACTION}'"
 
-# 3. Use a case statement to execute the chosen action.
+# 3. Execute Action
 case "$ACTION" in
     "list-models")
         TOKEN=$(get_token) || exit 1
-        
-        # Fetch data from the API.
+        echo "Fetching models..."
         RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models" \
           -H "Authorization: Bearer $TOKEN")
         
-        # Validate that the API returned valid JSON before processing.
+        # Check if response is valid JSON
         if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
-            echo "Error: API did not return valid JSON." >&2
-            echo "Raw Response: $RESPONSE" >&2
+            echo "Error: Invalid API response." >&2
+            echo "Raw output: $RESPONSE"
             exit 1
         fi
+
+        # Check for API Error object
+        if echo "$RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
+             echo -e "\033[31mAPI Error:\033[0m"
+             echo "$RESPONSE" | jq -r '.error.message'
+             exit 1
+        fi
         
-        # Process and print the model names.
+        # Success output
         echo "$RESPONSE" | jq -r '.models[].name'
         ;;
 
     "analyze-project")
-        # Create a temporary file to hold the project dump content
-        DUMP_FILE=$(mktemp) || { echo "Failed to create temporary file." >&2; exit 1; }
-        
-        # Ensure the temporary file is cleaned up on script exit
-        trap 'rm -f "$DUMP_FILE"' EXIT
-
-        echo "Gathering project statistics..."
-        
-        # Run dump.sh, redirecting main content to the temp file.
-        # The stats from dump.sh (on stderr) will be displayed to the user.
-        "$BASE_DIR/dump.sh" . > "$DUMP_FILE"
-
-        # Show the current path being analyzed
-        echo -e "\033[0;36m[Path] $(pwd)\033[0m"
-
-        # Ask for user confirmation, showing the stats first.
-        read -p "Do you want to proceed with sending this data for analysis? (y/N) " -n 1 -r
-        echo # Move to a new line for cleaner output
-
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "Proceeding with analysis..."
-            # Pipe the captured content from the temp file to the 'a' script
-            cat "$DUMP_FILE" | "$BASE_DIR/a" "Please analyze the following project."
-        else
-            echo "Analysis aborted by user."
-        fi
-        ;;
-
-    "code-only")
-        "$BASE_DIR/a" "Please just output the code. I will use your next output to directly replace file content."
+        analyze_with_prompt "Please analyze the following project."
         ;;
 
     "code-review")
-        "$BASE_DIR/a" "Please code review this project."
+        analyze_with_prompt "Please code review this project. Focus on logic errors, security, and best practices."
         ;;
 
     "ext-dependency")
-        "$BASE_DIR/a" "List all external dependencies. Show if authentication is needed and how it is provided."
+        analyze_with_prompt "List all external dependencies found in this code. Show if authentication is needed and how it is provided."
+        ;;
+
+    "open-source")
+        analyze_with_prompt "I am planning to open-source this project. Please review the code for any hardcoded secrets, sensitive paths, or missing licenses."
+        ;;
+
+    "code-only")
+        # This remains text-only as it is usually a modifier for a previous request
+        "$BASE_DIR/a" "Please just output the code. I will use your next output to directly replace file content."
+        echo "Please just output the code. I will use your next output to directly replace file content."
         ;;
 
     "cheat-sheet")
         cat <<'EOF'
-a "$(<file.txt)"
-a "$(cat <<'EOF'
+-------------------------------------
+ CHEAT SHEET
+-------------------------------------
+1. File Input:
+   a "$(<file.txt)"
+
+2. Heredoc Input:
+   a "$(cat <<'END'
+   Your multi-line text here
+   END
+   )"
+
+3. Pipe Input:
+   cat file.txt | a "Summarize this"
+-------------------------------------
 EOF
-        ;;
-    "open-source")
-        "$BASE_DIR/a" "I am just going to open-source this project tell-me. Please check if there is anything missing or wrong."
         ;;
 esac

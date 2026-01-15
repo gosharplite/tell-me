@@ -51,7 +51,7 @@ gcloud auth application-default set-quota-project <YOUR_PROJECT_ID>
 
 1.  **Clone the repository**:
     ```bash
-    git clone <repository_url> /path/to/your/clone
+    git clone git@github.com:gosharplite/tell-me.git /path/to/your/clone
     cd /path/to/your/clone
     ```
 
