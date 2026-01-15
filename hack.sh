@@ -50,6 +50,13 @@ get_token() {
     echo "$token"
 }
 
+# Helper function to echo the message then send it
+send_prompt() {
+    local msg="$1"
+    echo "$msg"
+    "$BASE_DIR/a" "$msg"
+}
+
 # --- MAIN EXECUTION ---
 
 # 1. Define the options
@@ -100,25 +107,23 @@ case "$ACTION" in
         ;;
 
     "analyze-project")
-        "$BASE_DIR/a" "Please analyze the following project."
+        send_prompt "Please analyze the following project."
         ;;
 
     "code-review")
-        "$BASE_DIR/a" "Please code review this project. Focus on logic errors, security, and best practices."
+        send_prompt "Please code review this project. Focus on logic errors, security, and best practices."
         ;;
 
     "ext-dependency")
-        "$BASE_DIR/a" "List all external dependencies found in this code. Show if authentication is needed and how it is provided."
+        send_prompt "List all external dependencies found in this code. Show if authentication is needed and how it is provided."
         ;;
 
     "open-source")
-        "$BASE_DIR/a" "I am planning to open-source this project. Please review the code for any hardcoded secrets, sensitive paths, or missing licenses."
+        send_prompt "I am planning to open-source this project. Please review the code for any hardcoded secrets, sensitive paths, or missing licenses."
         ;;
 
     "code-only")
-        MSG="Please just output the code. I will use your next output to directly replace file content."
-        echo "$MSG"
-        "$BASE_DIR/a" "$MSG"
+        send_prompt "Please just output the code. I will use your next output to directly replace file content."
         ;;
 
     "cheat-sheet")
