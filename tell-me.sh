@@ -87,9 +87,11 @@ mkdir -p "$(dirname "$file")"
 if [[ "$ACTION_NEW" == "true" ]]; then
     [ -f "$file" ] && rm "$file"
     [ -f "${file}.log" ] && rm "${file}.log"
-elif [[ -n "$MSG" ]]; then
+fi
+
+if [[ -n "$MSG" ]]; then
     "$BASE_DIR/a" "$MSG"
-else
+elif [[ "$ACTION_NEW" == "false" ]]; then
     "$BASE_DIR/recap.sh"
 fi
 
