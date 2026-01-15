@@ -2,6 +2,9 @@
 Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
 SPDX-License-Identifier: MIT
 -->
+<p align="center">
+  <img src="assets/tell-me.png" alt="tell-me logo" width="200">
+</p>
 
 # tell-me: A Bash Gemini CLI Assistant
 
