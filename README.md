@@ -41,8 +41,10 @@ Ensure the following tools are installed and available in your `$PATH`:
     *   **Important**: This project requires the **Go implementation** ([mikefarah/yq](https://github.com/mikefarah/yq)).
     *   *Do not use the Python wrapper (`pip install yq`), as the syntax is incompatible.*
 *   **curl** - *API requests*
-*   **glow** - *(Optional) For beautiful Markdown rendering*
-*   **fzf** - *(Optional) Required for the `h` (hack) menu*
+*   **glow** - *(Optional) For beautiful Markdown rendering.*
+*   **fzf** - *(Optional) Required for the `h` (hack) menu.*
+*   **git** - *(Optional) Improves `dump.sh` by accurately listing files based on `.gitignore` rules.*
+*   **tree** - *(Optional) Provides a visual directory tree in the `dump.sh` output.*
 
 ### Initial Setup
 Authenticate with Google Cloud:

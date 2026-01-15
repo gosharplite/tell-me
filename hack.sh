@@ -143,7 +143,7 @@ case "$ACTION" in
         ;;
 
     "code-only")
-        send_prompt "Please just output the code. I will use your next output to directly replace file content."
+        send_prompt "Please just output the code. I will use your next output to directly replace the entire file content."
         ;;
 
     "cheat-sheet")
