@@ -1,0 +1,12 @@
+# Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
+# SPDX-License-Identifier: MIT
+
+MODE: "assist-gemini"
+file: "$AIT_HOME/output/last-assist-gemini.json"
+
+PERSON: "You are an AI assistant. Please respond concisely and accurately in English."
+
+AIURL: "https://generativelanguage.googleapis.com/v1beta/models"
+
+#AIMODEL: "gemini-pro-latest"
+AIMODEL: "gemini-3-pro-preview"

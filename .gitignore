@@ -1,0 +1,5 @@
+# Ignore all files within the output directory...
+output/*
+
+# ...except for the .gitkeep file, which ensures the directory is tracked.
+!output/.gitkeep

@@ -1,0 +1,207 @@
+#!/bin/bash
+# Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
+# SPDX-License-Identifier: MIT
+
+# Resolve Script Directory
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check Dependencies
+for cmd in jq curl gcloud awk; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "Error: Required command '$cmd' is missing." >&2
+        exit 1
+    fi
+done
+
+# Helper function to append messages to history safely
+update_history() {
+  local json_content="$1"
+  # Create a temp file for the new message JSON to avoid ARG_MAX in jq
+  local item_file=$(mktemp)
+  # Print content to file using built-in printf to avoid external command arg limits
+  printf "%s" "$json_content" > "$item_file"
+  
+  if [ -s "$file" ] && jq empty "$file" > /dev/null 2>&1; then
+    # Use --slurpfile instead of --argjson to read from file
+    if ! jq --slurpfile item "$item_file" '.messages += $item' "$file" > "${file}.tmp"; then
+        echo "Error: Failed to process history file." >&2
+        rm "$item_file"
+        exit 1
+    fi
+    mv "${file}.tmp" "$file"
+  else
+    jq -n --slurpfile item "$item_file" '{messages: $item}' > "$file"
+  fi
+  rm "$item_file"
+}
+
+# 1. Update Conversation History
+PROMPT_TEXT="$1"
+STDIN_DATA=""
+
+# Check if there is data being piped in (stdin is not a terminal)
+if [ ! -t 0 ]; then
+    STDIN_DATA="$(cat)"
+fi
+
+# Combine the prompt argument and any piped data
+if [ -n "$STDIN_DATA" ]; then
+    # When piping, combine the prompt text with the piped data
+    MSG_TEXT="${PROMPT_TEXT}\n\n${STDIN_DATA}"
+elif [ -n "$PROMPT_TEXT" ]; then
+    # Standard case with a command-line argument
+    MSG_TEXT="$PROMPT_TEXT"
+else
+    # Fallback for initial message or no input
+    MSG_TEXT="$DATA"
+    echo "Usage: a \"Your message\" or pipe content via stdin" >&2
+    exit 1
+fi
+
+# Construct User Message JSON
+# Changed: Use pipe and jq -Rs to handle large input (prevents Argument list too long)
+USER_MSG=$(printf "%s" "$MSG_TEXT" | jq -Rs '{role: "user", parts: [{text: .}]}')
+update_history "$USER_MSG"
+
+# 2. Build API Payload
+APIDATA=$(jq -n \
+  --arg person "$PERSON" \
+  --slurpfile history "$file" \
+  '{
+    contents: $history[0].messages,
+    generationConfig: { temperature: 1.0 },
+    safetySettings: [
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+    ]
+  } + 
+  (if $person != "" then {systemInstruction: {parts: [{text: $person}]}} else {} end)'
+)
+
+# 3. Authentication
+TOKEN_CACHE="${TMPDIR:-/tmp}/gemini_token.txt"
+
+get_file_mtime() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        stat -f %m "$1"
+    else
+        stat -c %Y "$1"
+    fi
+}
+
+# Check cache freshness first, ignoring any potentially stale ENV variable
+if [ -f "$TOKEN_CACHE" ]; then
+    NOW=$(date +%s)
+    LAST_MOD=$(get_file_mtime "$TOKEN_CACHE")
+    DIFF=$((NOW - LAST_MOD))
+    
+    # 3300s = 55 mins (safety buffer for 1h token)
+    if [ $DIFF -lt 3300 ]; then
+        TOKEN=$(cat "$TOKEN_CACHE")
+    fi
+fi
+
+if [ -z "$TOKEN" ]; then
+    AUTH_ARGS=("--scopes=https://www.googleapis.com/auth/generative-language")
+    TOKEN=$(gcloud auth print-access-token "${AUTH_ARGS[@]}")
+    echo "$TOKEN" > "$TOKEN_CACHE"
+fi
+
+# 4. Call AI API
+PAYLOAD_FILE=$(mktemp) || { echo "Failed to create temporary file." >&2; exit 1; }
+trap 'rm -f "$PAYLOAD_FILE"' EXIT
+echo "$APIDATA" > "$PAYLOAD_FILE"
+
+START_TIME=$(date +%s.%N)
+
+TEXT=$(curl -s "${AIURL}/${AIMODEL}:generateContent" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d @"$PAYLOAD_FILE")  # Note the @ symbol
+
+END_TIME=$(date +%s.%N)
+
+CURL_EXIT=$?
+
+# Check for curl network errors
+if [ $CURL_EXIT -ne 0 ]; then
+    echo -e "\033[31mNetwork Error: Curl failed with exit code $CURL_EXIT\033[0m"
+    exit 1
+fi
+
+# Check for non-JSON response (e.g., HTML 500 error)
+if ! echo "$TEXT" | jq empty > /dev/null 2>&1; then
+    echo -e "\033[31mAPI Error: Invalid JSON response received.\033[0m"
+    echo "Raw Output: $TEXT"
+    exit 1
+fi
+
+# Check for API specific errors
+if echo "$TEXT" | jq -e '.error' > /dev/null 2>&1; then
+    ERROR_MSG=$(echo "$TEXT" | jq -r '.error.message // "Unknown API Error"')
+    ERROR_CODE=$(echo "$TEXT" | jq -r '.error.code // "N/A"')
+    echo -e "\033[31mAPI Error ($ERROR_CODE): $ERROR_MSG\033[0m"
+    exit 1
+fi
+
+# 5. Process AI Response
+REPLY=$(echo "$TEXT" | jq -c '.candidates[0].content')
+
+if [ "$REPLY" == "null" ]; then
+    echo -e "\033[31mError: No content generated. (Check safety settings or input)\033[0m"
+    exit 1
+fi
+
+update_history "$REPLY"
+
+"$BASE_DIR/recap.sh" -l
+
+# Calculate and display response time
+DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
+printf "\033[0;35m[Response Time] %.2f seconds\033[0m\n" "$DURATION"
+
+# 6. Stats & Metrics
+read -r HIT PROMPT_TOTAL COMPLETION TOTAL <<< $(echo "$TEXT" | jq -r '
+  .usageMetadata | 
+  (.cachedContentTokenCount // 0), 
+  (.promptTokenCount // 0), 
+  (.candidatesTokenCount // .completionTokenCount // 0), 
+  (.totalTokenCount // 0)
+' | xargs)
+
+MISS=$(( PROMPT_TOTAL - HIT ))
+NEWTOKEN=$(( MISS + COMPLETION ))
+
+if [ "$TOTAL" -gt 0 ]; then
+    PERCENT=$(( ($NEWTOKEN * 100) / $TOTAL ))
+else
+    PERCENT=0
+fi
+
+# Define Log File (same name as json history but with .log extension)
+LOG_FILE="${file}.log"
+
+# Format the string with fixed width padding
+STATS_MSG=$(printf "[%s] Hit/Miss: %-7d / %-7d. Comp: %-5d. Total: %-7d. New: %-7d (%3d%%)" \
+  "$(date +%H:%M:%S)" \
+  "$HIT" "$MISS" \
+  "$COMPLETION" \
+  "$TOTAL" \
+  "$NEWTOKEN" "$PERCENT")
+
+# Save to log
+echo "$STATS_MSG" >> "$LOG_FILE"
+
+# Display the last 3 lines (Current + 2 previous)
+if [ -f "$LOG_FILE" ]; then
+    echo -e "\033[0;36m--- Usage History ---\033[0m"
+    tail -n 3 "$LOG_FILE"
+fi
+
+# 7. Backup with time interval
+if [ -f "${file}" ]; then
+    TIMESTAMP=$(date -u "+%y%m%d-%H")$(printf "%02d" $(( (10#$(date -u "+%M") / 10) * 10 )) )
+    cp "$file" "${file%.*}-${TIMESTAMP}-trace.${file##*.}"
+fi

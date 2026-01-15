@@ -1,0 +1,111 @@
+#!/bin/bash
+# Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
+# SPDX-License-Identifier: MIT
+
+# Usage: ./setup.sh CONFIG [new] [nobash] [message...]
+
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 1. Validation and Dependency Check
+if [[ ! -f "$1" ]]; then
+    echo "Error: Configuration file '$1' not found."
+    echo "Usage: $0 CONFIG [new] [nobash] [message...]"
+    exit 1
+fi
+
+# Convert CONFIG to absolute path
+CONFIG="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+
+# Shift past the config file to parse optional arguments
+shift
+
+ACTION_NEW=false
+SKIP_BASH=false
+MSG=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        new)
+            ACTION_NEW=true
+            shift
+            ;;
+        nobash)
+            SKIP_BASH=true
+            shift
+            ;;
+        *)
+            # Treat all remaining arguments as the message
+            MSG="$*"
+            break
+            ;;
+    esac
+done
+
+for cmd in yq jq; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "Error: Dependency '$cmd' is missing."
+        exit 1
+    fi
+done
+
+# 2. Safely load and export variables from YAML
+export MODE=$(yq -r '.MODE' "$CONFIG")
+export PERSON=$(yq -r '.PERSON' "$CONFIG")
+export AIURL=$(yq -r '.AIURL' "$CONFIG")
+export AIMODEL=$(yq -r '.AIMODEL' "$CONFIG")
+export CONFIG
+
+# Safely expand the $AIT_HOME variable from the 'file' path in the YAML.
+# This replaces the insecure `eval` command with a safe string substitution.
+file_path_template=$(yq -r '.file' "$CONFIG")
+if [[ -n "$AIT_HOME" ]]; then
+    # Use Bash parameter expansion to replace the literal string "$AIT_HOME".
+    export file="${file_path_template//\$AIT_HOME/$AIT_HOME}"
+else
+    # If AIT_HOME is not set, use the path as-is from the config.
+    export file="$file_path_template"
+fi
+
+# The original logic for handling relative paths is kept as a fallback.
+# This makes paths like `file: "./output/history.json"` work with the global alias.
+if [[ "$file" != /* && -n "$AIT_HOME" ]]; then
+    # Strip a leading "./" if it exists for a cleaner path
+    relative_path="${file#./}"
+    file="$AIT_HOME/$relative_path"
+fi
+export file # Re-export in case the if block changed it
+
+if [[ -z "$file" ]]; then
+    echo "Error: Configuration is missing the required 'file' key."
+    exit 1
+fi
+
+# Ensure output directory exists
+mkdir -p "$(dirname "$file")"
+
+# 3. Initialize/Handle Context
+if [[ "$ACTION_NEW" == "true" ]]; then
+    [ -f "$file" ] && rm "$file"
+    [ -f "${file}.log" ] && rm "${file}.log"
+elif [[ -n "$MSG" ]]; then
+    "$BASE_DIR/a" "$MSG"
+else
+    "$BASE_DIR/recap.sh"
+fi
+
+# 4. Enter Interactive Shell
+if [[ "$SKIP_BASH" == "false" ]]; then
+    FILENAME=$(basename "$CONFIG" .yaml)
+    
+    bash --rcfile <(cat <<EOF
+alias a='"$BASE_DIR/a"'
+alias aa='"$BASE_DIR/aa"'
+alias recap='"$BASE_DIR/recap.sh"'
+alias h='"$BASE_DIR/hack.sh"'
+alias dump='"$BASE_DIR/dump.sh"'
+export PS1="\[\033[01;32m\]\u@tell-me\[\033[00m\]:\[\033[01;35m\]${FILENAME}\[\033[00m\]\$ "
+echo -e "\033[1;34mChat session started using $CONFIG\033[0m"
+echo -e "Type \033[1;32ma \"your message\"\033[0m to chat."
+EOF
+    )
+fi
