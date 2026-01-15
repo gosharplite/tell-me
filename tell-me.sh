@@ -55,28 +55,13 @@ export AIURL=$(yq -r '.AIURL' "$CONFIG")
 export AIMODEL=$(yq -r '.AIMODEL' "$CONFIG")
 export CONFIG
 
-# Safely expand the $AIT_HOME variable from the 'file' path in the YAML.
-# This replaces the insecure `eval` command with a safe string substitution.
-file_path_template=$(yq -r '.file' "$CONFIG")
+# Automatically construct the history file path from the MODE variable.
 if [[ -n "$AIT_HOME" ]]; then
-    # Use Bash parameter expansion to replace the literal string "$AIT_HOME".
-    export file="${file_path_template//\$AIT_HOME/$AIT_HOME}"
+    export file="$AIT_HOME/output/last-${MODE}.json"
 else
-    # If AIT_HOME is not set, use the path as-is from the config.
-    export file="$file_path_template"
-fi
-
-# The original logic for handling relative paths is kept as a fallback.
-# This makes paths like `file: "./output/history.json"` work with the global alias.
-if [[ "$file" != /* && -n "$AIT_HOME" ]]; then
-    # Strip a leading "./" if it exists for a cleaner path
-    relative_path="${file#./}"
-    file="$AIT_HOME/$relative_path"
-fi
-export file # Re-export in case the if block changed it
-
-if [[ -z "$file" ]]; then
-    echo "Error: Configuration is missing the required 'file' key."
+    # AIT_HOME is essential for storing session files in a consistent location.
+    echo "Error: The AIT_HOME environment variable is not set." >&2
+    echo "Please define it in your shell profile (e.g., ~/.bashrc)." >&2
     exit 1
 fi
 

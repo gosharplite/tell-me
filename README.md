@@ -82,16 +82,18 @@ gcloud auth application-default set-quota-project <YOUR_PROJECT_ID>
 
 ## ⚙️ Configuration
 
-You can customize the AI's persona, model, and other settings by editing `yaml/gemini.yaml`. The tool is pre-configured to work out-of-the-box with the global alias setup, automatically storing session files in the `output` directory within your cloned project folder.
+You can customize the AI's persona, model, and session identifier by editing `yaml/gemini.yaml`.
+
+The `MODE` key is particularly important as it acts as a unique name for a chat session. Its value is used to automatically generate the names for the history file (e.g., `last-assist-gemini.json`) and any project dumps within the `output` directory. This allows you to maintain separate configurations and conversation histories for different tasks (e.g., one for coding, another for general assistance).
 
 A typical configuration looks like this:
 ```yaml
-MODE: "assist-gnative"
-file: "./output/history.json" # This path is automatically handled
+MODE: "assist-gemini"
 PERSON: "You are a helpful AI..."
 AIMODEL: "gemini-pro-latest"
 AIURL: "https://generativelanguage.googleapis.com/v1beta/models"
 ```
+The tool is pre-configured to work out-of-the-box with the global alias setup, automatically storing all session files in the `output` directory within your cloned project folder.
 
 ## 💻 Usage
 
