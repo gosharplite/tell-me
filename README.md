@@ -18,6 +18,7 @@ A lightweight, terminal-based interface for Google's Gemini API. The `tell-me` t
 *   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors).
 *   **Smart Auth**: Uses `gcloud` for authentication with intelligent token caching to minimize latency.
 *   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `dump`, `h`).
+*   **Continuous Workflow**: Navigate your filesystem with `cd` and analyze multiple projects back-to-back within a single, persistent chat session.
 *   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
 *   **Usage Metrics**: Logs API token usage (Hit/Miss/New) and costs in a sidecar `.log` file.
 
@@ -40,8 +41,10 @@ Ensure the following tools are installed and available in your `$PATH`:
     *   **Important**: This project requires the **Go implementation** ([mikefarah/yq](https://github.com/mikefarah/yq)).
     *   *Do not use the Python wrapper (`pip install yq`), as the syntax is incompatible.*
 *   **curl** - *API requests*
-*   **glow** - *(Optional) For beautiful Markdown rendering*
-*   **fzf** - *(Optional) Required for the `h` (hack) menu*
+*   **glow** - *(Optional) For beautiful Markdown rendering.*
+*   **fzf** - *(Optional) Required for the `h` (hack) menu.*
+*   **git** - *(Optional) Improves `dump.sh` by accurately listing files based on `.gitignore` rules.*
+*   **tree** - *(Optional) Provides a visual directory tree in the `dump.sh` output.*
 
 ### Initial Setup
 Authenticate with Google Cloud:
@@ -82,16 +85,18 @@ gcloud auth application-default set-quota-project <YOUR_PROJECT_ID>
 
 ## ⚙️ Configuration
 
-You can customize the AI's persona, model, and other settings by editing `yaml/gemini.yaml`. The tool is pre-configured to work out-of-the-box with the global alias setup, automatically storing session files in the `output` directory within your cloned project folder.
+You can customize the AI's persona, model, and session identifier by editing `yaml/gemini.yaml`.
+
+The `MODE` key is particularly important as it acts as a unique name for a chat session. Its value is used to automatically generate the names for the history file (e.g., `last-assist-gemini.json`) and any project dumps within the `output` directory. This allows you to maintain separate configurations and conversation histories for different tasks (e.g., one for coding, another for general assistance).
 
 A typical configuration looks like this:
 ```yaml
-MODE: "assist-gnative"
-file: "./output/history.json" # This path is automatically handled
+MODE: "assist-gemini"
 PERSON: "You are a helpful AI..."
 AIMODEL: "gemini-pro-latest"
 AIURL: "https://generativelanguage.googleapis.com/v1beta/models"
 ```
+The tool is pre-configured to work out-of-the-box with the global alias setup, automatically storing all session files in the `output` directory within your cloned project folder.
 
 ## 💻 Usage
 
@@ -128,27 +133,33 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
     *   `code-only`: Prompts the AI to provide only code in its next response.
     *   ... and more.
 
-### Example: Analyzing Another Project
-The true power of the global alias is analyzing other projects on the fly.
+### Example: Analyzing Multiple Projects in One Session
+The true power of the global alias is analyzing projects on the fly. Because `ait` starts an interactive sub-shell, you can navigate your filesystem and analyze multiple projects without restarting.
 
 ```bash
-# 1. Go to any project directory
-cd ~/dev/my-other-project
+# 1. Go to the first project directory
+cd ~/dev/project-alpha
 
 # 2. Start the AI assistant
 ait
+# You are now inside the tell-me sub-shell.
 
-# 3. Inside the chat, use 'dump' to send the project's code for analysis
-# The '.' refers to your current directory (~/dev/my-other-project)
+# 3. Analyze the first project
+# The '.' refers to your current directory (~/dev/project-alpha).
+# Use the interactive helper for a common task:
+user@tell-me:gemini$ h  # --> select "analyze-project" from the menu
 
-# Using command substitution:
-a "Please review this project for potential bugs: $(dump .)"
+# The AI responds with its analysis of project-alpha.
 
-# Or, using a pipe (more robust for very large projects):
-dump . | a "Please review this project for potential bugs:"
+# 4. Navigate to a second project *within the same session*
+user@tell-me:gemini$ cd ../project-beta
 
-# Or, use the interactive helper to choose a task
-h  # --> select "code-review" or "analyze-project" from the menu
+# 5. Analyze the second project, asking for a comparison
+# Now, '.' refers to ~/dev/project-beta.
+# Piping is recommended for sending large projects.
+user@tell-me:gemini$ dump . | a "Now, analyze this second project and compare its architecture to the first one."
+
+# The AI now has the context of both projects and can perform a comparison.
 ```
 
 ### 4. Exit

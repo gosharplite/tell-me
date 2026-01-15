@@ -2,42 +2,46 @@
 # Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
 # SPDX-License-Identifier: MIT
 
-# A menu-driven utility script for common project tasks.
+# Provides an fzf-powered menu for common, pre-defined AI tasks.
 
 # Exit immediately if a command in a pipeline fails.
 set -o pipefail
 
-# --- PREPARATION ---
+# --- SETUP ---
 
-# Resolve the absolute path of the script's directory.
+# Resolve the script's absolute directory to reliably call other scripts.
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 1. Check for required command-line tools.
+# Verify that all required command-line tools are available.
 for cmd in fzf gcloud curl jq; do
     if ! command -v "$cmd" &> /dev/null; then
-        echo "Error: Required command '$cmd' is not installed." >&2
+        echo "Error: Required command '$cmd' is not installed or not in your PATH." >&2
         exit 1
     fi
 done
 
 # --- FUNCTIONS ---
 
-# Function to get a cached or new Google Cloud access token.
+# Retrieves a cached Google Cloud access token or generates a new one
+# if the cache is missing or has expired (older than 55 minutes).
 get_token() {
     local token_cache="${TMPDIR:-/tmp}/gemini_token.txt"
     local token=""
     local mtime
     
+    # Get file modification time in a cross-platform way (macOS vs Linux)
     if [[ "$OSTYPE" == "darwin"* ]]; then
         mtime=$(stat -f %m "$token_cache" 2>/dev/null || echo 0)
     else
         mtime=$(stat -c %Y "$token_cache" 2>/dev/null || echo 0)
     fi
 
+    # Use cached token if it's less than 3300 seconds (55 minutes) old.
     if [[ -f "$token_cache" && $(($(date +%s) - mtime)) -lt 3300 ]]; then
         token=$(cat "$token_cache")
     fi
 
+    # If no valid token, fetch a new one from gcloud.
     if [[ -z "$token" ]]; then
         token=$(gcloud auth print-access-token --scopes=https://www.googleapis.com/auth/generative-language)
         if [[ -n "$token" ]]; then
@@ -50,16 +54,16 @@ get_token() {
     echo "$token"
 }
 
-# Helper function to echo the message then send it
+# A helper function to display a message to the user before sending it to the AI.
 send_prompt() {
     local msg="$1"
-    echo "$msg"
+    echo "Sending prompt: \"$msg\""
     "$BASE_DIR/a" "$msg"
 }
 
 # --- MAIN EXECUTION ---
 
-# 1. Define the options
+# Define the list of actions for the user to choose from.
 options=(
     "list-models"
     "analyze-project"
@@ -69,81 +73,78 @@ options=(
     "cheat-sheet"
 )
 
-# 2. FZF Selection
+# Use fzf to display an interactive menu and capture the user's selection.
 ACTION=$(printf "%s\n" "${options[@]}" | fzf --prompt="Select an action > ")
 
 if [[ -z "$ACTION" ]]; then
-    echo "No selection made."
+    echo "No selection made. Exiting."
     exit 0
 fi
 
 echo "Action selected: '${ACTION}'"
 
-# 3. Execute Action
+# Execute the chosen action.
 case "$ACTION" in
     "list-models")
         TOKEN=$(get_token) || exit 1
-        echo "Fetching models..."
+        echo "Fetching available models..."
         RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models" \
           -H "Authorization: Bearer $TOKEN")
         
-        # Check if response is valid JSON
+        # Validate that the API returned valid JSON.
         if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
-            echo "Error: Invalid API response." >&2
+            echo "Error: Invalid API response. The server may be down." >&2
             echo "Raw output: $RESPONSE"
             exit 1
         fi
 
-        # Check for API Error object
+        # Check for a specific API error message within the JSON.
         if echo "$RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
              echo -e "\033[31mAPI Error:\033[0m"
              echo "$RESPONSE" | jq -r '.error.message'
              exit 1
         fi
         
-        # Success output
+        # If successful, print the list of model names.
         echo "$RESPONSE" | jq -r '.models[].name'
         ;;
 
     "analyze-project")
-        # Create a temporary file to hold the project dump content
+        # Create a temporary file to hold the project dump to avoid command-line length limits.
         DUMP_FILE=$(mktemp) || { echo "Failed to create temporary file." >&2; exit 1; }
-        
-        # Ensure the temporary file is cleaned up on script exit
-        trap 'rm -f "$DUMP_FILE"' EXIT
+        trap 'rm -f "$DUMP_FILE"' EXIT # Ensure cleanup on exit.
 
-        echo "Gathering project statistics..."
+        echo "Dumping project structure and contents..."
         
-        # Run dump.sh, redirecting main content to the temp file.
-        # The stats from dump.sh (on stderr) will be displayed to the user.
+        # Run dump.sh, redirecting its main output to the temp file.
+        # The stats from dump.sh (on stderr) will be displayed directly to the user.
         "$BASE_DIR/dump.sh" . > "$DUMP_FILE"
 
-        # Show the current path being analyzed
         echo -e "\033[0;36m[Path] $(pwd)\033[0m"
 
-        # Ask for user confirmation, showing the stats first.
+        # Ask for user confirmation before sending the data.
         read -p "Do you want to proceed with sending this data for analysis? (y/N) " -n 1 -r
-        echo # Move to a new line for cleaner output
+        echo # Move to a new line for cleaner output.
 
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             echo "Proceeding with analysis..."
-            # Pipe the captured content from the temp file to the 'a' script
-            cat "$DUMP_FILE" | "$BASE_DIR/a" "Please analyze the following project."
+            # Pipe the captured project content from the temp file to the 'a' script.
+            cat "$DUMP_FILE" | "$BASE_DIR/a" "Please provide a high-level analysis of the following project."
         else
             echo "Analysis aborted by user."
         fi
         ;;
 
     "code-review")
-        send_prompt "Please code review this project. Focus on logic errors, security, and best practices."
+        send_prompt "Please perform a code review on the provided project content. Focus on potential bugs, security vulnerabilities, adherence to best practices, and opportunities for simplification."
         ;;
 
     "ext-dependency")
-        send_prompt "List all external dependencies found in this code. Show if authentication is needed and how it is provided."
+        send_prompt "Analyze the provided code and list all external dependencies. For each, specify if authentication is required and, if possible, how it appears to be implemented (e.g., API key in environment variable, OAuth)."
         ;;
 
     "code-only")
-        send_prompt "Please just output the code. I will use your next output to directly replace file content."
+        send_prompt "For your next response, please provide only the raw code. Do not include any explanations, greetings, or markdown fences. I will use the output to directly replace a file's content."
         ;;
 
     "cheat-sheet")
