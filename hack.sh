@@ -23,25 +23,21 @@ done
 # --- FUNCTIONS ---
 
 # Function to get a cached or new Google Cloud access token.
-# This mirrors the efficient caching logic from the main 'a' script.
 get_token() {
     local token_cache="${TMPDIR:-/tmp}/gemini_token.txt"
     local token=""
     local mtime
     
-    # Get file modification time in a cross-platform way (macOS/Linux).
     if [[ "$OSTYPE" == "darwin"* ]]; then
         mtime=$(stat -f %m "$token_cache" 2>/dev/null || echo 0)
     else
         mtime=$(stat -c %Y "$token_cache" 2>/dev/null || echo 0)
     fi
 
-    # Check if a valid, non-expired token exists in the cache (55 min expiry).
     if [[ -f "$token_cache" && $(($(date +%s) - mtime)) -lt 3300 ]]; then
         token=$(cat "$token_cache")
     fi
 
-    # If no valid token, fetch a new one and update the cache.
     if [[ -z "$token" ]]; then
         token=$(gcloud auth print-access-token --scopes=https://www.googleapis.com/auth/generative-language)
         if [[ -n "$token" ]]; then
@@ -54,47 +50,58 @@ get_token() {
     echo "$token"
 }
 
+# Helper function to echo the message then send it
+send_prompt() {
+    local msg="$1"
+    echo "$msg"
+    "$BASE_DIR/a" "$msg"
+}
+
 # --- MAIN EXECUTION ---
 
-# 1. Define the options for the interactive menu.
+# 1. Define the options
 options=(
     "list-models"
     "analyze-project"
-    "code-only"
     "code-review"
     "ext-dependency"
+    "code-only"
     "cheat-sheet"
-    "open-source"
 )
 
-# 2. Use fzf to prompt the user for a selection.
+# 2. FZF Selection
 ACTION=$(printf "%s\n" "${options[@]}" | fzf --prompt="Select an action > ")
 
-# Exit if the user made no selection (e.g., pressed Esc).
 if [[ -z "$ACTION" ]]; then
-    echo "No selection made. Aborting."
+    echo "No selection made."
     exit 0
 fi
 
 echo "Action selected: '${ACTION}'"
 
-# 3. Use a case statement to execute the chosen action.
+# 3. Execute Action
 case "$ACTION" in
     "list-models")
         TOKEN=$(get_token) || exit 1
-        
-        # Fetch data from the API.
+        echo "Fetching models..."
         RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models" \
           -H "Authorization: Bearer $TOKEN")
         
-        # Validate that the API returned valid JSON before processing.
+        # Check if response is valid JSON
         if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
-            echo "Error: API did not return valid JSON." >&2
-            echo "Raw Response: $RESPONSE" >&2
+            echo "Error: Invalid API response." >&2
+            echo "Raw output: $RESPONSE"
             exit 1
         fi
+
+        # Check for API Error object
+        if echo "$RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
+             echo -e "\033[31mAPI Error:\033[0m"
+             echo "$RESPONSE" | jq -r '.error.message'
+             exit 1
+        fi
         
-        # Process and print the model names.
+        # Success output
         echo "$RESPONSE" | jq -r '.models[].name'
         ;;
 
@@ -127,25 +134,35 @@ case "$ACTION" in
         fi
         ;;
 
-    "code-only")
-        "$BASE_DIR/a" "Please just output the code. I will use your next output to directly replace file content."
-        ;;
-
     "code-review")
-        "$BASE_DIR/a" "Please code review this project."
+        send_prompt "Please code review this project. Focus on logic errors, security, and best practices."
         ;;
 
     "ext-dependency")
-        "$BASE_DIR/a" "List all external dependencies. Show if authentication is needed and how it is provided."
+        send_prompt "List all external dependencies found in this code. Show if authentication is needed and how it is provided."
+        ;;
+
+    "code-only")
+        send_prompt "Please just output the code. I will use your next output to directly replace file content."
         ;;
 
     "cheat-sheet")
         cat <<'EOF'
-a "$(<file.txt)"
-a "$(cat <<'EOF'
+-------------------------------------
+ CHEAT SHEET
+-------------------------------------
+1. File Input:
+   a "$(<file.txt)"
+
+2. Heredoc Input:
+   a "$(cat <<'END'
+   Your multi-line text here
+   END
+   )"
+
+3. Pipe Input:
+   cat file.txt | a "Summarize this"
+-------------------------------------
 EOF
-        ;;
-    "open-source")
-        "$BASE_DIR/a" "I am just going to open-source this project tell-me. Please check if there is anything missing or wrong."
         ;;
 esac
