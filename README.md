@@ -140,7 +140,12 @@ ait
 
 # 3. Inside the chat, use 'dump' to send the project's code for analysis
 # The '.' refers to your current directory (~/dev/my-other-project)
+
+# Using command substitution:
 a "Please review this project for potential bugs: $(dump .)"
+
+# Or, using a pipe (more robust for very large projects):
+dump . | a "Please review this project for potential bugs:"
 
 # Or, use the interactive helper to choose a task
 h  # --> select "code-review" or "analyze-project" from the menu
