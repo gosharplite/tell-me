@@ -124,7 +124,7 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 *   **`aa`**: Starts **Multi-line Input Mode**. Type or paste text, then press `Ctrl+D` to send.
 *   **`recap`**: Re-renders the full chat history.
     *   `recap -l`: Show only the last response.
-    *   `recap -c`: Extract code blocks from the last response.
+    *   `recap -c`: Extract content from the last response. **Note**: For clean output, instruct the AI to provide "code only" first.
 *   **`dump [dir]`**: Bundles the source code of a project (defaults to the current directory).
 *   **`h`**: Opens an `fzf`-powered menu with shortcuts like:
     *   `analyze-project`: Bundles the current project with `dump` and asks for a general analysis.
