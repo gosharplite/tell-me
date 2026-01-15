@@ -50,29 +50,6 @@ get_token() {
     echo "$token"
 }
 
-# Helper function to dump the project and send a specific prompt
-analyze_with_prompt() {
-    local user_prompt="$1"
-    
-    # Create a temporary file to hold the project dump content
-    local dump_file=$(mktemp) || { echo "Failed to create temporary file." >&2; exit 1; }
-    
-    # Ensure the temporary file is cleaned up
-    trap 'rm -f "$dump_file"' RETURN
-
-    echo "Gathering project statistics..."
-    
-    # Run dump.sh to temp file, displaying stderr stats to user
-    "$BASE_DIR/dump.sh" . > "$dump_file"
-
-    # Show the current path being analyzed
-    echo -e "\033[0;36m[Path] $(pwd)\033[0m"
-    echo "Processing..."
-
-    # Pipe the dump + prompt to the 'a' script immediately (Confirmation removed)
-    cat "$dump_file" | "$BASE_DIR/a" "$user_prompt"
-}
-
 # --- MAIN EXECUTION ---
 
 # 1. Define the options
@@ -123,25 +100,25 @@ case "$ACTION" in
         ;;
 
     "analyze-project")
-        analyze_with_prompt "Please analyze the following project."
+        "$BASE_DIR/a" "Please analyze the following project."
         ;;
 
     "code-review")
-        analyze_with_prompt "Please code review this project. Focus on logic errors, security, and best practices."
+        "$BASE_DIR/a" "Please code review this project. Focus on logic errors, security, and best practices."
         ;;
 
     "ext-dependency")
-        analyze_with_prompt "List all external dependencies found in this code. Show if authentication is needed and how it is provided."
+        "$BASE_DIR/a" "List all external dependencies found in this code. Show if authentication is needed and how it is provided."
         ;;
 
     "open-source")
-        analyze_with_prompt "I am planning to open-source this project. Please review the code for any hardcoded secrets, sensitive paths, or missing licenses."
+        "$BASE_DIR/a" "I am planning to open-source this project. Please review the code for any hardcoded secrets, sensitive paths, or missing licenses."
         ;;
 
     "code-only")
-        # This remains text-only as it is usually a modifier for a previous request
-        "$BASE_DIR/a" "Please just output the code. I will use your next output to directly replace file content."
-        echo "Please just output the code. I will use your next output to directly replace file content."
+        MSG="Please just output the code. I will use your next output to directly replace file content."
+        echo "$MSG"
+        "$BASE_DIR/a" "$MSG"
         ;;
 
     "cheat-sheet")
