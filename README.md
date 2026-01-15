@@ -130,27 +130,33 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
     *   `code-only`: Prompts the AI to provide only code in its next response.
     *   ... and more.
 
-### Example: Analyzing Another Project
-The true power of the global alias is analyzing other projects on the fly.
+### Example: Analyzing Multiple Projects in One Session
+The true power of the global alias is analyzing projects on the fly. Because `ait` starts an interactive sub-shell, you can navigate your filesystem and analyze multiple projects without restarting.
 
 ```bash
-# 1. Go to any project directory
-cd ~/dev/my-other-project
+# 1. Go to the first project directory
+cd ~/dev/project-alpha
 
 # 2. Start the AI assistant
 ait
+# You are now inside the tell-me sub-shell.
 
-# 3. Inside the chat, use 'dump' to send the project's code for analysis
-# The '.' refers to your current directory (~/dev/my-other-project)
+# 3. Analyze the first project
+# The '.' refers to your current directory (~/dev/project-alpha).
+# Use the interactive helper for a common task:
+user@tell-me:gemini$ h  # --> select "analyze-project" from the menu
 
-# Using command substitution:
-a "Please review this project for potential bugs: $(dump .)"
+# The AI responds with its analysis of project-alpha.
 
-# Or, using a pipe (more robust for very large projects):
-dump . | a "Please review this project for potential bugs:"
+# 4. Navigate to a second project *within the same session*
+user@tell-me:gemini$ cd ../project-beta
 
-# Or, use the interactive helper to choose a task
-h  # --> select "code-review" or "analyze-project" from the menu
+# 5. Analyze the second project, asking for a comparison
+# Now, '.' refers to ~/dev/project-beta.
+# Piping is recommended for sending large projects.
+user@tell-me:gemini$ dump . | a "Now, analyze this second project and compare its architecture to the first one."
+
+# The AI now has the context of both projects and can perform a comparison.
 ```
 
 ### 4. Exit
