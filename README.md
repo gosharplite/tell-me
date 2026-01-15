@@ -156,7 +156,8 @@ user@tell-me:gemini$ cd ../project-beta
 
 # 5. Analyze the second project, asking for a comparison
 # Now, '.' refers to ~/dev/project-beta.
-# Piping is recommended for sending large projects.
+# ⚠️ WARNING: Piping sends the data immediately. Check the dump size first!
+# Run 'dump' alone to see the token estimate if you are unsure about costs.
 user@tell-me:gemini$ dump . | a "Now, analyze this second project and compare its architecture to the first one."
 
 # The AI now has the context of both projects and can perform a comparison.
