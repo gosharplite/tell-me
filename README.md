@@ -125,6 +125,8 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 *   **`recap`**: Re-renders the full chat history.
     *   `recap -l`: Show only the last response.
     *   `recap -c`: Extract content from the last response. **Note**: For clean output, instruct the AI to provide "code only" first.
+    *   `recap -r`: Force raw output (displays raw Markdown and ANSI colors instead of rendering with `glow`).
+    *   `recap -l -r`: Combine flags (e.g., show only the last response in raw format).
 *   **`dump [dir]`**: Bundles the source code of a project (defaults to the current directory).
 *   **`h`**: Opens an `fzf`-powered menu with shortcuts like:
     *   `analyze-project`: Bundles the current project with `dump` and asks for a general analysis.
