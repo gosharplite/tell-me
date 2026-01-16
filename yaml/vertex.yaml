@@ -6,4 +6,4 @@ MODE: "assist-vertext"
 PERSON: "You are an AI assistant. Please respond concisely and accurately in English."
 
 AIURL: "https://asia-east1-aiplatform.googleapis.com/v1/projects/websc-dev-433809/locations/asia-east1/publishers/google/models"
-AIMODEL: "gemini-2.5-flash"
+AIMODEL: "gemini-3-pro-preview"
