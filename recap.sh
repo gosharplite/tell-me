@@ -9,6 +9,7 @@ set -o pipefail
 FILERECAP="$file"
 RAW_MODE="false"
 LAST_ONLY="false"
+LAST_PAIR="false"
 CODE_MODE="false"
 
 # Check environment variable override
@@ -23,6 +24,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -l|--last)
             LAST_ONLY="true"
+            shift
+            ;;
+        -ll)
+            LAST_PAIR="true"
             shift
             ;;
         -c|--code)
@@ -49,7 +54,10 @@ if ! command -v jq &> /dev/null; then
 fi
 
 # --- Determine JQ Filter Scope ---
-if [ "$LAST_ONLY" = "true" ]; then
+if [ "$LAST_PAIR" = "true" ]; then
+    # Slice the last two items
+    JQ_PREFIX='.messages[-2:] | .[]'
+elif [ "$LAST_ONLY" = "true" ]; then
     # Slice the last item only
     JQ_PREFIX='.messages[-1:] | .[]'
 else

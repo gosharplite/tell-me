@@ -124,6 +124,7 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 *   **`aa`**: Starts **Multi-line Input Mode**. Type or paste text, then press `Ctrl+D` to send.
 *   **`recap`**: Re-renders the full chat history.
     *   `recap -l`: Show only the last response.
+    *   `recap -ll`: Show the last user and model messages.
     *   `recap -c`: Extract content from the last response. **Note**: For clean output, instruct the AI to provide "code only" first.
     *   `recap -r`: Force raw output (displays raw Markdown and ANSI colors instead of rendering with `glow`).
     *   `recap -l -r`: Combine flags (e.g., show only the last response in raw format).
