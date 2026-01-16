@@ -82,8 +82,8 @@ elif [[ -f "$file" ]]; then
     echo "-------------------------------------------"
 
     if [[ -f "${file}.log" ]]; then
-        echo -e "\033[0;36m--- Last 5 Usage History Entries ---\033[0m"
-        tail -n 5 "${file}.log"
+        echo -e "\033[0;36m--- Last 3 Usage History Entries ---\033[0m"
+        tail -n 3 "${file}.log"
         echo "-------------------------------------------"
     fi
 
