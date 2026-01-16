@@ -101,9 +101,9 @@ if [[ -n "$MSG" ]]; then
     # If a message is provided on the command line, send it.
     "$BASE_DIR/a" "$MSG"
 elif [[ -f "$file" ]]; then
-    # If no message is provided and a history file exists, show the recap.
+    # If no message is provided and a history file exists, show the summary recap.
     # This now correctly handles resumed sessions.
-    "$BASE_DIR/recap.sh" -ll
+    "$BASE_DIR/recap.sh" -s 10
 fi
 
 # 4. Enter Interactive Shell
