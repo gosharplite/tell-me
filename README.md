@@ -8,10 +8,11 @@ SPDX-License-Identifier: MIT
 
 # tell-me: A Bash Gemini CLI Assistant
 
-A lightweight, terminal-based interface for Google's Gemini API. The `tell-me` tool allows you to chat with Gemini models directly from your shell, maintaining conversation history in local JSON files and rendering responses with Markdown formatting.
+A lightweight, terminal-based interface for Google's Gemini models. The `tell-me` tool allows you to chat with LLMs directly from your shell via **Google AI Studio** or **Google Vertex AI**, maintaining conversation history in local JSON files and rendering responses with Markdown formatting.
 
 ## 🚀 Features
 
+*   **Dual API Support**: Seamlessly supports both the standard **Gemini API** (AI Studio) and **Vertex AI** (Google Cloud). The tool automatically detects the API type and handles the specific authentication scopes required.
 *   **Run From Anywhere**: Set up a global alias to call the assistant from any directory on your system.
 *   **Context-Aware**: Maintains conversation history automatically in a centralized JSON file.
 *   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last 3 conversation turns, including a total turn count (e.g., 3/99).
@@ -29,7 +30,7 @@ A lightweight, terminal-based interface for Google's Gemini API. The `tell-me` t
 This tool sends the content of your prompts and any files bundled with `dump` to the Google Gemini API. **Do not send sensitive information, proprietary code, or any files containing secrets** like API keys, passwords, or personal data. By using this tool, you are responsible for the data you transmit.
 
 ### API Costs
-Using the Google Gemini API is subject to `Google Cloud's pricing model`. While the tool includes a logger to track token usage, you are responsible for any costs incurred on your Google Cloud account. Please monitor your usage and set up billing alerts in your Google Cloud project.
+Using the Google Gemini API (Vertex AI or Paid Tier) is subject to `Google Cloud's pricing model`. While the tool includes a logger to track token usage, you are responsible for any costs incurred on your Google Cloud account. Please monitor your usage and set up billing alerts in your Google Cloud project.
 
 ## 📋 Prerequisites
 
@@ -68,49 +69,66 @@ gcloud auth application-default set-quota-project <YOUR_PROJECT_ID>
     chmod +x a aa *.sh
     ```
 
-3.  **(Recommended) Create a Global Alias**
-    To run the assistant from any directory, add the following to your shell configuration file (e.g., `~/.bashrc` or `~/.zshrc`). This makes the tool much more convenient to use.
+3.  **Global Alias Setup (Required)**
+    To run the assistant, you **must** set the `AIT_HOME` environment variable and create aliases. Add the following to your shell configuration file (e.g., `~/.bashrc` or `~/.zshrc`).
 
     **Remember to replace `/path/to/your/clone` with the actual path to the directory from step 1.**
 
     ```bash
     # Add to ~/.bashrc or ~/.zshrc
 
-    # Define a home directory for the tell-me CLI Assistant
+    # [REQUIRED] Define the home directory for the tell-me CLI Assistant
     export AIT_HOME="/path/to/your/clone"
 
-    # Main alias: Starts or resumes a session.
-    # It will prompt you if a previous session history exists.
+    # Main alias: Starts or resumes a session (Defaults to Gemini/AI Studio).
     alias ait='$AIT_HOME/tell-me.sh $AIT_HOME/yaml/gemini.yaml'
+    
+    # Vertex AI alias: Starts a session using Google Cloud Vertex AI.
+    alias ait-v='$AIT_HOME/tell-me.sh $AIT_HOME/yaml/vertex.yaml'
 
-    # Optional alias: Always starts a fresh session, deleting any old history.
+    # New Session alias: Always starts a fresh session, deleting any old history.
     alias ait-new='$AIT_HOME/tell-me.sh $AIT_HOME/yaml/gemini.yaml new'
     ```
     After saving the file, reload your shell configuration with `source ~/.bashrc` or `source ~/.zshrc`.
 
 ## ⚙️ Configuration
 
-You can customize the AI's persona, model, and session identifier by editing `yaml/gemini.yaml`.
+You can customize the AI's persona, model, and endpoint by editing the YAML files in the `yaml/` directory. The tool distinguishes between AI Studio and Vertex AI based on the `AIURL`.
 
-The `MODE` key is particularly important as it acts as a unique name for a chat session. Its value is used to automatically generate the names for the history file (e.g., `last-assist-gemini.json`) and any project dumps within the `output` directory. This allows you to maintain separate configurations and conversation histories for different tasks (e.g., one for coding, another for general assistance).
-
-A typical configuration looks like this:
+### 1. Google AI Studio (Default)
+Use `yaml/gemini.yaml` for the standard Gemini API.
 ```yaml
 MODE: "assist-gemini"
 PERSON: "You are a helpful AI..."
 AIMODEL: "gemini-pro-latest"
 AIURL: "https://generativellanguage.googleapis.com/v1beta/models"
 ```
-The tool is pre-configured to work out-of-the-box with the global alias setup, automatically storing all session files in the `output` directory within your cloned project folder.
+
+### 2. Google Vertex AI (Enterprise)
+Use `yaml/vertex.yaml` to connect to Vertex AI on Google Cloud. 
+**Note:** You must edit this file to include your specific Google Cloud **Project ID** and **Region**.
+
+```yaml
+MODE: "assist-vertex"
+PERSON: "You are a helpful AI..."
+# Replace <YOUR_PROJECT_ID> and <LOCATION> (e.g., us-central1)
+AIURL: "https://<LOCATION>-aiplatform.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/locations/<LOCATION>/publishers/google/models"
+AIMODEL: "YOUR_MODEL"
+```
+
+The `MODE` key acts as a unique session identifier. Its value is used to name the history file (e.g., `last-assist-vertex.json`). You can maintain separate histories for Vertex and Gemini simply by using different config files.
 
 ## 💻 Usage
 
 ### 1. Start a Session
-If you've set up the alias, simply type `ait` in your terminal from any directory.
+If you've set up the aliases:
 
 ```bash
-# Start or resume a session
+# Start/Resume standard Gemini session
 ait
+
+# Start/Resume Vertex AI session
+ait-v
 
 # Force a new session, deleting old history
 ait-new
@@ -182,7 +200,7 @@ Type `exit` or press `Ctrl+D` to leave the chat session.
 ## 📝 Notes
 
 *   **Session Resumption**: When you restart `ait` and an old session file is found, you will be shown the recent usage logs and a summary of the last 3 conversation turns (e.g., "Last 3 Conversation Turns (3/99)") before you choose to continue.
-*   **Token Caching**: Access tokens are cached in a temporary directory (`$TMPDIR` or `/tmp`) to speed up sequential requests.
+*   **Token Caching**: Access tokens are cached in a temporary directory (`$TMPDIR` or `/tmp`) to speed up sequential requests. The tool maintains separate caches for Vertex and Gemini scopes.
 *   **Backups**: Every response triggers a versioned backup of the history file.
 *   **Metrics**: Token usage is logged in `<filename>.log` alongside the JSON history.
 

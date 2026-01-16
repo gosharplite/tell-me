@@ -5,5 +5,7 @@ MODE: "assist-vertext"
 
 PERSON: "You are an AI assistant. Please respond concisely and accurately in English."
 
+# Below URL are global for special managed models such as gemini-3-pro-preview.
+# Normal Vertex model follow the README URL pattern.
 AIURL: "https://aiplatform.googleapis.com/v1/projects/websc-dev-433809/locations/global/publishers/google/models"
 AIMODEL: "gemini-3-pro-preview"
