@@ -78,8 +78,12 @@ gcloud auth application-default set-quota-project <YOUR_PROJECT_ID>
     # Define a home directory for the tell-me CLI Assistant
     export AIT_HOME="/path/to/your/clone"
 
-    # Create a convenient alias to start a new session
-    alias ait='$AIT_HOME/tell-me.sh $AIT_HOME/yaml/gemini.yaml new'
+    # Main alias: Starts or resumes a session.
+    # It will prompt you if a previous session history exists.
+    alias ait='$AIT_HOME/tell-me.sh $AIT_HOME/yaml/gemini.yaml'
+
+    # Optional alias: Always starts a fresh session, deleting any old history.
+    alias ait-new='$AIT_HOME/tell-me.sh $AIT_HOME/yaml/gemini.yaml new'
     ```
     After saving the file, reload your shell configuration with `source ~/.bashrc` or `source ~/.zshrc`.
 
@@ -104,11 +108,13 @@ The tool is pre-configured to work out-of-the-box with the global alias setup, a
 If you've set up the alias, simply type `ait` in your terminal from any directory.
 
 ```bash
+# Start or resume a session
 ait
-```
-This will start a new, clean chat session.
 
-To send a message immediately upon starting, you can do:
+# Force a new session, deleting old history
+ait-new
+```
+If an existing session is found, `ait` will ask if you want to continue. To send a message immediately, you can pass it as an argument:
 ```bash
 ait "What is the capital of Mongolia?"
 ```

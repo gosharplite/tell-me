@@ -70,13 +70,32 @@ mkdir -p "$(dirname "$file")"
 
 # 3. Initialize/Handle Context
 if [[ "$ACTION_NEW" == "true" ]]; then
+    # User explicitly requested a new session, so delete the old files.
     [ -f "$file" ] && rm "$file"
     [ -f "${file}.log" ] && rm "${file}.log"
+elif [[ -f "$file" ]]; then
+    # History file exists and 'new' was not specified. Ask the user.
+    echo "An existing session history was found for '$MODE'."
+    read -p "Do you want to continue the previous session? (Y/n) " -n 1 -r
+    echo # Move to a new line after input
+
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        # User chose to start a new session.
+        echo "Starting a new session."
+        rm "$file"
+        rm "${file}.log"
+    else
+        # User chose to continue.
+        echo "Resuming previous session..."
+    fi
 fi
 
 if [[ -n "$MSG" ]]; then
+    # If a message is provided on the command line, send it.
     "$BASE_DIR/a" "$MSG"
-elif [[ "$ACTION_NEW" == "false" ]]; then
+elif [[ -f "$file" ]]; then
+    # If no message is provided and a history file exists, show the recap.
+    # This now correctly handles resumed sessions.
     "$BASE_DIR/recap.sh"
 fi
 
