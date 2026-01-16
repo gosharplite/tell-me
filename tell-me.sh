@@ -77,9 +77,13 @@ elif [[ -f "$file" ]]; then
     # History file exists and 'new' was not specified. Ask the user.
     echo "An existing session history was found for '$MODE'."
     
+    echo -e "\033[0;36m--- Last 6 Conversation Summary ---\033[0m"
+    "$BASE_DIR/recap.sh" -s 6
+    echo "-------------------------------------------"
+
     if [[ -f "${file}.log" ]]; then
-        echo -e "\033[0;36m--- Usage History from Previous Session ---\033[0m"
-        tail -n 10 "${file}.log"
+        echo -e "\033[0;36m--- Last 5 Usage History Entries ---\033[0m"
+        tail -n 5 "${file}.log"
         echo "-------------------------------------------"
     fi
 
@@ -100,10 +104,6 @@ fi
 if [[ -n "$MSG" ]]; then
     # If a message is provided on the command line, send it.
     "$BASE_DIR/a" "$MSG"
-elif [[ -f "$file" ]]; then
-    # If no message is provided and a history file exists, show the summary recap.
-    # This now correctly handles resumed sessions.
-    "$BASE_DIR/recap.sh" -s 10
 fi
 
 # 4. Enter Interactive Shell

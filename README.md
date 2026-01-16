@@ -130,12 +130,12 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 *   **`a "Your message"`**: Sends a single-line message.
 *   **`aa`**: Starts **Multi-line Input Mode**. Type or paste text, then press `Ctrl+D` to send.
 *   **`recap`**: Re-renders the full chat history.
-    *   `recap -s [N]`: Show a one-line **summary** of the last `N` messages (defaults to 10).
-    *   `recap -l`: Show only the last response.
-    *   `recap -ll`: Show the last user and model messages.
+    *   `recap -s [N]`: Show a one-line **summary** of the last `N` messages (default: 10).
+    *   `recap -l [N]`: Show the last `N` messages (default: 1, the model's last response).
+    *   `recap -ll [N]`: Show the last `N` user/model message pairs (default: 1).
     *   `recap -c`: Extract content from the last response. **Note**: For clean output, instruct the AI to provide "code only" first.
     *   `recap -r`: Force raw output (displays raw Markdown and ANSI colors instead of rendering with `glow`).
-    *   `recap -l -r`: Combine flags (e.g., show only the last response in raw format).
+    *   `recap -l 3 -r`: Combine flags (e.g., show the last 3 responses in raw format).
 *   **`dump [dir]`**: Bundles the source code of a project (defaults to the current directory).
 *   **`h`**: Opens an `fzf`-powered menu with shortcuts like:
     *   `analyze-project`: Bundles the current project with `dump` and asks for a general analysis.
