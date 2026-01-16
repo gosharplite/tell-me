@@ -83,14 +83,14 @@ elif [[ -f "$file" ]]; then
         echo "-------------------------------------------"
     fi
 
-    read -p "Do you want to continue the previous session? (y/N) " -n 1 -r
+    read -p "Do you want to continue the previous session? (Y/n) " -n 1 -r
     echo # Move to a new line after input
 
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        # User chose to continue.
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        # User chose to continue (default).
         echo "Resuming previous session..."
     else
-        # User chose to start a new session (default).
+        # User chose to start a new session.
         echo "Starting a new session."
         rm "$file"
         [ -f "${file}.log" ] && rm "${file}.log"
