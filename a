@@ -80,8 +80,21 @@ APIDATA=$(jq -n \
   (if $person != "" then {systemInstruction: {parts: [{text: $person}]}} else {} end)'
 )
 
-# 3. Authentication
-TOKEN_CACHE="${TMPDIR:-/tmp}/gemini_token.txt"
+# 3. Authentication (Dynamic Switching)
+
+# Detect API Type based on URL to set Scope and Cache Name
+if [[ "$AIURL" == *"aiplatform.googleapis.com"* ]]; then
+    # Vertex AI requires Cloud Platform scope
+    TARGET_SCOPE="https://www.googleapis.com/auth/cloud-platform"
+    CACHE_SUFFIX="vertex"
+else
+    # AI Studio requires Generative Language scope
+    TARGET_SCOPE="https://www.googleapis.com/auth/generative-language"
+    CACHE_SUFFIX="studio"
+fi
+
+# Use distinct cache files to prevent scope conflicts
+TOKEN_CACHE="${TMPDIR:-/tmp}/gemini_token_${CACHE_SUFFIX}.txt"
 
 get_file_mtime() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -91,7 +104,7 @@ get_file_mtime() {
     fi
 }
 
-# Check cache freshness first, ignoring any potentially stale ENV variable
+# Check cache freshness first
 if [ -f "$TOKEN_CACHE" ]; then
     NOW=$(date +%s)
     LAST_MOD=$(get_file_mtime "$TOKEN_CACHE")
@@ -104,7 +117,7 @@ if [ -f "$TOKEN_CACHE" ]; then
 fi
 
 if [ -z "$TOKEN" ]; then
-    AUTH_ARGS=("--scopes=https://www.googleapis.com/auth/generative-language")
+    AUTH_ARGS=("--scopes=${TARGET_SCOPE}")
     TOKEN=$(gcloud auth print-access-token "${AUTH_ARGS[@]}")
     echo "$TOKEN" > "$TOKEN_CACHE"
 fi

@@ -1,0 +1,21 @@
+# Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
+# SPDX-License-Identifier: MIT
+
+MODE: "assist-vertex"
+
+PERSON: "You are an AI assistant. Please respond concisely and accurately in English."
+
+# Vertex AI Endpoint Configuration
+# -----------------------------------------------------------------------------
+# Replace <YOUR_PROJECT_ID> with your actual Google Cloud Project ID.
+#
+# URL Pattern Guide:
+# 1. Global/Preview Models (e.g., gemini-3-pro-preview):
+#    Use: https://aiplatform.googleapis.com/.../locations/global/...
+#
+# 2. Standard Regional Models (e.g., gemini-1.5-pro in us-central1):
+#    Use: https://us-central1-aiplatform.googleapis.com/.../locations/us-central1/...
+# -----------------------------------------------------------------------------
+
+AIURL: "https://aiplatform.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/locations/global/publishers/google/models"
+AIMODEL: "gemini-3-pro-preview"
