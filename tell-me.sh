@@ -70,14 +70,46 @@ mkdir -p "$(dirname "$file")"
 
 # 3. Initialize/Handle Context
 if [[ "$ACTION_NEW" == "true" ]]; then
+    # User explicitly requested a new session, so delete the old files.
     [ -f "$file" ] && rm "$file"
     [ -f "${file}.log" ] && rm "${file}.log"
+elif [[ -f "$file" ]]; then
+    # History file exists and 'new' was not specified. Ask the user.
+    echo "An existing session history was found for '$MODE'."
+    
+    # Calculate total conversation turns for display
+    TURNS_TO_SHOW=3
+    MESSAGES_TO_RECAP=$(( TURNS_TO_SHOW * 2 ))
+    TOTAL_MESSAGES=$(jq '.messages | length' "$file" 2>/dev/null || echo 0)
+    TOTAL_TURNS=$(( TOTAL_MESSAGES / 2 ))
+
+    echo -e "\033[0;36m--- Last ${TURNS_TO_SHOW} Conversation Turns (${TURNS_TO_SHOW}/${TOTAL_TURNS}) ---\033[0m"
+    "$BASE_DIR/recap.sh" -s "$MESSAGES_TO_RECAP"
+    echo "-------------------------------------------"
+
+    if [[ -f "${file}.log" ]]; then
+        echo -e "\033[0;36m--- Last 3 Usage History Entries ---\033[0m"
+        tail -n 3 "${file}.log"
+        echo "-------------------------------------------"
+    fi
+
+    read -p "Do you want to continue the previous session? (Y/n) " -n 1 -r
+    echo # Move to a new line after input
+
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        # User chose to continue (default).
+        echo "Resuming previous session..."
+    else
+        # User chose to start a new session.
+        echo "Starting a new session."
+        rm "$file"
+        [ -f "${file}.log" ] && rm "${file}.log"
+    fi
 fi
 
 if [[ -n "$MSG" ]]; then
+    # If a message is provided on the command line, send it.
     "$BASE_DIR/a" "$MSG"
-elif [[ "$ACTION_NEW" == "false" ]]; then
-    "$BASE_DIR/recap.sh"
 fi
 
 # 4. Enter Interactive Shell
