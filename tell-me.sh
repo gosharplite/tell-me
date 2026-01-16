@@ -77,8 +77,14 @@ elif [[ -f "$file" ]]; then
     # History file exists and 'new' was not specified. Ask the user.
     echo "An existing session history was found for '$MODE'."
     
-    echo -e "\033[0;36m--- Last 3 Conversation Turns ---\033[0m"
-    "$BASE_DIR/recap.sh" -s 6
+    # Calculate total conversation turns for display
+    TURNS_TO_SHOW=3
+    MESSAGES_TO_RECAP=$(( TURNS_TO_SHOW * 2 ))
+    TOTAL_MESSAGES=$(jq '.messages | length' "$file" 2>/dev/null || echo 0)
+    TOTAL_TURNS=$(( TOTAL_MESSAGES / 2 ))
+
+    echo -e "\033[0;36m--- Last ${TURNS_TO_SHOW} Conversation Turns (${TURNS_TO_SHOW}/${TOTAL_TURNS}) ---\033[0m"
+    "$BASE_DIR/recap.sh" -s "$MESSAGES_TO_RECAP"
     echo "-------------------------------------------"
 
     if [[ -f "${file}.log" ]]; then
