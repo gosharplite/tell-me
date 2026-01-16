@@ -6,5 +6,4 @@ MODE: "assist-gemini"
 PERSON: "You are an AI assistant. Please respond concisely and accurately in English."
 
 AIURL: "https://generativelanguage.googleapis.com/v1beta/models"
-
-AIMODEL: "gemini-pro-latest"
+AIMODEL: "gemini-3-pro-preview"
