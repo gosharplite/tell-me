@@ -76,17 +76,24 @@ if [[ "$ACTION_NEW" == "true" ]]; then
 elif [[ -f "$file" ]]; then
     # History file exists and 'new' was not specified. Ask the user.
     echo "An existing session history was found for '$MODE'."
-    read -p "Do you want to continue the previous session? (Y/n) " -n 1 -r
+    
+    if [[ -f "${file}.log" ]]; then
+        echo -e "\033[0;36m--- Usage History from Previous Session ---\033[0m"
+        tail -n 10 "${file}.log"
+        echo "-------------------------------------------"
+    fi
+
+    read -p "Do you want to continue the previous session? (y/N) " -n 1 -r
     echo # Move to a new line after input
 
-    if [[ $REPLY =~ ^[Nn]$ ]]; then
-        # User chose to start a new session.
-        echo "Starting a new session."
-        rm "$file"
-        rm "${file}.log"
-    else
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
         # User chose to continue.
         echo "Resuming previous session..."
+    else
+        # User chose to start a new session (default).
+        echo "Starting a new session."
+        rm "$file"
+        [ -f "${file}.log" ] && rm "${file}.log"
     fi
 fi
 
