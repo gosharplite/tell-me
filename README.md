@@ -14,7 +14,7 @@ A lightweight, terminal-based interface for Google's Gemini API. The `tell-me` t
 
 *   **Run From Anywhere**: Set up a global alias to call the assistant from any directory on your system.
 *   **Context-Aware**: Maintains conversation history automatically in a centralized JSON file.
-*   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last conversation turns.
+*   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last 3 conversation turns, including a total turn count (e.g., 3/99).
 *   **System Prompts**: Customizable persona and instructions via YAML configuration.
 *   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors).
 *   **Smart Auth**: Uses `gcloud` for authentication with intelligent token caching to minimize latency.
@@ -99,7 +99,7 @@ A typical configuration looks like this:
 MODE: "assist-gemini"
 PERSON: "You are a helpful AI..."
 AIMODEL: "gemini-pro-latest"
-AIURL: "https://generativelanguage.googleapis.com/v1beta/models"
+AIURL: "https://generativellanguage.googleapis.com/v1beta/models"
 ```
 The tool is pre-configured to work out-of-the-box with the global alias setup, automatically storing all session files in the `output` directory within your cloned project folder.
 
@@ -115,7 +115,7 @@ ait
 # Force a new session, deleting old history
 ait-new
 ```
-If an existing session is found, `ait` will ask if you want to continue and will show you the token usage logs and a brief summary of the last conversation. To send a message immediately, you can pass it as an argument:
+If an existing session is found, `ait` will ask if you want to continue. Before prompting, it will show you the last few token usage logs and a summary of the last 3 conversation turns along with the session's total turn count. To send a message immediately, you can pass it as an argument:
 ```bash
 ait "What is the capital of Mongolia?"
 ```
@@ -181,7 +181,7 @@ Type `exit` or press `Ctrl+D` to leave the chat session.
 
 ## 📝 Notes
 
-*   **Session Resumption**: When you restart `ait` and an old session file is found, you will be shown the recent usage logs and a summary of the conversation before you choose to continue.
+*   **Session Resumption**: When you restart `ait` and an old session file is found, you will be shown the recent usage logs and a summary of the last 3 conversation turns (e.g., "Last 3 Conversation Turns (3/99)") before you choose to continue.
 *   **Token Caching**: Access tokens are cached in a temporary directory (`$TMPDIR` or `/tmp`) to speed up sequential requests.
 *   **Backups**: Every response triggers a versioned backup of the history file.
 *   **Metrics**: Token usage is logged in `<filename>.log` alongside the JSON history.
