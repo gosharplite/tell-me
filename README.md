@@ -101,19 +101,32 @@ Use `yaml/gemini.yaml` for the standard Gemini API.
 MODE: "assist-gemini"
 PERSON: "You are a helpful AI..."
 AIMODEL: "gemini-pro-latest"
-AIURL: "https://generativellanguage.googleapis.com/v1beta/models"
+AIURL: "https://generativelanguage.googleapis.com/v1beta/models"
 ```
 
 ### 2. Google Vertex AI (Enterprise)
 Use `yaml/vertex.yaml` to connect to Vertex AI on Google Cloud. 
 **Note:** You must edit this file to include your specific Google Cloud **Project ID** and **Region**.
 
+The `AIURL` structure depends on the model type:
+
+**Standard Regional Models:**
+Use this pattern for standard availability (e.g., `us-central1`).
 ```yaml
 MODE: "assist-vertex"
 PERSON: "You are a helpful AI..."
 # Replace <YOUR_PROJECT_ID> and <LOCATION> (e.g., us-central1)
 AIURL: "https://<LOCATION>-aiplatform.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/locations/<LOCATION>/publishers/google/models"
-AIMODEL: "YOUR_MODEL"
+AIMODEL: "gemini-1.5-pro"
+```
+
+**Global / Preview Models:**
+Some special managed models (like `gemini-3-pro-preview`) use the global endpoint.
+```yaml
+MODE: "assist-vertex"
+# Global endpoint does not use the location prefix in the domain
+AIURL: "https://aiplatform.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/locations/global/publishers/google/models"
+AIMODEL: "gemini-3-pro-preview"
 ```
 
 The `MODE` key acts as a unique session identifier. Its value is used to name the history file (e.g., `last-assist-vertex.json`). You can maintain separate histories for Vertex and Gemini simply by using different config files.
