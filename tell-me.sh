@@ -77,8 +77,8 @@ elif [[ -f "$file" ]]; then
     # History file exists and 'new' was not specified. Ask the user.
     echo "An existing session history was found for '$MODE'."
     
-    echo -e "\033[0;36m--- Last 6 Conversation Summary ---\033[0m"
-    "$BASE_DIR/recap.sh" -s 6
+    echo -e "\033[0;36m--- Last 3 Conversation Summary ---\033[0m"
+    "$BASE_DIR/recap.sh" -s 3
     echo "-------------------------------------------"
 
     if [[ -f "${file}.log" ]]; then
