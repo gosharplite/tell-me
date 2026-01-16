@@ -14,6 +14,7 @@ A lightweight, terminal-based interface for Google's Gemini API. The `tell-me` t
 
 *   **Run From Anywhere**: Set up a global alias to call the assistant from any directory on your system.
 *   **Context-Aware**: Maintains conversation history automatically in a centralized JSON file.
+*   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last conversation turns.
 *   **System Prompts**: Customizable persona and instructions via YAML configuration.
 *   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors).
 *   **Smart Auth**: Uses `gcloud` for authentication with intelligent token caching to minimize latency.
@@ -114,7 +115,7 @@ ait
 # Force a new session, deleting old history
 ait-new
 ```
-If an existing session is found, `ait` will ask if you want to continue. To send a message immediately, you can pass it as an argument:
+If an existing session is found, `ait` will ask if you want to continue and will show you the token usage logs and a brief summary of the last conversation. To send a message immediately, you can pass it as an argument:
 ```bash
 ait "What is the capital of Mongolia?"
 ```
@@ -129,6 +130,7 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 *   **`a "Your message"`**: Sends a single-line message.
 *   **`aa`**: Starts **Multi-line Input Mode**. Type or paste text, then press `Ctrl+D` to send.
 *   **`recap`**: Re-renders the full chat history.
+    *   `recap -s [N]`: Show a one-line **summary** of the last `N` messages (defaults to 10).
     *   `recap -l`: Show only the last response.
     *   `recap -ll`: Show the last user and model messages.
     *   `recap -c`: Extract content from the last response. **Note**: For clean output, instruct the AI to provide "code only" first.
@@ -140,6 +142,8 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
     *   `code-review`: Asks the AI to perform a code review.
     *   `ext-dependency`: Asks the AI to list external dependencies and their auth methods.
     *   `code-only`: Prompts the AI to provide only code in its next response.
+    *   `list-models`: Fetches and displays available Gemini models from the API.
+    *   `cheat-sheet`: Shows examples of different ways to pipe input.
     *   ... and more.
 
 ### Example: Analyzing Multiple Projects in One Session
@@ -155,7 +159,7 @@ ait
 
 # 3. Analyze the first project
 # The '.' refers to your current directory (~/dev/project-alpha).
-# Use the interactive helper for a common task:
+# Use the interactive helper for a common task. It will ask for confirmation before sending.
 user@tell-me:gemini$ h  # --> select "analyze-project" from the menu
 
 # The AI responds with its analysis of project-alpha.
@@ -177,6 +181,7 @@ Type `exit` or press `Ctrl+D` to leave the chat session.
 
 ## 📝 Notes
 
+*   **Session Resumption**: When you restart `ait` and an old session file is found, you will be shown the recent usage logs and a summary of the conversation before you choose to continue.
 *   **Token Caching**: Access tokens are cached in a temporary directory (`$TMPDIR` or `/tmp`) to speed up sequential requests.
 *   **Backups**: Every response triggers a versioned backup of the history file.
 *   **Metrics**: Token usage is logged in `<filename>.log` alongside the JSON history.
