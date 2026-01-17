@@ -109,7 +109,7 @@ fi
 
 if [[ -n "$MSG" ]]; then
     # If a message is provided on the command line, send it.
-    "$BASE_DIR/a" "$MSG"
+    "$BASE_DIR/a.sh" "$MSG"
 fi
 
 # 4. Enter Interactive Shell
@@ -117,7 +117,7 @@ if [[ "$SKIP_BASH" == "false" ]]; then
     FILENAME=$(basename "$CONFIG" .yaml)
     
     bash --rcfile <(cat <<EOF
-alias a='"$BASE_DIR/a"'
+alias a='"$BASE_DIR/a.sh"'
 alias aa='"$BASE_DIR/aa.sh"'
 alias recap='"$BASE_DIR/recap.sh"'
 alias h='"$BASE_DIR/hack.sh"'

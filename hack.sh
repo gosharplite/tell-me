@@ -58,7 +58,7 @@ get_token() {
 send_prompt() {
     local msg="$1"
     echo "Sending prompt: \"$msg\""
-    "$BASE_DIR/a" "$msg"
+    "$BASE_DIR/a.sh" "$msg"
 }
 
 # --- MAIN EXECUTION ---
@@ -130,7 +130,7 @@ case "$ACTION" in
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             echo "Proceeding with analysis..."
             # Pipe the captured project content from the temp file to the 'a' script.
-            cat "$DUMP_FILE" | "$BASE_DIR/a" "Please provide a high-level analysis of the following project."
+            cat "$DUMP_FILE" | "$BASE_DIR/a.sh" "Please provide a high-level analysis of the following project."
         else
             echo "Analysis aborted by user."
         fi

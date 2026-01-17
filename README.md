@@ -66,7 +66,7 @@ gcloud auth application-default set-quota-project <YOUR_PROJECT_ID>
 2.  **Make scripts executable**:
     This command ensures all necessary scripts in the project are runnable.
     ```bash
-    chmod +x a *.sh
+    chmod +x *.sh
     ```
 
 3.  **Global Alias Setup (Required)**
