@@ -70,6 +70,7 @@ options=(
     "code-review"
     "ext-dependency"
     "code-only"
+    "show-last"
     "cheat-sheet"
 )
 
@@ -145,6 +146,11 @@ case "$ACTION" in
 
     "code-only")
         send_prompt "For your next response, please provide only the raw code. Do not include any explanations, greetings, or markdown fences. I will use the output to directly replace a file's content."
+        ;;
+
+    "show-last")
+        # Display the last user/model pair using the pager
+        "$BASE_DIR/recap.sh" -ll | more
         ;;
 
     "cheat-sheet")
