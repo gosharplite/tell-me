@@ -118,7 +118,7 @@ if [[ "$SKIP_BASH" == "false" ]]; then
     
     bash --rcfile <(cat <<EOF
 alias a='"$BASE_DIR/a"'
-alias aa='"$BASE_DIR/aa"'
+alias aa='"$BASE_DIR/aa.sh"'
 alias recap='"$BASE_DIR/recap.sh"'
 alias h='"$BASE_DIR/hack.sh"'
 alias dump='"$BASE_DIR/dump.sh"'
