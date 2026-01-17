@@ -9,11 +9,12 @@ set -o pipefail
 FILERECAP="$file"
 RAW_MODE="false"
 CODE_MODE="false"
+NO_CODE="false"
 LAST_MESSAGES=0
 LAST_PAIRS=0
 SUMMARY_MESSAGES=0
-HEAD_LINES=0 # Variable for limiting lines from top
-TAIL_LINES=0 # Variable for limiting lines from bottom
+HEAD_LINES=0
+TAIL_LINES=0
 
 # Check environment variable override
 if [ "${RAW:-false}" = "true" ]; then RAW_MODE="true"; fi
@@ -48,6 +49,12 @@ while [[ $# -gt 0 ]]; do
             LAST_MESSAGES=1 # Force showing last message for code extraction
             shift
             ;;
+        # --- NEW FLAG: Hide Code Blocks (-nc) ---
+        -nc|--no-code)
+            NO_CODE="true"
+            shift
+            ;;
+        # ----------------------------------------
         -s|--summary)
             SUMMARY_MESSAGES=10 # Default to last 10 if no number is given
             if [[ "$2" =~ ^[0-9]+$ ]]; then
@@ -56,7 +63,6 @@ while [[ $# -gt 0 ]]; do
             fi
             shift
             ;;
-        # Argument for limiting output lines from the top (head)
         -t|--top)
             if [[ "$2" =~ ^[0-9]+$ ]]; then
                 HEAD_LINES=$2
@@ -67,7 +73,6 @@ while [[ $# -gt 0 ]]; do
             fi
             shift
             ;;
-        # Argument for limiting output lines from the bottom (tail)
         -b|--bottom)
             if [[ "$2" =~ ^[0-9]+$ ]]; then
                 TAIL_LINES=$2
@@ -124,7 +129,7 @@ produce_output() {
         return
     fi
 
-    # Mode 1: Code/Content Only
+    # Mode 1: Code/Content Only (Extract Code)
     if [ "$CODE_MODE" = "true" ]; then
       jq -r "
         $JQ_PREFIX |
@@ -133,6 +138,16 @@ produce_output() {
       return
     fi
 
+    # Helper: Apply No-Code Filter if requested
+    # Removes any content between triple backticks, including the backticks.
+    apply_filters() {
+        if [ "$NO_CODE" = "true" ]; then
+            sed '/^```/,/^```/d'
+        else
+            cat
+        fi
+    }
+
     # Mode 2: Markdown (Glow)
     if [ "$RAW_MODE" = "false" ] && command -v glow >/dev/null 2>&1; then
       jq -r "
@@ -140,7 +155,7 @@ produce_output() {
         (if .role == \"user\" then \"## 👤 USER\" else \"## 🤖 MODEL\" end) + \"\\n\" +
         ((.parts // []) | map(.text // \"*[Non-text content]*\") | join(\"\")) +
         \"\\n\\n---\"
-      " "$FILERECAP" | glow -
+      " "$FILERECAP" | apply_filters | glow -
 
     # Mode 3: Raw/ANSI Fallback
     else
@@ -149,7 +164,7 @@ produce_output() {
         (if .role == \"user\" then \"\\u001b[1;32m[USER]\" else \"\\u001b[1;34m[MODEL]\" end) +
         \"\\u001b[0m: \" +
         ((.parts // []) | map(.text // \"<Non-text content>\") | join(\"\")) + \"\\n\"
-      " "$FILERECAP"
+      " "$FILERECAP" | apply_filters
     fi
 }
 

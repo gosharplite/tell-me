@@ -188,13 +188,17 @@ else
 fi
 
 LOG_FILE="${file}.log"
-STATS_MSG=$(printf "[%s] Hit/Miss: %-7d / %-7d. Comp: %-5d. Total: %-7d. New: %-7d (%3d%%)" \
-  "$(date +%H:%M:%S)" "$HIT" "$MISS" "$COMPLETION" "$TOTAL" "$NEWTOKEN" "$PERCENT")
+# Append duration to the log for future analysis
+STATS_MSG=$(printf "[%s] Hit/Miss: %-7d / %-7d. Comp: %-5d. Total: %-7d. New: %-7d (%3d%%) [%.2fs]" \
+  "$(date +%H:%M:%S)" "$HIT" "$MISS" "$COMPLETION" "$TOTAL" "$NEWTOKEN" "$PERCENT" "$DURATION")
 echo "$STATS_MSG" >> "$LOG_FILE"
 
 if [ -f "$LOG_FILE" ]; then
     echo -e "\033[0;36m--- Usage History ---\033[0m"
     tail -n 3 "$LOG_FILE"
+    echo ""
+    # Calculate and display aggregated stats for the session
+    awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m\n", h, m, c, t }' "$LOG_FILE"
 fi
 
 if [ -f "${file}" ]; then
