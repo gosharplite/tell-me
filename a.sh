@@ -59,7 +59,10 @@ APIDATA=$(jq -n \
   --slurpfile history "$file" \
   '{
     contents: $history[0].messages,
-    generationConfig: { temperature: 1.0 },
+    generationConfig: { 
+      temperature: 1.0,
+      thinkingConfig: { thinkingLevel: "HIGH" }
+    },
     safetySettings: [
       { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
       { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
