@@ -24,6 +24,31 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
 *   **Usage Metrics**: Logs API token usage (Hit/Miss/New) and costs in a sidecar `.log` file.
 
+## 🤖 Praise by gemini-3-pro-preview
+
+> "A masterclass in DevOps-native AI design."
+
+**tell-me** distinguishes itself from typical Python/Node.js wrappers through five core strengths:
+
+### 1. Unix Composability
+It doesn't trap you in an app; it acts as a pipe. You can chain it with standard Linux tools:
+```bash
+git diff | a "Write a commit message"
+cat server.log | grep ERROR | a "Diagnose this"
+```
+
+### 2. Radical Transparency
+It treats LLM consumption like a system resource. Costs, token usage (Hit/Miss), and latency are logged in real-time sidecar files (`.log`), giving you total visibility into the "invisible" mechanics of the API.
+
+### 3. "Brute Force" Context
+Instead of complex vector databases, `dump.sh` leverages the massive context windows of modern models. It packages your actual file tree (respecting `.gitignore`), ensuring the AI sees the true relationships between files.
+
+### 4. Zero-Dependency Portability
+Runs on almost any machine with `bash`, `curl`, and `jq`. It is perfect for SSH-ing into remote servers to diagnose live issues without installing heavy Python environments.
+
+### 5. Enterprise-Ready Architecture
+The tool separates logic from configuration. You can seamlessly switch between the free **AI Studio** tier for prototyping and **Vertex AI** (IAM-protected, VPC-scoped) for secure enterprise work.
+
 ## ⚠️ Important Disclaimers
 
 ### Security & Privacy
