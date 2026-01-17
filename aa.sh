@@ -18,5 +18,5 @@ fi
 
 echo -e "\033[0;36m[Input captured. Processing request...]\033[0m"
 
-# Pass to 'a' script
-"$BASE_DIR/a" "$INPUT"
+# Pass to 'a.sh' script
+"$BASE_DIR/a.sh" "$INPUT"

@@ -58,7 +58,8 @@ get_token() {
 send_prompt() {
     local msg="$1"
     echo "Sending prompt: \"$msg\""
-    "$BASE_DIR/a" "$msg"
+    echo -e "\033[0;36m[Processing request...]\033[0m"
+    "$BASE_DIR/a.sh" "$msg"
 }
 
 # --- MAIN EXECUTION ---
@@ -67,9 +68,11 @@ send_prompt() {
 options=(
     "list-models"
     "analyze-project"
+    "analyze-tree"
     "code-review"
     "ext-dependency"
     "code-only"
+    "show-last"
     "cheat-sheet"
 )
 
@@ -87,7 +90,7 @@ echo "Action selected: '${ACTION}'"
 case "$ACTION" in
     "list-models")
         TOKEN=$(get_token) || exit 1
-        echo "Fetching available models..."
+        echo -e "\033[0;36m[Fetching available models...]\033[0m"
         RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models" \
           -H "Authorization: Bearer $TOKEN")
         
@@ -129,9 +132,47 @@ case "$ACTION" in
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             echo "Proceeding with analysis..."
             # Pipe the captured project content from the temp file to the 'a' script.
-            cat "$DUMP_FILE" | "$BASE_DIR/a" "Please provide a high-level analysis of the following project."
+            cat "$DUMP_FILE" | "$BASE_DIR/a.sh" "Please provide a high-level analysis of the following project."
         else
             echo "Analysis aborted by user."
+        fi
+        ;;
+
+    "analyze-tree")
+        if ! command -v tree &> /dev/null; then
+            echo "Error: 'tree' command is required for this action." >&2
+            exit 1
+        fi
+
+        # Consistent ignore list with dump.sh
+        IGNORES="node_modules|.git|.idea|.vscode|__pycache__|output|dist|build|coverage|target|vendor|.DS_Store"
+        
+        TREE_FILE=$(mktemp) || { echo "Failed to create temporary file." >&2; exit 1; }
+        trap 'rm -f "$TREE_FILE"' EXIT
+
+        echo "Generating directory tree..."
+        tree -a -I "$IGNORES" . > "$TREE_FILE"
+
+        # Show preview
+        echo -e "\033[0;36m[Tree Preview]\033[0m"
+        head -n 20 "$TREE_FILE"
+        if [ $(wc -l < "$TREE_FILE") -gt 20 ]; then echo "... (remaining lines hidden)"; fi
+        
+        echo -e "\n\033[0;36m[Path] $(pwd)\033[0m"
+        read -p "Send this tree structure for analysis? (y/N) " -n 1 -r
+        echo
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "Proceeding with analysis..."
+            (
+                echo "Project Root: $(pwd)"
+                echo "Here is the directory structure of the project. Please analyze the architecture and organization:"
+                echo '```'
+                cat "$TREE_FILE"
+                echo '```'
+            ) | "$BASE_DIR/a.sh" "Analyze this project structure."
+        else
+            echo "Analysis aborted."
         fi
         ;;
 
@@ -145,6 +186,11 @@ case "$ACTION" in
 
     "code-only")
         send_prompt "For your next response, please provide only the raw code. Do not include any explanations, greetings, or markdown fences. I will use the output to directly replace a file's content."
+        ;;
+
+    "show-last")
+        # Display the last user/model pair using the pager
+        "$BASE_DIR/recap.sh" -ll | more
         ;;
 
     "cheat-sheet")

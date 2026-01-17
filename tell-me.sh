@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
 # SPDX-License-Identifier: MIT
 
-# Usage: ./setup.sh CONFIG [new] [nobash] [message...]
+# Usage: ./tell-me.sh CONFIG [new] [nobash] [message...]
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -88,8 +88,11 @@ elif [[ -f "$file" ]]; then
     echo "-------------------------------------------"
 
     if [[ -f "${file}.log" ]]; then
-        echo -e "\033[0;36m--- Last 3 Usage History Entries ---\033[0m"
+        echo -e "\033[0;36m--- Session Usage Statistics ---\033[0m"
         tail -n 3 "${file}.log"
+        echo ""
+        # Aggregated stats calculation (sums Hit, Miss, Comp, Total fields)
+        awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m\n", h, m, c, t }' "${file}.log"
         echo "-------------------------------------------"
     fi
 
@@ -109,7 +112,7 @@ fi
 
 if [[ -n "$MSG" ]]; then
     # If a message is provided on the command line, send it.
-    "$BASE_DIR/a" "$MSG"
+    "$BASE_DIR/a.sh" "$MSG"
 fi
 
 # 4. Enter Interactive Shell
@@ -117,11 +120,14 @@ if [[ "$SKIP_BASH" == "false" ]]; then
     FILENAME=$(basename "$CONFIG" .yaml)
     
     bash --rcfile <(cat <<EOF
-alias a='"$BASE_DIR/a"'
-alias aa='"$BASE_DIR/aa"'
+alias a='"$BASE_DIR/a.sh"'
+alias aa='"$BASE_DIR/aa.sh"'
 alias recap='"$BASE_DIR/recap.sh"'
 alias h='"$BASE_DIR/hack.sh"'
 alias dump='"$BASE_DIR/dump.sh"'
+stats() {
+    awk '{ gsub(/\./, ""); h+=\$3; m+=\$5; c+=\$7; t+=\$9 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m\n", h, m, c, t }' "\$file.log"
+}
 export PS1="\[\033[01;32m\]\u@tell-me\[\033[00m\]:\[\033[01;35m\]${FILENAME}\[\033[00m\]\$ "
 echo -e "\033[1;34mChat session started using $CONFIG\033[0m"
 echo -e "Type \033[1;32ma \"your message\"\033[0m to chat."
