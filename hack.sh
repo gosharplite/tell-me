@@ -153,12 +153,25 @@ case "$ACTION" in
         echo "Generating directory tree..."
         tree -a -I "$IGNORES" . > "$TREE_FILE"
 
+        # Calculate Stats
+        BYTES=$(wc -c < "$TREE_FILE")
+        TOKENS=$((BYTES / 4))
+        HSIZE=$(awk -v b="$BYTES" 'BEGIN {
+            split("B KB MB GB TB", units);
+            u = 1;
+            while(b >= 1024 && u < 5) { b/=1024; u++ }
+            printf "%.2f %s", b, units[u]
+        }')
+
         # Show preview
         echo -e "\033[0;36m[Tree Preview]\033[0m"
         head -n 20 "$TREE_FILE"
         if [ $(wc -l < "$TREE_FILE") -gt 20 ]; then echo "... (remaining lines hidden)"; fi
         
-        echo -e "\n\033[0;36m[Path] $(pwd)\033[0m"
+        # Display Stats
+        echo -e "\n\033[0;36m[Stats] Size: $HSIZE | Est. Tokens: ~$TOKENS\033[0m"
+
+        echo -e "\033[0;36m[Path] $(pwd)\033[0m"
         read -p "Send this tree structure for analysis? (y/N) " -n 1 -r
         echo
 
