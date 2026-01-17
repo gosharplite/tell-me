@@ -53,6 +53,7 @@ export MODE=$(yq -r '.MODE' "$CONFIG")
 export PERSON=$(yq -r '.PERSON' "$CONFIG")
 export AIURL=$(yq -r '.AIURL' "$CONFIG")
 export AIMODEL=$(yq -r '.AIMODEL' "$CONFIG")
+export KEY_FILE=$(yq -r '.KEY_FILE // ""' "$CONFIG")
 export CONFIG
 
 # Automatically construct the history file path from the MODE variable.
@@ -119,6 +120,13 @@ fi
 if [[ "$SKIP_BASH" == "false" ]]; then
     FILENAME=$(basename "$CONFIG" .yaml)
     
+    # Determine Auth Message
+    if [[ -n "$KEY_FILE" && -f "$KEY_FILE" ]]; then
+        AUTH_INFO="Service Account ($KEY_FILE)"
+    else
+        AUTH_INFO="Standard User Auth (gcloud)"
+    fi
+
     bash --rcfile <(cat <<EOF
 alias a='"$BASE_DIR/a.sh"'
 alias aa='"$BASE_DIR/aa.sh"'
@@ -130,6 +138,7 @@ stats() {
 }
 export PS1="\[\033[01;32m\]\u@tell-me\[\033[00m\]:\[\033[01;35m\]${FILENAME}\[\033[00m\]\$ "
 echo -e "\033[1;34mChat session started using $CONFIG\033[0m"
+echo -e "\033[0;36m[Auth] $AUTH_INFO\033[0m"
 echo -e "Type \033[1;32ma \"your message\"\033[0m to chat."
 EOF
     )

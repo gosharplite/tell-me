@@ -41,9 +41,17 @@ get_token() {
         token=$(cat "$token_cache")
     fi
 
-    # If no valid token, fetch a new one from gcloud.
+    # If no valid token, fetch a new one.
     if [[ -z "$token" ]]; then
-        token=$(gcloud auth print-access-token --scopes=https://www.googleapis.com/auth/generative-language)
+        if [[ -n "$KEY_FILE" && -f "$KEY_FILE" ]]; then
+            # Use Service Account Key File if provided
+            export GOOGLE_APPLICATION_CREDENTIALS="$KEY_FILE"
+            token=$(gcloud auth application-default print-access-token --scopes=https://www.googleapis.com/auth/generative-language)
+        else
+            # Fallback to standard User Auth
+            token=$(gcloud auth print-access-token --scopes=https://www.googleapis.com/auth/generative-language)
+        fi
+
         if [[ -n "$token" ]]; then
             echo "$token" > "$token_cache"
         else

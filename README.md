@@ -12,10 +12,11 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 
 ## 🚀 Features
 
-*   **Dual API Support**: Seamlessly supports both the standard **Gemini API** (AI Studio) and **Vertex AI** (Google Cloud). The tool automatically detects the API type and handles the specific authentication scopes required.
+*   **Dual API Support**: Seamlessly supports both the standard **Gemini API** (AI Studio) and **Vertex AI** (Google Cloud).
+*   **Flexible Authentication**: Support for standard User Credentials (`gcloud auth login`) or **Service Account Keys** (JSON) for automated/headless environments.
 *   **Run From Anywhere**: Set up a global alias to call the assistant from any directory on your system.
 *   **Context-Aware**: Maintains conversation history automatically in a centralized JSON file.
-*   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last 3 conversation turns, including a total turn count (e.g., 3/99).
+*   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last 3 conversation turns.
 *   **System Prompts**: Customizable persona and instructions via YAML configuration.
 *   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors).
 *   **Smart Auth**: Uses `gcloud` for authentication with intelligent token caching to minimize latency.
@@ -62,7 +63,7 @@ Using the Google Gemini API (Vertex AI or Paid Tier) is subject to `Google Cloud
 Ensure the following tools are installed and available in your `$PATH`:
 
 *   **Bash** (4.0+)
-*   **Google Cloud SDK** (`gcloud`) - *Required for authentication*
+*   **Google Cloud SDK** (`gcloud`) - *Required for token generation*
 *   **jq** - *JSON processing*
 *   **yq** - *YAML processing*
     *   **Important**: This project requires the **Go implementation** ([mikefarah/yq](https://github.com/mikefarah/yq)).
@@ -72,13 +73,6 @@ Ensure the following tools are installed and available in your `$PATH`:
 *   **fzf** - *(Optional) Required for the `h` (hack) menu.*
 *   **git** - *(Optional) Improves `dump.sh` by accurately listing files based on `.gitignore` rules.*
 *   **tree** - *(Optional) Provides a visual directory tree in the `dump.sh` output.*
-
-### Initial Setup
-Authenticate with Google Cloud:
-```bash
-gcloud auth login
-gcloud auth application-default set-quota-project <YOUR_PROJECT_ID>
-```
 
 ## 🛠️ Installation & Setup
 
@@ -118,7 +112,24 @@ gcloud auth application-default set-quota-project <YOUR_PROJECT_ID>
 
 ## ⚙️ Configuration
 
-You can customize the AI's persona, model, and endpoint by editing the YAML files in the `yaml/` directory. The tool distinguishes between AI Studio and Vertex AI based on the `AIURL`.
+You can customize the AI's persona, model, and endpoint by editing the YAML files in the `yaml/` directory.
+
+### Authentication Methods
+The tool supports two ways to authenticate with Google Cloud.
+
+1.  **Standard User Auth (Default)**:
+    Requires you to be logged in via CLI.
+    ```bash
+    gcloud auth login
+    gcloud auth application-default set-quota-project <YOUR_PROJECT_ID>
+    ```
+    Leave the `KEY_FILE` field empty in your YAML config.
+
+2.  **Service Account (Key File)**:
+    Ideal for servers or automated environments.
+    1. Download your Service Account JSON key from Google Cloud Console.
+    2. Set the `KEY_FILE` path in your YAML config.
+    3. Ensure the Service Account has the "Generative Language API User" (for AI Studio) or "Vertex AI User" (for Vertex) role.
 
 ### 1. Google AI Studio (Default)
 Use `yaml/gemini.yaml` for the standard Gemini API.
@@ -127,6 +138,9 @@ MODE: "assist-gemini"
 PERSON: "You are a helpful AI..."
 AIMODEL: "gemini-3-pro-preview"
 AIURL: "https://generativelanguage.googleapis.com/v1beta/models"
+
+# Optional: Path to Service Account JSON. Leave empty for User Auth.
+KEY_FILE: "" 
 ```
 
 ### 2. Google Vertex AI (Enterprise)
@@ -143,6 +157,7 @@ PERSON: "You are a helpful AI..."
 # Replace <YOUR_PROJECT_ID> and <LOCATION> (e.g., us-central1)
 AIURL: "https://<LOCATION>-aiplatform.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/locations/<LOCATION>/publishers/google/models"
 AIMODEL: "gemini-1.5-pro"
+KEY_FILE: "/home/user/keys/vertex-key.json"
 ```
 
 **Global / Preview Models:**
@@ -152,6 +167,7 @@ MODE: "assist-vertex"
 # Global endpoint does not use the location prefix in the domain
 AIURL: "https://aiplatform.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/locations/global/publishers/google/models"
 AIMODEL: "gemini-3-pro-preview"
+KEY_FILE: ""
 ```
 
 The `MODE` key acts as a unique session identifier. Its value is used to name the history file (e.g., `last-assist-vertex.json`). You can maintain separate histories for Vertex and Gemini simply by using different config files.

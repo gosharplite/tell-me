@@ -19,3 +19,7 @@ PERSON: "You are an AI assistant. Please respond concisely and accurately in Eng
 
 AIURL: "https://aiplatform.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/locations/global/publishers/google/models"
 AIMODEL: "gemini-3-pro-preview"
+
+# Optional: Path to Service Account Key JSON (e.g., /path/to/key.json).
+# Leave empty to use standard gcloud user authentication.
+KEY_FILE: ""

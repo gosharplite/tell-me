@@ -100,8 +100,13 @@ if [ -f "$TOKEN_CACHE" ]; then
 fi
 
 if [ -z "$TOKEN" ]; then
-    AUTH_ARGS=("--scopes=${TARGET_SCOPE}")
-    TOKEN=$(gcloud auth print-access-token "${AUTH_ARGS[@]}")
+    if [ -n "$KEY_FILE" ] && [ -f "$KEY_FILE" ]; then
+        export GOOGLE_APPLICATION_CREDENTIALS="$KEY_FILE"
+        TOKEN=$(gcloud auth application-default print-access-token --scopes="${TARGET_SCOPE}")
+    else
+        AUTH_ARGS=("--scopes=${TARGET_SCOPE}")
+        TOKEN=$(gcloud auth print-access-token "${AUTH_ARGS[@]}")
+    fi
     echo "$TOKEN" > "$TOKEN_CACHE"
 fi
 
