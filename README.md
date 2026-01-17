@@ -159,6 +159,7 @@ ait nobash "Translate 'hello world' to French"
 Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 
 *   **`a "Your message"`**: Sends a single-line message.
+    *   **Note**: To prevent terminal flooding, responses longer than 20 lines are automatically snipped (showing only the top 10 and bottom 5 lines). Run `recap` (or `recap -l`) to view the full output.
 *   **`aa`**: Starts **Multi-line Input Mode**. Type or paste text, then press `Ctrl+D` to send.
 *   **`stats`**: Displays the aggregated token usage (Hit/Miss/Completion/Total) for the current session.
 *   **`recap`**: Re-renders the full chat history.
