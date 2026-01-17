@@ -12,7 +12,8 @@ CODE_MODE="false"
 LAST_MESSAGES=0
 LAST_PAIRS=0
 SUMMARY_MESSAGES=0
-TAIL_LINES=0 # NEW: Variable for line limiting
+HEAD_LINES=0 # Variable for limiting lines from top
+TAIL_LINES=0 # Variable for limiting lines from bottom
 
 # Check environment variable override
 if [ "${RAW:-false}" = "true" ]; then RAW_MODE="true"; fi
@@ -55,13 +56,24 @@ while [[ $# -gt 0 ]]; do
             fi
             shift
             ;;
-        # NEW: Argument for limiting output lines (tail)
-        -t|--tail)
+        # Argument for limiting output lines from the top (head)
+        -t|--top)
+            if [[ "$2" =~ ^[0-9]+$ ]]; then
+                HEAD_LINES=$2
+                shift
+            else
+                echo "Error: -t requires a number." >&2
+                exit 1
+            fi
+            shift
+            ;;
+        # Argument for limiting output lines from the bottom (tail)
+        -b|--bottom)
             if [[ "$2" =~ ^[0-9]+$ ]]; then
                 TAIL_LINES=$2
                 shift
             else
-                echo "Error: -t requires a number." >&2
+                echo "Error: -b requires a number." >&2
                 exit 1
             fi
             shift
@@ -142,7 +154,9 @@ produce_output() {
 }
 
 # --- Execution ---
-if [ "$TAIL_LINES" -gt 0 ]; then
+if [ "$HEAD_LINES" -gt 0 ]; then
+    produce_output | head -n "$HEAD_LINES"
+elif [ "$TAIL_LINES" -gt 0 ]; then
     produce_output | tail -n "$TAIL_LINES"
 else
     produce_output
