@@ -19,7 +19,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **System Prompts**: Customizable persona and instructions via YAML configuration.
 *   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors).
 *   **Smart Auth**: Uses `gcloud` for authentication with intelligent token caching to minimize latency.
-*   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `dump`, `h`).
+*   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `stats`, `dump`, `h`).
 *   **Continuous Workflow**: Navigate your filesystem with `cd` and analyze multiple projects back-to-back within a single, persistent chat session.
 *   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
 *   **Usage Metrics**: Logs API token usage (Hit/Miss/New) and costs in a sidecar `.log` file.
@@ -100,7 +100,7 @@ Use `yaml/gemini.yaml` for the standard Gemini API.
 ```yaml
 MODE: "assist-gemini"
 PERSON: "You are a helpful AI..."
-AIMODEL: "gemini-pro-latest"
+AIMODEL: "gemini-3-pro-preview"
 AIURL: "https://generativelanguage.googleapis.com/v1beta/models"
 ```
 
@@ -160,13 +160,16 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 
 *   **`a "Your message"`**: Sends a single-line message.
 *   **`aa`**: Starts **Multi-line Input Mode**. Type or paste text, then press `Ctrl+D` to send.
+*   **`stats`**: Displays the aggregated token usage (Hit/Miss/Completion/Total) for the current session.
 *   **`recap`**: Re-renders the full chat history.
     *   `recap -s [N]`: Show a one-line **summary** of the last `N` messages (default: 10).
     *   `recap -l [N]`: Show the last `N` messages (default: 1, the model's last response).
     *   `recap -ll [N]`: Show the last `N` user/model message pairs (default: 1).
     *   `recap -c`: Extract content from the last response. **Note**: For clean output, instruct the AI to provide "code only" first.
+    *   `recap -nc`: **Hide code blocks** (text only). Useful for quickly reading explanations without scrolling through long code.
+    *   `recap -t [N]`: Show only the **top** `N` lines of the rendered output.
+    *   `recap -b [N]`: Show only the **bottom** `N` lines of the rendered output.
     *   `recap -r`: Force raw output (displays raw Markdown and ANSI colors instead of rendering with `glow`).
-    *   `recap -l 3 -r`: Combine flags (e.g., show the last 3 responses in raw format).
 *   **`dump [dir]`**: Bundles the source code of a project (defaults to the current directory).
 *   **`h`**: Opens an `fzf`-powered menu with shortcuts like:
     *   `analyze-project`: Bundles the current project with `dump` and asks for a general analysis.

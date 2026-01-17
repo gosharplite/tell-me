@@ -58,6 +58,7 @@ get_token() {
 send_prompt() {
     local msg="$1"
     echo "Sending prompt: \"$msg\""
+    echo -e "\033[0;36m[Processing request...]\033[0m"
     "$BASE_DIR/a.sh" "$msg"
 }
 
@@ -88,7 +89,7 @@ echo "Action selected: '${ACTION}'"
 case "$ACTION" in
     "list-models")
         TOKEN=$(get_token) || exit 1
-        echo "Fetching available models..."
+        echo -e "\033[0;36m[Fetching available models...]\033[0m"
         RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models" \
           -H "Authorization: Bearer $TOKEN")
         
