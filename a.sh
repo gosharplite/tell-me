@@ -182,17 +182,37 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
 
         echo -e "\033[0;36m[Tool Request] Writing to file: $FC_PATH\033[0m"
 
-        # 2. Execute Action (Write File)
-        mkdir -p "$(dirname "$FC_PATH")"
-        echo "$FC_CONTENT" > "$FC_PATH"
-        WRITE_STATUS=$?
-
-        if [ $WRITE_STATUS -eq 0 ]; then
-            RESULT_MSG="File updated successfully."
-            echo -e "\033[0;32m[Tool Success] File updated.\033[0m"
+        # Security Check: Ensure path is within CWD
+        # Use Python3 if available for reliable cross-platform resolution, otherwise fallback to simple string checks
+        IS_SAFE=false
+        if command -v python3 >/dev/null 2>&1; then
+            # Reliable: Check if absolute target path starts with absolute CWD path
+            REL_CHECK=$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]).startswith(os.getcwd()))" "$FC_PATH")
+            [ "$REL_CHECK" == "True" ] && IS_SAFE=true
+        elif command -v realpath >/dev/null 2>&1; then
+             # Linux standard: Check if realpath matches pwd prefix
+             [ "$(realpath -m "$FC_PATH")" == "$(pwd -P)"* ] && IS_SAFE=true
         else
-            RESULT_MSG="Error: Failed to write file."
-            echo -e "\033[0;31m[Tool Failed] Could not write file.\033[0m"
+             # Fallback: Deny if absolute or contains '..'
+             if [[ "$FC_PATH" != /* && "$FC_PATH" != *".."* ]]; then IS_SAFE=true; fi
+        fi
+
+        if [ "$IS_SAFE" = true ]; then
+            # 2. Execute Action (Write File)
+            mkdir -p "$(dirname "$FC_PATH")"
+            echo "$FC_CONTENT" > "$FC_PATH"
+            WRITE_STATUS=$?
+
+            if [ $WRITE_STATUS -eq 0 ]; then
+                RESULT_MSG="File updated successfully."
+                echo -e "\033[0;32m[Tool Success] File updated.\033[0m"
+            else
+                RESULT_MSG="Error: Failed to write file."
+                echo -e "\033[0;31m[Tool Failed] Could not write file.\033[0m"
+            fi
+        else
+            RESULT_MSG="Error: Security violation. Write path must be within current working directory."
+            echo -e "\033[0;31m[Tool Security Block] Write denied: $FC_PATH\033[0m"
         fi
 
         # 3. Update History with the Model's Request (The Function Call)
