@@ -49,12 +49,10 @@ while [[ $# -gt 0 ]]; do
             LAST_MESSAGES=1 # Force showing last message for code extraction
             shift
             ;;
-        # --- NEW FLAG: Hide Code Blocks (-nc) ---
         -nc|--no-code)
             NO_CODE="true"
             shift
             ;;
-        # ----------------------------------------
         -s|--summary)
             SUMMARY_MESSAGES=10 # Default to last 10 if no number is given
             if [[ "$2" =~ ^[0-9]+$ ]]; then
@@ -114,14 +112,27 @@ else
     JQ_PREFIX='.messages[]'
 fi
 
+# --- Smart Coloring ---
+# If stdout is a terminal (TTY), use ANSI colors.
+# If stdout is a pipe/file, use empty strings (plain text).
+if [ -t 1 ]; then
+    C_USER=$(printf "\033[1;32m")
+    C_MODEL=$(printf "\033[1;34m")
+    C_RESET=$(printf "\033[0m")
+else
+    C_USER=""
+    C_MODEL=""
+    C_RESET=""
+fi
+
 # --- Rendering Function ---
 produce_output() {
     # Mode 0: Summary View
     if [ "$SUMMARY_MESSAGES" -gt 0 ]; then
-        jq -r "
+        jq -r --arg u "$C_USER" --arg m "$C_MODEL" --arg r "$C_RESET" "
           $JQ_PREFIX |
           (
-            (if .role == \"user\" then \"\\u001b[1;32m[USER] \" else \"\\u001b[1;34m[MODEL]\" end) + \"\\u001b[0m: \" +
+            (if .role == \"user\" then \$u + \"[USER] \" else \$m + \"[MODEL]\" end) + \$r + \": \" +
             ((.parts // []) | map(.text // \"\") | join(\"\") | gsub(\"\\n\"; \" \") | gsub(\"[ \t]+\"; \" \")) |
             (if length > 120 then .[0:117] + \"...\" else . end)
           )
@@ -139,7 +150,6 @@ produce_output() {
     fi
 
     # Helper: Apply No-Code Filter if requested
-    # Removes any content between triple backticks, including the backticks.
     apply_filters() {
         if [ "$NO_CODE" = "true" ]; then
             sed '/^```/,/^```/d'
@@ -149,6 +159,7 @@ produce_output() {
     }
 
     # Mode 2: Markdown (Glow)
+    # Note: Glow automatically handles TTY detection and usually strips styles when piped.
     if [ "$RAW_MODE" = "false" ] && command -v glow >/dev/null 2>&1; then
       jq -r "
         $JQ_PREFIX |
@@ -157,12 +168,12 @@ produce_output() {
         \"\\n\\n---\"
       " "$FILERECAP" | apply_filters | glow -
 
-    # Mode 3: Raw/ANSI Fallback
+    # Mode 3: Raw/ANSI Fallback (Manual Coloring)
     else
-      jq -r "
+      jq -r --arg u "$C_USER" --arg m "$C_MODEL" --arg r "$C_RESET" "
         $JQ_PREFIX |
-        (if .role == \"user\" then \"\\u001b[1;32m[USER]\" else \"\\u001b[1;34m[MODEL]\" end) +
-        \"\\u001b[0m: \" +
+        (if .role == \"user\" then \$u + \"[USER]\" else \$m + \"[MODEL]\" end) +
+        \$r + \": \" +
         ((.parts // []) | map(.text // \"<Non-text content>\") | join(\"\")) + \"\\n\"
       " "$FILERECAP" | apply_filters
     fi
