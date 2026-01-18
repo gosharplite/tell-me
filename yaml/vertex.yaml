@@ -23,3 +23,9 @@ AIMODEL: "gemini-3-pro-preview"
 # Optional: Path to Service Account Key JSON (e.g., /path/to/key.json).
 # Leave empty to use standard gcloud user authentication.
 KEY_FILE: ""
+
+# Toggle Grounding (Google Search)
+# true  = Enable real-time web search.
+# false = Disable search (faster, logic/code only).
+# WARNING: When enabled, auto-cache is disabled.
+USE_SEARCH: false

@@ -54,7 +54,11 @@ USER_MSG=$(printf "%s" "$MSG_TEXT" | jq -Rs '{role: "user", parts: [{text: .}]}'
 update_history "$USER_MSG"
 
 # 2. Configure Tools & Auth based on Platform
-TOOLS_JSON='[{ "googleSearch": {} }]'
+if [ "$USE_SEARCH" == "true" ]; then
+    TOOLS_JSON='[{ "googleSearch": {} }]'
+else
+    TOOLS_JSON='[]'
+fi
 
 if [[ "$AIURL" == *"aiplatform.googleapis.com"* ]]; then
     TARGET_SCOPE="https://www.googleapis.com/auth/cloud-platform"

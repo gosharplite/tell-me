@@ -143,6 +143,10 @@ PERSON: "You are a helpful AI..."
 AIMODEL: "gemini-3-pro-preview"
 AIURL: "https://generativelanguage.googleapis.com/v1beta/models"
 
+# Toggle Grounding (Google Search)
+USE_SEARCH: false
+# WARNING: When enabled (true), API caching is disabled, increasing latency and cost.
+
 # Optional: Path to Service Account JSON. Leave empty for User Auth.
 KEY_FILE: "" 
 ```
@@ -162,6 +166,7 @@ PERSON: "You are a helpful AI..."
 AIURL: "https://<LOCATION>-aiplatform.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/locations/<LOCATION>/publishers/google/models"
 AIMODEL: "gemini-1.5-pro"
 KEY_FILE: "/home/user/keys/vertex-key.json"
+USE_SEARCH: false
 ```
 
 **Global / Preview Models:**
@@ -172,6 +177,7 @@ MODE: "assist-vertex"
 AIURL: "https://aiplatform.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/locations/global/publishers/google/models"
 AIMODEL: "gemini-3-pro-preview"
 KEY_FILE: ""
+USE_SEARCH: false
 ```
 
 The `MODE` key acts as a unique session identifier. Its value is used to name the history file (e.g., `last-assist-vertex.json`). You can maintain separate histories for Vertex and Gemini simply by using different config files.
@@ -230,12 +236,12 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 The tool logs usage in a compact format to help you track costs and latency:
 `[HH:MM:SS] H: 0 M: 45201 C: 217 T: 46102 N: 45418(98%) S: 1 [13.5s]`
 
-*   **H**: **Hit** (Cached tokens - cheaper)
-*   **M**: **Miss** (Prompt/Context tokens - standard cost)
-*   **C**: **Completion** (Output tokens - standard cost)
-*   **T**: **Total** tokens
-*   **N**: **New** (Billable) tokens this turn
-*   **S**: **Search Count** (Number of specific Google Search queries performed)
+*   **H**: **Hit** (Cached tokens - cheaper). If Grounding (`USE_SEARCH: true`) is enabled, this will likely be 0.
+*   **M**: **Miss** (Prompt/Context tokens - standard cost).
+*   **C**: **Completion** (Output tokens - standard cost).
+*   **T**: **Total** tokens.
+*   **N**: **New** (Billable) tokens this turn.
+*   **S**: **Search Count** (Number of specific Google Search queries performed).
     *   `S: 0`: No external search used (internal knowledge).
     *   `S: >0`: Grounding used. The tool will list the specific queries below the response.
 

@@ -54,6 +54,18 @@ export PERSON=$(yq -r '.PERSON' "$CONFIG")
 export AIURL=$(yq -r '.AIURL' "$CONFIG")
 export AIMODEL=$(yq -r '.AIMODEL' "$CONFIG")
 export KEY_FILE=$(yq -r '.KEY_FILE // ""' "$CONFIG")
+
+# Load Search Toggle (Robust Logic)
+# 1. Try to read the key. If missing, yq returns "null".
+SEARCH_VAL=$(yq -r '.USE_SEARCH' "$CONFIG")
+
+# 2. If null, default to "true". Otherwise, use the value (true/false).
+if [[ "$SEARCH_VAL" == "null" ]]; then
+    export USE_SEARCH="true"
+else
+    export USE_SEARCH="$SEARCH_VAL"
+fi
+
 export CONFIG
 
 # Automatically construct the history file path from the MODE variable.
@@ -139,6 +151,7 @@ stats() {
 export PS1="\[\033[01;32m\]\u@tell-me\[\033[00m\]:\[\033[01;35m\]${FILENAME}\[\033[00m\]\$ "
 echo -e "\033[1;34mChat session started using $CONFIG\033[0m"
 echo -e "\033[0;36m[Auth] $AUTH_INFO\033[0m"
+echo -e "\033[0;36m[Search] $USE_SEARCH\033[0m"
 echo -e "Type \033[1;32ma \"your message\"\033[0m to chat."
 EOF
     )
