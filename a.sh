@@ -54,10 +54,45 @@ USER_MSG=$(printf "%s" "$MSG_TEXT" | jq -Rs '{role: "user", parts: [{text: .}]}'
 update_history "$USER_MSG"
 
 # 2. Configure Tools & Auth based on Platform
+# ------------------------------------------------------------------
+# Step 1: Define the Function Declaration (Schema)
+# ------------------------------------------------------------------
+read -r -d '' FUNC_DECLARATIONS <<EOM
+[
+  {
+    "name": "update_file",
+    "description": "Overwrites a specific file with new content. Use this to save code or text to a file.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the file to write (e.g., ./README.md)"
+        },
+        "content": {
+          "type": "STRING",
+          "description": "The full text content to write into the file"
+        }
+      },
+      "required": ["filepath", "content"]
+    }
+  }
+]
+EOM
+
+# ------------------------------------------------------------------
+# Step 2: Build the Tools JSON Array
+# ------------------------------------------------------------------
 if [ "$USE_SEARCH" == "true" ]; then
-    TOOLS_JSON='[{ "googleSearch": {} }]'
+    # Include both Google Search and Function Declarations
+    TOOLS_JSON=$(jq -n \
+        --argjson funcs "$FUNC_DECLARATIONS" \
+        '[{ "googleSearch": {} }, { "functionDeclarations": $funcs }]')
 else
-    TOOLS_JSON='[]'
+    # Include only Function Declarations
+    TOOLS_JSON=$(jq -n \
+        --argjson funcs "$FUNC_DECLARATIONS" \
+        '[{ "functionDeclarations": $funcs }]')
 fi
 
 if [[ "$AIURL" == *"aiplatform.googleapis.com"* ]]; then
@@ -77,8 +112,8 @@ APIDATA=$(jq -n \
     contents: $history[0].messages,
     tools: $tools,
     generationConfig: { 
-      temperature: 1.0,
-      thinkingConfig: { thinkingLevel: "HIGH" }
+      temperature: 1.0
+      # thinkingConfig removed to prevent conflicts with function calling
     },
     safetySettings: [
       { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
