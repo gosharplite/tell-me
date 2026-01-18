@@ -57,7 +57,7 @@ if ! command -v yq &> /dev/null; then
     exit 1
 fi
 
-# The Python wrapper (kislyuk/yq) and other variants have incompatible syntax.
+# The Python wrapper (kislyuk/yq) has incompatible syntax.
 # The Go version (mikefarah/yq) typically outputs "yq (https://github.com/mikefarah/yq/)..."
 if ! yq --version 2>&1 | grep -q -E "mikefarah|github.com/mikefarah/yq"; then
     echo "Error: Incompatible 'yq' implementation detected." >&2
@@ -66,7 +66,6 @@ if ! yq --version 2>&1 | grep -q -E "mikefarah|github.com/mikefarah/yq"; then
     echo "Please install the correct version (e.g., via 'brew install yq' or binary download)." >&2
     exit 1
 fi
-
 # -------------------------------
 
 # 2. Safely load and export variables from YAML with Robust Logic
@@ -116,15 +115,12 @@ fi
 
 export CONFIG
 
-# Automatically construct the history file path from the MODE variable.
-if [[ -n "$AIT_HOME" ]]; then
-    export file="$AIT_HOME/output/last-${MODE}.json"
-else
-    # AIT_HOME is essential for storing session files in a consistent location.
-    echo "Error: The AIT_HOME environment variable is not set." >&2
-    echo "Please define it in your shell profile (e.g., ~/.bashrc)." >&2
-    exit 1
-fi
+# --- AIT_HOME Check (Fallback) ---
+# If AIT_HOME is unset or null, default it to BASE_DIR (the script's directory).
+: "${AIT_HOME:=$BASE_DIR}"
+
+export file="$AIT_HOME/output/last-${MODE}.json"
+# -------------------------------
 
 # Ensure output directory exists
 mkdir -p "$(dirname "$file")"
