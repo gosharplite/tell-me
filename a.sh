@@ -182,16 +182,13 @@ rm "$RECAP_OUT"
 # --------------------------
 
 # 7. Grounding Detection
-HAS_GROUNDING=$(echo "$TEXT" | jq -r 'if .candidates[0].groundingMetadata then "yes" else "no" end')
 SEARCH_COUNT=$(echo "$TEXT" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
 
-if [ "$HAS_GROUNDING" == "yes" ]; then
-    if [ "$SEARCH_COUNT" -gt 0 ]; then
-        echo -e "\033[0;33m[Grounding] Performed $SEARCH_COUNT Google Search(es)\033[0m"
-    else
-        SEARCH_COUNT=1
-        echo -e "\033[0;33m[Grounding] Data Retrieved (Queries hidden)\033[0m"
-    fi
+if [ "$SEARCH_COUNT" -gt 0 ]; then
+    echo -e "\033[0;33m[Grounding] Performed $SEARCH_COUNT Google Search(es):\033[0m"
+    echo "$TEXT" | jq -r '.candidates[0].groundingMetadata.webSearchQueries[]' | while read -r query; do
+            echo -e "  \033[0;33m> \"$query\"\033[0m"
+    done
 fi
 
 DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
@@ -225,8 +222,8 @@ if [ -f "$LOG_FILE" ]; then
     echo -e "\033[0;36m--- Usage History ---\033[0m"
     tail -n 3 "$LOG_FILE"
     echo ""
-    # Updated awk for compact format: H ($3) | M ($5) | C ($7) | T ($9)
-    awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m\n", h, m, c, t }' "$LOG_FILE"
+    # Updated awk to include S (Search Count) accumulation from the 13th field
+    awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "$LOG_FILE"
 fi
 
 if [ -f "${file}" ]; then

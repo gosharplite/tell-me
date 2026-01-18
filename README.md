@@ -13,7 +13,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 ## 🚀 Features
 
 *   **Dual API Support**: Seamlessly supports both the standard **Gemini API** (AI Studio) and **Vertex AI** (Google Cloud).
-*   **🌍 Grounding with Google Search**: Automatically connects the model to the web for real-time information (e.g., news, weather, stock prices). The tool intelligently switches between Vertex and AI Studio grounding methods.
+*   **🌍 Transparent Grounding**: Automatically connects the model to Google Search for real-time information. The tool **visualizes the exact search queries** used by the model (e.g., `> "current google stock price"`), giving you full visibility into external data access.
 *   **Flexible Authentication**: Support for standard User Credentials (`gcloud auth login`) or **Service Account Keys** (JSON) for automated/headless environments.
 *   **Run From Anywhere**: Set up a global alias to call the assistant from any directory on your system.
 *   **Context-Aware**: Maintains conversation history automatically in a centralized JSON file.
@@ -24,7 +24,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `stats`, `dump`, `h`).
 *   **Continuous Workflow**: Navigate your filesystem with `cd` and analyze multiple projects back-to-back within a single, persistent chat session.
 *   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
-*   **Usage Metrics**: Logs API token usage (Hit/Miss/New) and costs in a sidecar `.log` file, now with **Search Query** tracking.
+*   **Precise Usage Metrics**: Logs API token usage (Hit/Miss/New), costs, and **Search Counts** in a sidecar `.log` file.
 
 ## 🤖 Praise by gemini-3-pro-preview
 
@@ -59,7 +59,7 @@ This tool sends the content of your prompts and any files bundled with `dump` to
 ### API Costs
 Using the Google Gemini API (Vertex AI or Paid Tier) is subject to `Google Cloud's pricing model`.
 *   **Standard Usage**: Costs based on input/output tokens.
-*   **Grounding (Web Search)**: If the model uses Google Search to answer a query (e.g., "What is the stock price of GOOG?"), additional charges apply per request on Vertex AI.
+*   **Grounding (Web Search)**: If the model uses Google Search to answer a query, additional charges apply per request on Vertex AI.
 Please monitor your usage and set up billing alerts in your Google Cloud project.
 
 ## 📋 Prerequisites
@@ -206,7 +206,7 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 *   **`a "Your message"`**: Sends a single-line message.
     *   **Note**: To prevent terminal flooding, responses longer than 20 lines are automatically snipped (showing only the top 10 and bottom 5 lines). Run `recap` (or `recap -l`) to view the full output.
 *   **`aa`**: Starts **Multi-line Input Mode**. Type or paste text, then press `Ctrl+D` to send.
-*   **`stats`**: Displays the aggregated token usage (Hit/Miss/Completion/Total) for the current session.
+*   **`stats`**: Displays the aggregated token usage (Hit/Miss/Completion/Total) and **Search Count** for the current session.
 *   **`recap`**: Re-renders the full chat history.
     *   `recap -s [N]`: Show a one-line **summary** of the last `N` messages (default: 10).
     *   `recap -l [N]`: Show the last `N` messages (default: 1, the model's last response).
@@ -235,7 +235,9 @@ The tool logs usage in a compact format to help you track costs and latency:
 *   **C**: **Completion** (Output tokens - standard cost)
 *   **T**: **Total** tokens
 *   **N**: **New** (Billable) tokens this turn
-*   **S**: **Search** Count (Grounding events)
+*   **S**: **Search Count** (Number of specific Google Search queries performed)
+    *   `S: 0`: No external search used (internal knowledge).
+    *   `S: >0`: Grounding used. The tool will list the specific queries below the response.
 
 ### Example: Analyzing Multiple Projects in One Session
 The true power of the global alias is analyzing projects on the fly. Because `ait` starts an interactive sub-shell, you can navigate your filesystem and analyze multiple projects without restarting.
