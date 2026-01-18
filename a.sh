@@ -32,7 +32,7 @@ update_history() {
   rm "$item_file"
 }
 
-# 1. Update Conversation History
+# 1. Update Conversation History (User Input)
 PROMPT_TEXT="$1"
 STDIN_DATA=""
 
@@ -53,10 +53,8 @@ fi
 USER_MSG=$(printf "%s" "$MSG_TEXT" | jq -Rs '{role: "user", parts: [{text: .}]}')
 update_history "$USER_MSG"
 
-# 2. Configure Tools & Auth based on Platform
-# ------------------------------------------------------------------
-# Step 1: Define the Function Declaration (Schema)
-# ------------------------------------------------------------------
+# 2. Configure Tools & Auth
+# --- Tool Definitions ---
 read -r -d '' FUNC_DECLARATIONS <<EOM
 [
   {
@@ -80,21 +78,13 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
 ]
 EOM
 
-# ------------------------------------------------------------------
-# Step 2: Build the Tools JSON Array
-# ------------------------------------------------------------------
 if [ "$USE_SEARCH" == "true" ]; then
-    # Include both Google Search and Function Declarations
-    TOOLS_JSON=$(jq -n \
-        --argjson funcs "$FUNC_DECLARATIONS" \
-        '[{ "googleSearch": {} }, { "functionDeclarations": $funcs }]')
+    TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "googleSearch": {} }, { "functionDeclarations": $funcs }]')
 else
-    # Include only Function Declarations
-    TOOLS_JSON=$(jq -n \
-        --argjson funcs "$FUNC_DECLARATIONS" \
-        '[{ "functionDeclarations": $funcs }]')
+    TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "functionDeclarations": $funcs }]')
 fi
 
+# --- Auth Setup ---
 if [[ "$AIURL" == *"aiplatform.googleapis.com"* ]]; then
     TARGET_SCOPE="https://www.googleapis.com/auth/cloud-platform"
     CACHE_SUFFIX="vertex"
@@ -103,52 +93,16 @@ else
     CACHE_SUFFIX="studio"
 fi
 
-# 3. Build API Payload
-APIDATA=$(jq -n \
-  --arg person "$PERSON" \
-  --argjson tools "$TOOLS_JSON" \
-  --slurpfile history "$file" \
-  '{
-    contents: $history[0].messages,
-    tools: $tools,
-    generationConfig: { 
-      temperature: 1.0
-      # thinkingConfig removed to prevent conflicts with function calling
-    },
-    safetySettings: [
-      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-    ]
-  } + 
-  (if $person != "" then {
-     systemInstruction: {
-       role: "system", 
-       parts: [{text: $person}]
-     }
-   } else {} end)'
-)
-
-# 4. Authentication (Token Caching)
 TOKEN_CACHE="${TMPDIR:-/tmp}/gemini_token_${CACHE_SUFFIX}.txt"
 
 get_file_mtime() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        stat -f %m "$1"
-    else
-        stat -c %Y "$1"
-    fi
+    if [[ "$OSTYPE" == "darwin"* ]]; then stat -f %m "$1"; else stat -c %Y "$1"; fi
 }
 
 if [ -f "$TOKEN_CACHE" ]; then
     NOW=$(date +%s)
     LAST_MOD=$(get_file_mtime "$TOKEN_CACHE")
-    DIFF=$((NOW - LAST_MOD))
-    
-    if [ $DIFF -lt 3300 ]; then
-        TOKEN=$(cat "$TOKEN_CACHE")
-    fi
+    if [ $((NOW - LAST_MOD)) -lt 3300 ]; then TOKEN=$(cat "$TOKEN_CACHE"); fi
 fi
 
 if [ -z "$TOKEN" ]; then
@@ -156,56 +110,129 @@ if [ -z "$TOKEN" ]; then
         export GOOGLE_APPLICATION_CREDENTIALS="$KEY_FILE"
         TOKEN=$(gcloud auth application-default print-access-token --scopes="${TARGET_SCOPE}")
     else
-        AUTH_ARGS=("--scopes=${TARGET_SCOPE}")
-        TOKEN=$(gcloud auth print-access-token "${AUTH_ARGS[@]}")
+        TOKEN=$(gcloud auth print-access-token --scopes="${TARGET_SCOPE}")
     fi
     echo "$TOKEN" > "$TOKEN_CACHE"
 fi
 
-# 5. Call AI API
-PAYLOAD_FILE=$(mktemp) || { echo "Failed to create temporary file." >&2; exit 1; }
-trap 'rm -f "$PAYLOAD_FILE"' EXIT
-echo "$APIDATA" > "$PAYLOAD_FILE"
+# ==============================================================================
+# MAIN INTERACTION LOOP
+# Handles multi-turn interactions (Tool Call -> Execution -> Tool Response)
+# ==============================================================================
+
+MAX_TURNS=5
+CURRENT_TURN=0
+FINAL_TEXT_RESPONSE=""
 
 START_TIME=$(date +%s.%N)
 
-TEXT=$(curl -s "${AIURL}/${AIMODEL}:generateContent" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d @"$PAYLOAD_FILE")
+while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
+    CURRENT_TURN=$((CURRENT_TURN + 1))
+
+    # 3. Build API Payload (reads current history from file)
+    APIDATA=$(jq -n \
+      --arg person "$PERSON" \
+      --argjson tools "$TOOLS_JSON" \
+      --slurpfile history "$file" \
+      '{
+        contents: $history[0].messages,
+        tools: $tools,
+        generationConfig: { 
+            temperature: 1.0 
+            # thinkingConfig removed for compatibility
+        },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        ]
+      } + 
+      (if $person != "" then { systemInstruction: { role: "system", parts: [{text: $person}] } } else {} end)'
+    )
+
+    PAYLOAD_FILE=$(mktemp) || exit 1
+    echo "$APIDATA" > "$PAYLOAD_FILE"
+
+    # 4. Call API
+    RESPONSE_JSON=$(curl -s "${AIURL}/${AIMODEL}:generateContent" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $TOKEN" \
+      -d @"$PAYLOAD_FILE")
+    
+    rm "$PAYLOAD_FILE"
+
+    # Basic Validation
+    if echo "$RESPONSE_JSON" | jq -e '.error' > /dev/null 2>&1; then
+        echo -e "\033[31mAPI Error:\033[0m $(echo "$RESPONSE_JSON" | jq -r '.error.message')"
+        exit 1
+    fi
+
+    CANDIDATE=$(echo "$RESPONSE_JSON" | jq -c '.candidates[0].content')
+    
+    # 5. Check for Function Call
+    FUNC_NAME=$(echo "$CANDIDATE" | jq -r '.parts[0].functionCall.name // empty')
+
+    if [ "$FUNC_NAME" == "update_file" ]; then
+        # --- Handle Tool Execution ---
+        
+        # 1. Extract Arguments
+        FC_PATH=$(echo "$CANDIDATE" | jq -r '.parts[0].functionCall.args.filepath')
+        FC_CONTENT=$(echo "$CANDIDATE" | jq -r '.parts[0].functionCall.args.content')
+
+        echo -e "\033[0;36m[Tool Request] Writing to file: $FC_PATH\033[0m"
+
+        # 2. Execute Action (Write File)
+        mkdir -p "$(dirname "$FC_PATH")"
+        echo "$FC_CONTENT" > "$FC_PATH"
+        WRITE_STATUS=$?
+
+        if [ $WRITE_STATUS -eq 0 ]; then
+            RESULT_MSG="File updated successfully."
+            echo -e "\033[0;32m[Tool Success] File updated.\033[0m"
+        else
+            RESULT_MSG="Error: Failed to write file."
+            echo -e "\033[0;31m[Tool Failed] Could not write file.\033[0m"
+        fi
+
+        # 3. Update History with the Model's Request (The Function Call)
+        update_history "$CANDIDATE"
+
+        # 4. Construct Function Response Object
+        # The API requires the response to match the 'functionResponse' schema
+        TOOL_RESPONSE=$(jq -n \
+            --arg name "update_file" \
+            --arg content "$RESULT_MSG" \
+            '{
+                role: "function",
+                parts: [{
+                    functionResponse: {
+                        name: $name,
+                        response: { result: $content }
+                    }
+                }]
+            }')
+        
+        # 5. Update History with Tool Result
+        update_history "$TOOL_RESPONSE"
+
+        # Loop continues to send this result back to the model...
+        continue
+
+    else
+        # --- Handle Text Response (Final Answer) ---
+        FINAL_TEXT_RESPONSE="$RESPONSE_JSON"
+        update_history "$CANDIDATE"
+        break
+    fi
+done
 
 END_TIME=$(date +%s.%N)
-CURL_EXIT=$?
+DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
 
-if [ $CURL_EXIT -ne 0 ]; then
-    echo -e "\033[31mNetwork Error: Curl failed with exit code $CURL_EXIT\033[0m"
-    exit 1
-fi
-
-if ! echo "$TEXT" | jq empty > /dev/null 2>&1; then
-    echo -e "\033[31mAPI Error: Invalid JSON response received.\033[0m"
-    echo "Raw Output: $TEXT"
-    exit 1
-fi
-
-if echo "$TEXT" | jq -e '.error' > /dev/null 2>&1; then
-    ERROR_MSG=$(echo "$TEXT" | jq -r '.error.message // "Unknown API Error"')
-    ERROR_CODE=$(echo "$TEXT" | jq -r '.error.code // "N/A"')
-    echo -e "\033[31mAPI Error ($ERROR_CODE): $ERROR_MSG\033[0m"
-    exit 1
-fi
-
-# 6. Process AI Response
-REPLY=$(echo "$TEXT" | jq -c '.candidates[0].content')
-
-if [ "$REPLY" == "null" ]; then
-    echo -e "\033[31mError: No content generated. (Check safety settings or input)\033[0m"
-    exit 1
-fi
-
-update_history "$REPLY"
-
-# --- Split output logic ---
+# 6. Render Output
+# Use the final JSON response for Recap and Stats
+# Note: Recap reads from the *file* history, but we want to render the last message.
 RECAP_OUT=$(mktemp)
 "$BASE_DIR/recap.sh" -l > "$RECAP_OUT"
 LINE_COUNT=$(wc -l < "$RECAP_OUT")
@@ -218,23 +245,20 @@ else
     cat "$RECAP_OUT"
 fi
 rm "$RECAP_OUT"
-# --------------------------
 
 # 7. Grounding Detection
-SEARCH_COUNT=$(echo "$TEXT" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
-
+SEARCH_COUNT=$(echo "$FINAL_TEXT_RESPONSE" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
 if [ "$SEARCH_COUNT" -gt 0 ]; then
     echo -e "\033[0;33m[Grounding] Performed $SEARCH_COUNT Google Search(es):\033[0m"
-    echo "$TEXT" | jq -r '.candidates[0].groundingMetadata.webSearchQueries[]' | while read -r query; do
+    echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].groundingMetadata.webSearchQueries[]' | while read -r query; do
             echo -e "  \033[0;33m> \"$query\"\033[0m"
     done
 fi
 
-DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
 printf "\033[0;35m[Response Time] %.2f seconds\033[0m\n" "$DURATION"
 
 # 8. Stats & Metrics
-read -r HIT PROMPT_TOTAL COMPLETION TOTAL <<< $(echo "$TEXT" | jq -r '
+read -r HIT PROMPT_TOTAL COMPLETION TOTAL <<< $(echo "$FINAL_TEXT_RESPONSE" | jq -r '
   .usageMetadata | 
   (.cachedContentTokenCount // 0), 
   (.promptTokenCount // 0), 
@@ -245,14 +269,9 @@ read -r HIT PROMPT_TOTAL COMPLETION TOTAL <<< $(echo "$TEXT" | jq -r '
 MISS=$(( PROMPT_TOTAL - HIT ))
 NEWTOKEN=$(( MISS + COMPLETION ))
 
-if [ "$TOTAL" -gt 0 ]; then
-    PERCENT=$(( ($NEWTOKEN * 100) / $TOTAL ))
-else
-    PERCENT=0
-fi
+if [ "$TOTAL" -gt 0 ]; then PERCENT=$(( ($NEWTOKEN * 100) / $TOTAL )); else PERCENT=0; fi
 
 LOG_FILE="${file}.log"
-# Compact Stats Format
 STATS_MSG=$(printf "[%s] H: %d M: %d C: %d T: %d N: %d(%d%%) S: %d [%.2fs]" \
   "$(date +%H:%M:%S)" "$HIT" "$MISS" "$COMPLETION" "$TOTAL" "$NEWTOKEN" "$PERCENT" "$SEARCH_COUNT" "$DURATION")
 echo "$STATS_MSG" >> "$LOG_FILE"
@@ -261,10 +280,10 @@ if [ -f "$LOG_FILE" ]; then
     echo -e "\033[0;36m--- Usage History ---\033[0m"
     tail -n 3 "$LOG_FILE"
     echo ""
-    # Updated awk to include S (Search Count) accumulation from the 13th field
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "$LOG_FILE"
 fi
 
+# Backup History
 if [ -f "${file}" ]; then
     TIMESTAMP=$(date -u "+%y%m%d-%H")$(printf "%02d" $(( (10#$(date -u "+%M") / 10) * 10 )) )
     cp "$file" "${file%.*}-${TIMESTAMP}-trace.${file##*.}"
