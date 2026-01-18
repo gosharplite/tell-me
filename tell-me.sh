@@ -41,12 +41,33 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-for cmd in yq jq; do
+# --- Dependency Verification ---
+
+# Check generic dependencies
+for cmd in jq; do
     if ! command -v "$cmd" &> /dev/null; then
-        echo "Error: Dependency '$cmd' is missing."
+        echo "Error: Dependency '$cmd' is missing." >&2
         exit 1
     fi
 done
+
+# Check specifically for 'yq' and ensure it is the Go implementation
+if ! command -v yq &> /dev/null; then
+    echo "Error: Dependency 'yq' is missing." >&2
+    exit 1
+fi
+
+# The Python wrapper (kislyuk/yq) and other variants have incompatible syntax.
+# The Go version (mikefarah/yq) typically outputs "yq (https://github.com/mikefarah/yq/)..."
+if ! yq --version 2>&1 | grep -q -E "mikefarah|github.com/mikefarah/yq"; then
+    echo "Error: Incompatible 'yq' implementation detected." >&2
+    echo "This project requires the Go implementation (https://github.com/mikefarah/yq)." >&2
+    echo "Detected version: $(yq --version 2>&1)" >&2
+    echo "Please install the correct version (e.g., via 'brew install yq' or binary download)." >&2
+    exit 1
+fi
+
+# -------------------------------
 
 # 2. Safely load and export variables from YAML with Robust Logic
 
