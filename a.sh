@@ -53,12 +53,25 @@ fi
 USER_MSG=$(printf "%s" "$MSG_TEXT" | jq -Rs '{role: "user", parts: [{text: .}]}')
 update_history "$USER_MSG"
 
-# 2. Build API Payload
+# 2. Configure Tools & Auth based on Platform
+TOOLS_JSON='[{ "googleSearch": {} }]'
+
+if [[ "$AIURL" == *"aiplatform.googleapis.com"* ]]; then
+    TARGET_SCOPE="https://www.googleapis.com/auth/cloud-platform"
+    CACHE_SUFFIX="vertex"
+else
+    TARGET_SCOPE="https://www.googleapis.com/auth/generative-language"
+    CACHE_SUFFIX="studio"
+fi
+
+# 3. Build API Payload
 APIDATA=$(jq -n \
   --arg person "$PERSON" \
+  --argjson tools "$TOOLS_JSON" \
   --slurpfile history "$file" \
   '{
     contents: $history[0].messages,
+    tools: $tools,
     generationConfig: { 
       temperature: 1.0,
       thinkingConfig: { thinkingLevel: "HIGH" }
@@ -70,18 +83,15 @@ APIDATA=$(jq -n \
       { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
     ]
   } + 
-  (if $person != "" then {systemInstruction: {parts: [{text: $person}]}} else {} end)'
+  (if $person != "" then {
+     systemInstruction: {
+       role: "system", 
+       parts: [{text: $person}]
+     }
+   } else {} end)'
 )
 
-# 3. Authentication (Dynamic Switching)
-if [[ "$AIURL" == *"aiplatform.googleapis.com"* ]]; then
-    TARGET_SCOPE="https://www.googleapis.com/auth/cloud-platform"
-    CACHE_SUFFIX="vertex"
-else
-    TARGET_SCOPE="https://www.googleapis.com/auth/generative-language"
-    CACHE_SUFFIX="studio"
-fi
-
+# 4. Authentication (Token Caching)
 TOKEN_CACHE="${TMPDIR:-/tmp}/gemini_token_${CACHE_SUFFIX}.txt"
 
 get_file_mtime() {
@@ -113,7 +123,7 @@ if [ -z "$TOKEN" ]; then
     echo "$TOKEN" > "$TOKEN_CACHE"
 fi
 
-# 4. Call AI API
+# 5. Call AI API
 PAYLOAD_FILE=$(mktemp) || { echo "Failed to create temporary file." >&2; exit 1; }
 trap 'rm -f "$PAYLOAD_FILE"' EXIT
 echo "$APIDATA" > "$PAYLOAD_FILE"
@@ -146,7 +156,7 @@ if echo "$TEXT" | jq -e '.error' > /dev/null 2>&1; then
     exit 1
 fi
 
-# 5. Process AI Response
+# 6. Process AI Response
 REPLY=$(echo "$TEXT" | jq -c '.candidates[0].content')
 
 if [ "$REPLY" == "null" ]; then
@@ -156,14 +166,11 @@ fi
 
 update_history "$REPLY"
 
-# --- CHANGED: Split output logic ---
-# Capture the full recap output to a temp file
+# --- Split output logic ---
 RECAP_OUT=$(mktemp)
 "$BASE_DIR/recap.sh" -l > "$RECAP_OUT"
 LINE_COUNT=$(wc -l < "$RECAP_OUT")
 
-# If output is long (>20 lines), show top 10 and bottom 5 with a separator.
-# Otherwise, show the whole thing.
 if [ "$LINE_COUNT" -gt 20 ]; then
     head -n 10 "$RECAP_OUT"
     echo -e "\n\033[1;30m... (Content Snipped) ...\033[0m\n"
@@ -172,12 +179,26 @@ else
     cat "$RECAP_OUT"
 fi
 rm "$RECAP_OUT"
-# -----------------------------------
+# --------------------------
+
+# 7. Grounding Detection
+HAS_GROUNDING=$(echo "$TEXT" | jq -r 'if .candidates[0].groundingMetadata then "yes" else "no" end')
+SEARCH_COUNT=$(echo "$TEXT" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
+
+if [ "$HAS_GROUNDING" == "yes" ]; then
+    if [ "$SEARCH_COUNT" -gt 0 ]; then
+        echo -e "\033[0;33m[Grounding] Performed $SEARCH_COUNT Google Search(es)\033[0m"
+    else
+        # Metadata exists but query list is empty (common in Vertex)
+        SEARCH_COUNT=1
+        echo -e "\033[0;33m[Grounding] Data Retrieved (Queries hidden)\033[0m"
+    fi
+fi
 
 DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
 printf "\033[0;35m[Response Time] %.2f seconds\033[0m\n" "$DURATION"
 
-# 6. Stats & Metrics
+# 8. Stats & Metrics
 read -r HIT PROMPT_TOTAL COMPLETION TOTAL <<< $(echo "$TEXT" | jq -r '
   .usageMetadata | 
   (.cachedContentTokenCount // 0), 
@@ -196,16 +217,14 @@ else
 fi
 
 LOG_FILE="${file}.log"
-# Append duration to the log for future analysis
-STATS_MSG=$(printf "[%s] Hit/Miss: %-7d / %-7d. Comp: %-5d. Total: %-7d. New: %-7d (%3d%%) [%.2fs]" \
-  "$(date +%H:%M:%S)" "$HIT" "$MISS" "$COMPLETION" "$TOTAL" "$NEWTOKEN" "$PERCENT" "$DURATION")
+STATS_MSG=$(printf "[%s] Hit/Miss: %-7d / %-7d. Comp: %-5d. Total: %-7d. New: %-7d (%3d%%). Search: %d [%.2fs]" \
+  "$(date +%H:%M:%S)" "$HIT" "$MISS" "$COMPLETION" "$TOTAL" "$NEWTOKEN" "$PERCENT" "$SEARCH_COUNT" "$DURATION")
 echo "$STATS_MSG" >> "$LOG_FILE"
 
 if [ -f "$LOG_FILE" ]; then
     echo -e "\033[0;36m--- Usage History ---\033[0m"
     tail -n 3 "$LOG_FILE"
     echo ""
-    # Calculate and display aggregated stats for the session
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m\n", h, m, c, t }' "$LOG_FILE"
 fi
 
