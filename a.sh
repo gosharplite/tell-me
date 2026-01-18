@@ -189,7 +189,6 @@ if [ "$HAS_GROUNDING" == "yes" ]; then
     if [ "$SEARCH_COUNT" -gt 0 ]; then
         echo -e "\033[0;33m[Grounding] Performed $SEARCH_COUNT Google Search(es)\033[0m"
     else
-        # Metadata exists but query list is empty (common in Vertex)
         SEARCH_COUNT=1
         echo -e "\033[0;33m[Grounding] Data Retrieved (Queries hidden)\033[0m"
     fi
@@ -217,7 +216,8 @@ else
 fi
 
 LOG_FILE="${file}.log"
-STATS_MSG=$(printf "[%s] Hit/Miss: %-7d / %-7d. Comp: %-5d. Total: %-7d. New: %-7d (%3d%%). Search: %d [%.2fs]" \
+# Compact Stats Format
+STATS_MSG=$(printf "[%s] H: %d M: %d C: %d T: %d N: %d(%d%%) S: %d [%.2fs]" \
   "$(date +%H:%M:%S)" "$HIT" "$MISS" "$COMPLETION" "$TOTAL" "$NEWTOKEN" "$PERCENT" "$SEARCH_COUNT" "$DURATION")
 echo "$STATS_MSG" >> "$LOG_FILE"
 
@@ -225,6 +225,7 @@ if [ -f "$LOG_FILE" ]; then
     echo -e "\033[0;36m--- Usage History ---\033[0m"
     tail -n 3 "$LOG_FILE"
     echo ""
+    # Updated awk for compact format: H ($3) | M ($5) | C ($7) | T ($9)
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m\n", h, m, c, t }' "$LOG_FILE"
 fi
 
