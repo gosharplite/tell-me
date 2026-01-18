@@ -48,18 +48,45 @@ for cmd in yq jq; do
     fi
 done
 
-# 2. Safely load and export variables from YAML
-export MODE=$(yq -r '.MODE' "$CONFIG")
-export PERSON=$(yq -r '.PERSON' "$CONFIG")
-export AIURL=$(yq -r '.AIURL' "$CONFIG")
-export AIMODEL=$(yq -r '.AIMODEL' "$CONFIG")
+# 2. Safely load and export variables from YAML with Robust Logic
+
+# MODE: Critical for filenames
+MODE_VAL=$(yq -r '.MODE' "$CONFIG")
+if [[ "$MODE_VAL" == "null" ]]; then
+    export MODE="assist-gemini"
+else
+    export MODE="$MODE_VAL"
+fi
+
+# PERSON: System instruction
+PERSON_VAL=$(yq -r '.PERSON' "$CONFIG")
+if [[ "$PERSON_VAL" == "null" ]]; then
+    export PERSON="You are a helpful AI assistant."
+else
+    export PERSON="$PERSON_VAL"
+fi
+
+# AIURL: Critical for API connectivity
+URL_VAL=$(yq -r '.AIURL' "$CONFIG")
+if [[ "$URL_VAL" == "null" ]]; then
+    export AIURL="https://generativelanguage.googleapis.com/v1beta/models"
+else
+    export AIURL="$URL_VAL"
+fi
+
+# AIMODEL: Specific model name
+MODEL_VAL=$(yq -r '.AIMODEL' "$CONFIG")
+if [[ "$MODEL_VAL" == "null" ]]; then
+    export AIMODEL="gemini-1.5-pro"
+else
+    export AIMODEL="$MODEL_VAL"
+fi
+
+# KEY_FILE: yq's alternative syntax `// ""` handles nulls by returning empty string
 export KEY_FILE=$(yq -r '.KEY_FILE // ""' "$CONFIG")
 
-# Load Search Toggle (Robust Logic)
-# 1. Try to read the key. If missing, yq returns "null".
+# USE_SEARCH: Toggle Grounding
 SEARCH_VAL=$(yq -r '.USE_SEARCH' "$CONFIG")
-
-# 2. If null, default to "true". Otherwise, use the value (true/false).
 if [[ "$SEARCH_VAL" == "null" ]]; then
     export USE_SEARCH="true"
 else

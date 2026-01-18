@@ -33,8 +33,13 @@ mkdir -p "$OUTPUT_DIR"
 # 1. Timestamp: YYMMDD-HHMM
 TIMESTAMP=$(date +%y%m%d-%H%M)
 
-# 2. Mode: Uses $MODE from env (exported by tell-me.sh), defaults to 'manual'
-MODE_NAME="${MODE:-manual}"
+# 2. Mode: Uses $MODE from env (exported by tell-me.sh)
+# Robust logic: Handle explicitly if MODE is unset, empty, or the literal string "null"
+if [[ -z "$MODE" || "$MODE" == "null" ]]; then
+    MODE_NAME="manual"
+else
+    MODE_NAME="$MODE"
+fi
 
 # 3. Filename: last-assist-gemini-260113-1340-dump.txt
 LOG_FILE="$OUTPUT_DIR/last-${MODE_NAME}-${TIMESTAMP}-dump.txt"
