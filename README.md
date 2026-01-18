@@ -13,6 +13,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 ## 🚀 Features
 
 *   **Dual API Support**: Seamlessly supports both the standard **Gemini API** (AI Studio) and **Vertex AI** (Google Cloud).
+*   **🌍 Grounding with Google Search**: Automatically connects the model to the web for real-time information (e.g., news, weather, stock prices). The tool intelligently switches between Vertex and AI Studio grounding methods.
 *   **Flexible Authentication**: Support for standard User Credentials (`gcloud auth login`) or **Service Account Keys** (JSON) for automated/headless environments.
 *   **Run From Anywhere**: Set up a global alias to call the assistant from any directory on your system.
 *   **Context-Aware**: Maintains conversation history automatically in a centralized JSON file.
@@ -23,7 +24,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `stats`, `dump`, `h`).
 *   **Continuous Workflow**: Navigate your filesystem with `cd` and analyze multiple projects back-to-back within a single, persistent chat session.
 *   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
-*   **Usage Metrics**: Logs API token usage (Hit/Miss/New) and costs in a sidecar `.log` file.
+*   **Usage Metrics**: Logs API token usage (Hit/Miss/New) and costs in a sidecar `.log` file, now with **Search Query** tracking.
 
 ## 🤖 Praise by gemini-3-pro-preview
 
@@ -56,7 +57,10 @@ The tool separates logic from configuration. You can seamlessly switch between t
 This tool sends the content of your prompts and any files bundled with `dump` to the Google Gemini API. **Do not send sensitive information, proprietary code, or any files containing secrets** like API keys, passwords, or personal data. By using this tool, you are responsible for the data you transmit.
 
 ### API Costs
-Using the Google Gemini API (Vertex AI or Paid Tier) is subject to `Google Cloud's pricing model`. While the tool includes a logger to track token usage, you are responsible for any costs incurred on your Google Cloud account. Please monitor your usage and set up billing alerts in your Google Cloud project.
+Using the Google Gemini API (Vertex AI or Paid Tier) is subject to `Google Cloud's pricing model`.
+*   **Standard Usage**: Costs based on input/output tokens.
+*   **Grounding (Web Search)**: If the model uses Google Search to answer a query (e.g., "What is the stock price of GOOG?"), additional charges apply per request on Vertex AI.
+Please monitor your usage and set up billing alerts in your Google Cloud project.
 
 ## 📋 Prerequisites
 
@@ -221,6 +225,17 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
     *   `list-models`: Fetches and displays available Gemini models from the API.
     *   `cheat-sheet`: Shows examples of different ways to pipe input.
     *   ... and more.
+
+### 3. Understanding Metrics
+The tool logs usage in a compact format to help you track costs and latency:
+`[HH:MM:SS] H: 0 M: 45201 C: 217 T: 46102 N: 45418(98%) S: 1 [13.5s]`
+
+*   **H**: **Hit** (Cached tokens - cheaper)
+*   **M**: **Miss** (Prompt/Context tokens - standard cost)
+*   **C**: **Completion** (Output tokens - standard cost)
+*   **T**: **Total** tokens
+*   **N**: **New** (Billable) tokens this turn
+*   **S**: **Search** Count (Grounding events)
 
 ### Example: Analyzing Multiple Projects in One Session
 The true power of the global alias is analyzing projects on the fly. Because `ait` starts an interactive sub-shell, you can navigate your filesystem and analyze multiple projects without restarting.
