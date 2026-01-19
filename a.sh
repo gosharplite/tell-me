@@ -305,6 +305,20 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
     }
   },
   {
+    "name": "read_git_commit",
+    "description": "Retrieves the full details (message and diff) of a specific git commit.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "hash": {
+          "type": "STRING",
+          "description": "The commit hash to inspect."
+        }
+      },
+      "required": ["hash"]
+    }
+  },
+  {
     "name": "get_git_log",
     "description": "Retrieves the git commit log. useful for understanding project history or finding specific changes.",
     "parameters": {
@@ -1175,6 +1189,33 @@ except Exception as e:
                     fi
 
                     jq -n --arg name "get_git_diff" --arg content "$RESULT_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+
+                elif [ "$F_NAME" == "read_git_commit" ]; then
+                    FC_HASH=$(echo "$FC_DATA" | jq -r '.args.hash')
+                    echo -e "\033[0;36m[Tool Request] Git Show: $FC_HASH\033[0m"
+
+                    if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+                        RESULT_MSG=$(git show --stat --patch "$FC_HASH" 2>&1 | head -n 300)
+                        
+                        if [ -z "$RESULT_MSG" ]; then
+                             RESULT_MSG="Error: Commit not found."
+                        elif [ $(echo "$RESULT_MSG" | wc -l) -eq 300 ]; then
+                            RESULT_MSG="${RESULT_MSG}\n... (Output truncated at 300 lines) ..."
+                        fi
+                        echo -e "\033[0;32m[Tool Success] Commit details retrieved.\033[0m"
+                    else
+                        RESULT_MSG="Error: Not a git repo or git missing."
+                        echo -e "\033[0;31m[Tool Failed] Git Error.\033[0m"
+                    fi
+
+                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+                        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn."
+                    fi
+
+                    jq -n --arg name "read_git_commit" --arg content "$RESULT_MSG" \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.part"
