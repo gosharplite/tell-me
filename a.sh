@@ -6,7 +6,7 @@
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Check Dependencies
-for cmd in jq curl gcloud awk; do
+for cmd in jq curl gcloud awk python3; do
     if ! command -v "$cmd" &> /dev/null; then
         echo "Error: Required command '$cmd' is missing." >&2
         exit 1
@@ -73,6 +73,28 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
         }
       },
       "required": ["filepath", "content"]
+    }
+  },
+  {
+    "name": "replace_text",
+    "description": "Replaces a specific text block in a file with new content. Replaces only the first occurrence found.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the file to edit."
+        },
+        "old_text": {
+          "type": "STRING",
+          "description": "The exact text block to find and replace."
+        },
+        "new_text": {
+          "type": "STRING",
+          "description": "The new text to insert."
+        }
+      },
+      "required": ["filepath", "old_text", "new_text"]
     }
   },
   {
@@ -286,6 +308,88 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+
+                elif [ "$F_NAME" == "replace_text" ]; then
+                    # Extract Arguments
+                    FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
+                    FC_OLD=$(echo "$FC_DATA" | jq -r '.args.old_text')
+                    FC_NEW=$(echo "$FC_DATA" | jq -r '.args.new_text')
+
+                    echo -e "\033[0;36m[Tool Request] Replacing text in: $FC_PATH\033[0m"
+
+                    # Security Check
+                    IS_SAFE=false
+                    if command -v python3 >/dev/null 2>&1; then
+                        REL_CHECK=$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]).startswith(os.getcwd()))" "$FC_PATH")
+                        [ "$REL_CHECK" == "True" ] && IS_SAFE=true
+                    elif command -v realpath >/dev/null 2>&1; then
+                        [ "$(realpath -m "$FC_PATH")" == "$(pwd -P)"* ] && IS_SAFE=true
+                    else
+                        if [[ "$FC_PATH" != /* && "$FC_PATH" != *".."* ]]; then IS_SAFE=true; fi
+                    fi
+
+                    if [ "$IS_SAFE" = true ]; then
+                        if [ -f "$FC_PATH" ]; then
+                            # Use Python for safe replacement (Surgical: 1st occurrence only)
+                            export PYTHON_OLD="$FC_OLD"
+                            export PYTHON_NEW="$FC_NEW"
+                            export PYTHON_PATH="$FC_PATH"
+                            
+                            python3 -c '
+import os, sys
+
+path = os.environ["PYTHON_PATH"]
+old = os.environ["PYTHON_OLD"]
+new = os.environ["PYTHON_NEW"]
+
+try:
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    
+    if old not in content:
+        print("Error: old_text not found in file.")
+        sys.exit(1)
+        
+    new_content = content.replace(old, new, 1)
+    
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(new_content)
+    
+    print("Success: Text replaced.")
+except Exception as e:
+    print(f"Error: {str(e)}")
+    sys.exit(1)
+' > "${RESP_PARTS_FILE}.py_out" 2>&1
+                            
+                            PY_EXIT=$?
+                            RESULT_MSG=$(cat "${RESP_PARTS_FILE}.py_out")
+                            rm "${RESP_PARTS_FILE}.py_out"
+                            
+                            if [ $PY_EXIT -eq 0 ]; then
+                                echo -e "\033[0;32m[Tool Success] $RESULT_MSG\033[0m"
+                            else
+                                echo -e "\033[0;31m[Tool Failed] $RESULT_MSG\033[0m"
+                            fi
+                        else
+                             RESULT_MSG="Error: File not found."
+                             echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+                        fi
+                    else
+                        RESULT_MSG="Error: Security violation. Edit path must be within current working directory."
+                        echo -e "\033[0;31m[Tool Security Block] Edit denied: $FC_PATH\033[0m"
+                    fi
+
+                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+                        WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
+                        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
+                        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+                    fi
+
+                    jq -n --arg name "replace_text" --arg content "$RESULT_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.part"
 
