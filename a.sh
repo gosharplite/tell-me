@@ -481,7 +481,7 @@ fi
 # Handles multi-turn interactions (Tool Call -> Execution -> Tool Response)
 # ==============================================================================
 
-MAX_TURNS=15
+MAX_TURNS=30
 CURRENT_TURN=0
 FINAL_TEXT_RESPONSE=""
 
@@ -515,12 +515,43 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     PAYLOAD_FILE=$(mktemp) || exit 1
     echo "$APIDATA" > "$PAYLOAD_FILE"
 
-    # 4. Call API
-    RESPONSE_JSON=$(curl -s "${AIURL}/${AIMODEL}:generateContent" \
-      -H "Content-Type: application/json" \
-      -H "Authorization: Bearer $TOKEN" \
-      -d @"$PAYLOAD_FILE")
+    # 4. Call API with Retry Logic
+    RETRY_COUNT=0
+    MAX_RETRIES=3
     
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        RESPONSE_JSON=$(curl -s "${AIURL}/${AIMODEL}:generateContent" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $TOKEN" \
+          -d @"$PAYLOAD_FILE")
+        
+        # Check for Rate Limit (429 or "Resource exhausted")
+        # Note: curl output is JSON, we look for error code/status inside the JSON if HTTP 200 returned a soft error,
+        # or handle HTTP status if we were capturing headers.
+        # Simple check: Does the JSON contain an error with code 429 or message "RESOURCE_EXHAUSTED"?
+        
+        IS_RATE_LIMIT="no"
+        if echo "$RESPONSE_JSON" | jq -e '.error.code == 429 or .error.status == "RESOURCE_EXHAUSTED" or (.error.message | contains("Resource exhausted"))' > /dev/null 2>&1; then
+            IS_RATE_LIMIT="yes"
+        fi
+
+        if [ "$IS_RATE_LIMIT" == "yes" ]; then
+             RETRY_COUNT=$((RETRY_COUNT + 1))
+             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                 echo -e "\033[0;33m[System] Rate Limit Hit (429). Retrying in 5s... ($RETRY_COUNT/$MAX_RETRIES)\033[0m"
+                 sleep 5
+                 continue
+             else
+                 echo -e "\033[31mError: Rate limit exhausted after $MAX_RETRIES retries.\033[0m"
+                 rm "$PAYLOAD_FILE"
+                 exit 1
+             fi
+        else
+             # Not a rate limit error, break the retry loop
+             break
+        fi
+    done
+
     rm "$PAYLOAD_FILE"
 
     # Basic Validation
