@@ -6,7 +6,7 @@
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Check Dependencies
-for cmd in jq curl gcloud awk python3; do
+for cmd in jq curl gcloud awk python3 patch; do
     if ! command -v "$cmd" &> /dev/null; then
         echo "Error: Required command '$cmd' is missing." >&2
         exit 1
@@ -109,6 +109,20 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
         }
       },
       "required": ["filepath", "old_text", "new_text"]
+    }
+  },
+  {
+    "name": "apply_patch",
+    "description": "Applies a unified diff patch to files. Use this for complex edits or multiple changes in one go. The patch must have standard headers (--- a/file +++ b/file) and use context.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "patch_content": {
+          "type": "STRING",
+          "description": "The full text of the unified diff/patch."
+        }
+      },
+      "required": ["patch_content"]
     }
   },
   {
@@ -501,6 +515,55 @@ except Exception as e:
                     fi
 
                     jq -n --arg name "replace_text" --arg content "$RESULT_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+
+                elif [ "$F_NAME" == "apply_patch" ]; then
+                    # Extract Arguments
+                    FC_PATCH=$(echo "$FC_DATA" | jq -r '.args.patch_content')
+
+                    echo -e "\033[0;36m[Tool Request] Applying Patch\033[0m"
+
+                    if ! command -v patch >/dev/null 2>&1; then
+                         RESULT_MSG="Error: 'patch' command not found."
+                         echo -e "\033[0;31m[Tool Failed] patch missing.\033[0m"
+                    else
+                        PATCH_FILE=$(mktemp)
+                        printf "%s" "$FC_PATCH" > "$PATCH_FILE"
+                        
+                        OUTPUT=$(patch --batch --forward -p1 < "$PATCH_FILE" 2>&1)
+                        EXIT_CODE=$?
+                        
+                        if [ $EXIT_CODE -ne 0 ]; then
+                            OUTPUT_RETRY=$(patch --batch --forward < "$PATCH_FILE" 2>&1)
+                            if [ $? -eq 0 ]; then
+                                OUTPUT="$OUTPUT_RETRY"
+                                EXIT_CODE=0
+                            else
+                                OUTPUT="$OUTPUT\nRetry (p0): $OUTPUT_RETRY"
+                            fi
+                        fi
+                        
+                        rm "$PATCH_FILE"
+
+                        if [ $EXIT_CODE -eq 0 ]; then
+                            RESULT_MSG="Success:\n$OUTPUT"
+                            echo -e "\033[0;32m[Tool Success] Patch applied.\033[0m"
+                        else
+                            RESULT_MSG="Error applying patch:\n$OUTPUT"
+                            echo -e "\033[0;31m[Tool Failed] Patch failed.\033[0m"
+                        fi
+                    fi
+
+                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+                        WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
+                        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
+                        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+                    fi
+
+                    jq -n --arg name "apply_patch" --arg content "$RESULT_MSG" \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
