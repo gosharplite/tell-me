@@ -46,8 +46,8 @@ It treats LLM consumption like a system resource. Costs, token usage (Hit/Miss),
 ### 3. "Brute Force" Context
 Instead of complex vector databases, `dump.sh` leverages the massive context windows of modern models. It packages your actual file tree (respecting `.gitignore`), ensuring the AI sees the true relationships between files.
 
-### 4. Zero-Dependency Portability
-Runs on almost any machine with `bash`, `curl`, and `jq`. It is perfect for SSH-ing into remote servers to diagnose live issues without installing heavy Python environments.
+### 4. Minimal-Dependency Portability
+Runs on standard environments with `bash`, `curl`, `jq`, and `python3`. It relies only on the Python standard library (no `pip install` or `venv` required), making it perfect for SSH-ing into remote servers to diagnose live issues.
 
 ### 5. Enterprise-Ready Architecture
 The tool separates logic from configuration. You can seamlessly switch between the free **AI Studio** tier for prototyping and **Vertex AI** (IAM-protected, VPC-scoped) for secure enterprise work.
@@ -124,6 +124,7 @@ The tool supports two ways to authenticate with Google Cloud.
 
 1.  **Standard User Auth (Default)**:
     Requires you to be logged in via CLI.
+*   **Python 3** (Standard Library only)
     ```bash
     gcloud auth login
     gcloud auth application-default set-quota-project <YOUR_PROJECT_ID>
