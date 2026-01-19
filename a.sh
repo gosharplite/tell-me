@@ -548,7 +548,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "ask_user" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "ask_user" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -605,7 +605,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "manage_scratchpad" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "manage_scratchpad" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -653,7 +653,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "update_file" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "update_file" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -736,7 +736,7 @@ except Exception as e:
                         echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
                     fi
 
-                    jq -n --arg name "replace_text" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "replace_text" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
@@ -836,7 +836,7 @@ except Exception as e:
                         echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
                     fi
 
-                    jq -n --arg name "insert_text" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "insert_text" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
@@ -885,7 +885,7 @@ except Exception as e:
                         echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
                     fi
 
-                    jq -n --arg name "apply_patch" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "apply_patch" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
@@ -956,7 +956,7 @@ except Exception as e:
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "move_file" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "move_file" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -1011,7 +1011,7 @@ except Exception as e:
                         echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
                     fi
 
-                    jq -n --arg name "delete_file" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "delete_file" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
@@ -1056,7 +1056,7 @@ except Exception as e:
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "list_files" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "list_files" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -1107,7 +1107,7 @@ except Exception as e:
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "get_file_info" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "get_file_info" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -1197,7 +1197,7 @@ except Exception as e:
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "read_file" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "read_file" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -1262,7 +1262,7 @@ except Exception as e:
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "read_url" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "read_url" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -1316,7 +1316,7 @@ except Exception as e:
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "search_files" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "search_files" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -1389,7 +1389,7 @@ except Exception as e:
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "grep_definitions" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "grep_definitions" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -1449,7 +1449,7 @@ except Exception as e:
                         echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
                     fi
 
-                    jq -n --arg name "find_file" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "find_file" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
@@ -1501,7 +1501,7 @@ except Exception as e:
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "get_tree" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "get_tree" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
@@ -1527,7 +1527,7 @@ except Exception as e:
                         RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn."
                     fi
 
-                    jq -n --arg name "get_git_diff" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "get_git_diff" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.part"
@@ -1554,7 +1554,7 @@ except Exception as e:
                         RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn."
                     fi
 
-                    jq -n --arg name "read_git_commit" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "read_git_commit" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.part"
@@ -1576,7 +1576,7 @@ except Exception as e:
                         RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn."
                     fi
 
-                    jq -n --arg name "get_git_log" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "get_git_log" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.part"
@@ -1629,7 +1629,7 @@ except Exception as e:
                     fi
 
                     # Construct Function Response Part
-                    jq -n --arg name "execute_command" --arg content "$RESULT_MSG" \
+                    jq -n --arg name "execute_command" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
