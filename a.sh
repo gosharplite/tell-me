@@ -216,10 +216,17 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
             echo -e "\033[0;31m[Tool Security Block] Write denied: $FC_PATH\033[0m"
         fi
 
-        # 3. Update History with the Model's Request (The Function Call)
+        # 3. Inject Warning if approaching Max Turns
+        if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+             WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now. Do not call any more tools, or the process will terminate without your response."
+             RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
+             echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+        fi
+
+        # 4. Update History with the Model's Request (The Function Call)
         update_history "$CANDIDATE"
 
-        # 4. Construct Function Response Object
+        # 5. Construct Function Response Object
         # The API requires the response to match the 'functionResponse' schema
         TOOL_RESPONSE=$(jq -n \
             --arg name "update_file" \
@@ -234,7 +241,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
                 }]
             }')
         
-        # 5. Update History with Tool Result
+        # 6. Update History with Tool Result
         update_history "$TOOL_RESPONSE"
 
         # Loop continues to send this result back to the model...
