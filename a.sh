@@ -32,6 +32,34 @@ update_history() {
   rm "$item_file"
 }
 
+# Helper: Shadow Backup Logic
+BACKUP_DIR="${TMPDIR:-/tmp}/tellme_backups"
+# Prune backups older than 24 hours
+find "$BACKUP_DIR" -type f -mtime +1 -delete 2>/dev/null
+mkdir -p "$BACKUP_DIR"
+
+backup_file() {
+    local target="$1"
+    if [ -f "$target" ]; then
+        # Create a flat filename (e.g. ./src/main.py -> _src_main.py)
+        local flat_name=$(echo "$target" | sed 's/[\/\.]/_/g')
+        cp "$target" "$BACKUP_DIR/$flat_name"
+    fi
+}
+
+restore_backup() {
+    local target="$1"
+    local flat_name=$(echo "$target" | sed 's/[\/\.]/_/g')
+    local backup_path="$BACKUP_DIR/$flat_name"
+    
+    if [ -f "$backup_path" ]; then
+        cp "$backup_path" "$target"
+        return 0
+    else
+        return 1
+    fi
+}
+
 # 1. Update Conversation History (User Input)
 PROMPT_TEXT="$1"
 STDIN_DATA=""
@@ -169,6 +197,20 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
         }
       },
       "required": ["patch_content"]
+    }
+  },
+  {
+    "name": "rollback_file",
+    "description": "Reverts a file to its state before the last AI modification. Use this immediately if an edit breaks something.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the file to rollback."
+        }
+      },
+      "required": ["filepath"]
     }
   },
   {
@@ -697,6 +739,11 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
 
                     if [ "$IS_SAFE" = true ]; then
                         mkdir -p "$(dirname "$FC_PATH")"
+                        
+                        # --- Backup Hook ---
+                        backup_file "$FC_PATH"
+                        # -------------------
+
                         printf "%s" "$FC_CONTENT" > "$FC_PATH"
                         if [ $? -eq 0 ]; then
                             RESULT_MSG="File updated successfully."
@@ -746,6 +793,10 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
 
                     if [ "$IS_SAFE" = true ]; then
                         if [ -f "$FC_PATH" ]; then
+                            # --- Backup Hook ---
+                            backup_file "$FC_PATH"
+                            # -------------------
+
                             # Use Python for safe replacement (Surgical: 1st occurrence only)
                             export PYTHON_OLD="$FC_OLD"
                             export PYTHON_NEW="$FC_NEW"
@@ -829,6 +880,10 @@ except Exception as e:
 
                     if [ "$IS_SAFE" = true ]; then
                         if [ -f "$FC_PATH" ]; then
+                            # --- Backup Hook ---
+                            backup_file "$FC_PATH"
+                            # -------------------
+
                             export PY_PATH="$FC_PATH"
                             export PY_TEXT="$FC_TEXT"
                             export PY_LINE="$FC_LINE"
@@ -920,6 +975,15 @@ except Exception as e:
                         PATCH_FILE=$(mktemp)
                         printf "%s" "$FC_PATCH" > "$PATCH_FILE"
                         
+                        # --- Backup Hook (Naive approach: Parse filename from patch?) ---
+                        # Patch files are complex. We need to identify the target file(s).
+                        # Simple grep for "--- a/" or "+++ b/"
+                        TARGET_FILE=$(grep -m 1 "^+++ b/" "$PATCH_FILE" | sed 's|^+++ b/||')
+                        if [ -n "$TARGET_FILE" ] && [ -f "$TARGET_FILE" ]; then
+                             backup_file "$TARGET_FILE"
+                        fi
+                        # -------------------------------------------------------------
+
                         OUTPUT=$(patch --batch --forward -p1 < "$PATCH_FILE" 2>&1)
                         EXIT_CODE=$?
                         
@@ -951,6 +1015,26 @@ except Exception as e:
                     fi
 
                     jq -n --arg name "apply_patch" --rawfile content <(printf "%s" "$RESULT_MSG") \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+
+                elif [ "$F_NAME" == "rollback_file" ]; then
+                    # Extract Arguments
+                    FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
+
+                    echo -e "\033[0;36m[Tool Request] Rolling back: $FC_PATH\033[0m"
+
+                    if restore_backup "$FC_PATH"; then
+                        RESULT_MSG="Success: Reverted $FC_PATH to previous state."
+                        echo -e "\033[0;32m[Tool Success] Rollback complete.\033[0m"
+                    else
+                        RESULT_MSG="Error: No backup found for $FC_PATH."
+                        echo -e "\033[0;31m[Tool Failed] No backup available.\033[0m"
+                    fi
+
+                    jq -n --arg name "rollback_file" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
@@ -1820,6 +1904,10 @@ DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - st
 # Use the final JSON response for Recap and Stats
 # Note: Recap reads from the *file* history, but we want to render the last message.
 RECAP_OUT=$(mktemp)
+if [ -z "$RECAP_OUT" ]; then
+    RECAP_OUT="${TMPDIR:-/tmp}/tellme_recap_${RANDOM}.txt"
+fi
+
 "$BASE_DIR/recap.sh" -l > "$RECAP_OUT"
 LINE_COUNT=$(wc -l < "$RECAP_OUT")
 
@@ -1830,7 +1918,7 @@ if [ "$LINE_COUNT" -gt 20 ]; then
 else
     cat "$RECAP_OUT"
 fi
-rm "$RECAP_OUT"
+rm -f "$RECAP_OUT"
 
 # 7. Grounding Detection
 SEARCH_COUNT=$(echo "$FINAL_TEXT_RESPONSE" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
