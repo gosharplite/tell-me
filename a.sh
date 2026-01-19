@@ -220,6 +220,29 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
     }
   },
   {
+    "name": "find_file",
+    "description": "Finds files based on name patterns using the 'find' command.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "path": {
+          "type": "STRING",
+          "description": "The directory path to start the search (defaults to '.')",
+          "default": "."
+        },
+        "name_pattern": {
+          "type": "STRING",
+          "description": "The file name pattern to search for (e.g., '*.sh', 'config.*')."
+        },
+        "type": {
+          "type": "STRING",
+          "description": "The type of file to search for (f=file, d=directory). Optional."
+        }
+      },
+      "required": ["name_pattern"]
+    }
+  },
+  {
     "name": "get_tree",
     "description": "Returns a visual directory tree structure. Respects standard ignore rules (node_modules, .git, etc). Use this to understand project architecture.",
     "parameters": {
@@ -949,6 +972,65 @@ except Exception as e:
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+                
+                elif [ "$F_NAME" == "find_file" ]; then
+                    # Extract Arguments
+                    FC_PATH=$(echo "$FC_DATA" | jq -r '.args.path // "."')
+                    FC_PATTERN=$(echo "$FC_DATA" | jq -r '.args.name_pattern')
+                    FC_TYPE=$(echo "$FC_DATA" | jq -r '.args.type // empty')
+
+                    echo -e "\033[0;36m[Tool Request] Find: $FC_PATTERN in $FC_PATH\033[0m"
+
+                    # Security Check: Ensure path is within CWD
+                    IS_SAFE=false
+                    if command -v python3 >/dev/null 2>&1; then
+                        REL_CHECK=$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]).startswith(os.getcwd()))" "$FC_PATH")
+                        [ "$REL_CHECK" == "True" ] && IS_SAFE=true
+                    elif command -v realpath >/dev/null 2>&1; then
+                        [ "$(realpath -m "$FC_PATH")" == "$(pwd -P)"* ] && IS_SAFE=true
+                    else
+                        if [[ "$FC_PATH" != /* && "$FC_PATH" != *".."* ]]; then IS_SAFE=true; fi
+                    fi
+
+                    if [ "$IS_SAFE" = true ]; then
+                        # Build find command
+                        # Exclude common ignore dirs
+                        IGNORES="node_modules|.git|.idea|.vscode|__pycache__|output|dist|build|coverage|target|vendor|.DS_Store"
+                        
+                        CMD="find \"$FC_PATH\" -name \"$FC_PATTERN\""
+                        
+                        # Add type filter if specified
+                        if [ "$FC_TYPE" == "f" ]; then CMD="$CMD -type f"; fi
+                        if [ "$FC_TYPE" == "d" ]; then CMD="$CMD -type d"; fi
+                        
+                        # Exclude hidden files/dirs logic manually
+                        CMD="$CMD -not -path '*/.*' -not -path '*node_modules*' -not -path '*output*' -not -path '*dist*' -not -path '*build*'"
+                        
+                        # Execute
+                        RESULT_MSG=$(eval "$CMD" 2>/dev/null | head -n 50)
+                        
+                        if [ -z "$RESULT_MSG" ]; then
+                            RESULT_MSG="No files found matching pattern: $FC_PATTERN"
+                        elif [ $(echo "$RESULT_MSG" | wc -l) -eq 50 ]; then
+                            RESULT_MSG="${RESULT_MSG}\n... (Matches truncated at 50 lines) ..."
+                        fi
+                        echo -e "\033[0;32m[Tool Success] Find complete.\033[0m"
+                    else
+                        RESULT_MSG="Error: Security violation. Path must be within current working directory."
+                        echo -e "\033[0;31m[Tool Security Block] Find denied: $FC_PATH\033[0m"
+                    fi
+                    
+                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+                        WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
+                        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
+                        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+                    fi
+
+                    jq -n --arg name "find_file" --arg content "$RESULT_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.part"
 
