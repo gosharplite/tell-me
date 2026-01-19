@@ -403,6 +403,14 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
         }
       }
     }
+  },
+  {
+    "name": "get_git_status",
+    "description": "Retrieves the current status of the git repository, including the current branch and a concise list of modified, staged, and untracked files.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {}
+    }
   }
 ]
 EOM
@@ -1577,6 +1585,26 @@ except Exception as e:
                     fi
 
                     jq -n --arg name "get_git_log" --rawfile content <(printf "%s" "$RESULT_MSG") \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+
+                elif [ "$F_NAME" == "get_git_status" ]; then
+                    echo -e "\033[0;36m[Tool Request] Git Status\033[0m"
+
+                    if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+                        RESULT_MSG=$(git status --short --branch 2>&1)
+                        echo -e "\033[0;32m[Tool Success] Git status retrieved.\033[0m"
+                    else
+                        RESULT_MSG="Error: Not a git repo or git missing."
+                        echo -e "\033[0;31m[Tool Failed] Git Error.\033[0m"
+                    fi
+
+                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+                        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn."
+                    fi
+
+                    jq -n --arg name "get_git_status" --rawfile content <(printf "%s" "$RESULT_MSG") \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.part"
