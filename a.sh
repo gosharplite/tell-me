@@ -112,6 +112,24 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
     }
   },
   {
+    "name": "move_file",
+    "description": "Moves or renames a file or directory. Source and destination must be within the current working directory.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "source_path": {
+          "type": "STRING",
+          "description": "The path to the file or directory to move."
+        },
+        "dest_path": {
+          "type": "STRING",
+          "description": "The destination path."
+        }
+      },
+      "required": ["source_path", "dest_path"]
+    }
+  },
+  {
     "name": "list_files",
     "description": "Lists files and directories in the specified path. Use this to explore the file system structure.",
     "parameters": {
@@ -471,6 +489,78 @@ except Exception as e:
                     jq -n --arg name "replace_text" --arg content "$RESULT_MSG" \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+
+                elif [ "$F_NAME" == "move_file" ]; then
+                    # Extract Arguments
+                    FC_SRC=$(echo "$FC_DATA" | jq -r '.args.source_path')
+                    FC_DEST=$(echo "$FC_DATA" | jq -r '.args.dest_path')
+
+                    echo -e "\033[0;36m[Tool Request] Moving: $FC_SRC -> $FC_DEST\033[0m"
+
+                    # Security Check: Ensure BOTH paths are within CWD
+                    IS_SAFE=false
+                    SAFE_SRC=false
+                    SAFE_DEST=false
+                    
+                    # Check Source
+                    if command -v python3 >/dev/null 2>&1; then
+                        REL_CHECK=$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]).startswith(os.getcwd()))" "$FC_SRC")
+                        [ "$REL_CHECK" == "True" ] && SAFE_SRC=true
+                    elif command -v realpath >/dev/null 2>&1; then
+                        [ "$(realpath -m "$FC_SRC")" == "$(pwd -P)"* ] && SAFE_SRC=true
+                    else
+                        if [[ "$FC_SRC" != /* && "$FC_SRC" != *".."* ]]; then SAFE_SRC=true; fi
+                    fi
+                    
+                    # Check Dest
+                    if command -v python3 >/dev/null 2>&1; then
+                        REL_CHECK=$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]).startswith(os.getcwd()))" "$FC_DEST")
+                        [ "$REL_CHECK" == "True" ] && SAFE_DEST=true
+                    elif command -v realpath >/dev/null 2>&1; then
+                        [ "$(realpath -m "$FC_DEST")" == "$(pwd -P)"* ] && SAFE_DEST=true
+                    else
+                        if [[ "$FC_DEST" != /* && "$FC_DEST" != *".."* ]]; then SAFE_DEST=true; fi
+                    fi
+
+                    if [ "$SAFE_SRC" = true ] && [ "$SAFE_DEST" = true ]; then
+                        if [ -e "$FC_SRC" ]; then
+                            # Ensure dest directory exists if it looks like a directory path
+                            DEST_DIR=$(dirname "$FC_DEST")
+                            if [ ! -d "$DEST_DIR" ]; then
+                                mkdir -p "$DEST_DIR"
+                            fi
+
+                            mv "$FC_SRC" "$FC_DEST" 2>&1
+                            if [ $? -eq 0 ]; then
+                                RESULT_MSG="Success: Moved $FC_SRC to $FC_DEST"
+                                echo -e "\033[0;32m[Tool Success] File moved.\033[0m"
+                            else
+                                RESULT_MSG="Error: Failed to move file."
+                                echo -e "\033[0;31m[Tool Failed] Move failed.\033[0m"
+                            fi
+                        else
+                             RESULT_MSG="Error: Source path does not exist."
+                             echo -e "\033[0;31m[Tool Failed] Source not found.\033[0m"
+                        fi
+                    else
+                        RESULT_MSG="Error: Security violation. Source and Destination must be within current working directory."
+                        echo -e "\033[0;31m[Tool Security Block] Move denied.\033[0m"
+                    fi
+
+                    # Inject Warning if approaching Max Turns
+                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+                        WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
+                        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
+                        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+                    fi
+
+                    # Construct Function Response Part
+                    jq -n --arg name "move_file" --arg content "$RESULT_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    
+                    # Append to Array
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.part"
 
