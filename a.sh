@@ -131,6 +131,33 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
     }
   },
   {
+    "name": "insert_text",
+    "description": "Inserts text into a file at a specific line number. useful for adding imports, functions, or configuration lines.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the file to edit."
+        },
+        "text": {
+          "type": "STRING",
+          "description": "The text content to insert."
+        },
+        "line_number": {
+          "type": "INTEGER",
+          "description": "The line number to use as a reference."
+        },
+        "placement": {
+          "type": "STRING",
+          "description": "Where to insert relative to the line number ('before' or 'after').",
+          "enum": ["before", "after"]
+        }
+      },
+      "required": ["filepath", "text", "line_number", "placement"]
+    }
+  },
+  {
     "name": "apply_patch",
     "description": "Applies a unified diff patch to files. Use this for complex edits or multiple changes in one go. The patch must have standard headers (--- a/file +++ b/file) and use context.",
     "parameters": {
@@ -692,6 +719,106 @@ except Exception as e:
                     fi
 
                     jq -n --arg name "replace_text" --arg content "$RESULT_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+
+                elif [ "$F_NAME" == "insert_text" ]; then
+                    # Extract Arguments
+                    FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
+                    FC_TEXT=$(echo "$FC_DATA" | jq -r '.args.text')
+                    FC_LINE=$(echo "$FC_DATA" | jq -r '.args.line_number')
+                    FC_PLACE=$(echo "$FC_DATA" | jq -r '.args.placement')
+
+                    echo -e "\033[0;36m[Tool Request] Inserting text $FC_PLACE line $FC_LINE in: $FC_PATH\033[0m"
+
+                    # Security Check
+                    IS_SAFE=false
+                    if command -v python3 >/dev/null 2>&1; then
+                        REL_CHECK=$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]).startswith(os.getcwd()))" "$FC_PATH")
+                        [ "$REL_CHECK" == "True" ] && IS_SAFE=true
+                    elif command -v realpath >/dev/null 2>&1; then
+                        [ "$(realpath -m "$FC_PATH")" == "$(pwd -P)"* ] && IS_SAFE=true
+                    else
+                        if [[ "$FC_PATH" != /* && "$FC_PATH" != *".."* ]]; then IS_SAFE=true; fi
+                    fi
+
+                    if [ "$IS_SAFE" = true ]; then
+                        if [ -f "$FC_PATH" ]; then
+                            export PY_PATH="$FC_PATH"
+                            export PY_TEXT="$FC_TEXT"
+                            export PY_LINE="$FC_LINE"
+                            export PY_PLACE="$FC_PLACE"
+
+                            python3 -c '
+import os, sys
+
+path = os.environ["PY_PATH"]
+text = os.environ["PY_TEXT"]
+line_num = int(os.environ["PY_LINE"])
+place = os.environ["PY_PLACE"]
+
+try:
+    with open(path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    if line_num < 0 or line_num > len(lines) + 1:
+        print(f"Error: Line number {line_num} out of bounds.")
+        sys.exit(1)
+
+    idx = line_num - 1
+    
+    # Ensure insertion has separate line if needed, or rely on user content
+    if not text.endswith("\n"):
+        text += "\n"
+
+    if place == "before":
+        if idx < 0: idx = 0
+        lines.insert(idx, text)
+    else: # after
+        if idx < 0: 
+             lines.insert(0, text)
+        elif idx >= len(lines):
+             lines.append(text)
+        else:
+             lines.insert(idx + 1, text)
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+
+    print("Success: Text inserted.")
+
+except Exception as e:
+    print(f"Error: {str(e)}")
+    sys.exit(1)
+' > "${RESP_PARTS_FILE}.py_out" 2>&1
+
+                            PY_EXIT=$?
+                            RESULT_MSG=$(cat "${RESP_PARTS_FILE}.py_out")
+                            rm "${RESP_PARTS_FILE}.py_out"
+
+                            if [ $PY_EXIT -eq 0 ]; then
+                                echo -e "\033[0;32m[Tool Success] $RESULT_MSG\033[0m"
+                            else
+                                echo -e "\033[0;31m[Tool Failed] $RESULT_MSG\033[0m"
+                            fi
+                        else
+                             RESULT_MSG="Error: File not found."
+                             echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+                        fi
+                    else
+                        RESULT_MSG="Error: Security violation. Edit path must be within current working directory."
+                        echo -e "\033[0;31m[Tool Security Block] Insert denied: $FC_PATH\033[0m"
+                    fi
+
+                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+                        WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
+                        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
+                        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+                    fi
+
+                    jq -n --arg name "insert_text" --arg content "$RESULT_MSG" \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
