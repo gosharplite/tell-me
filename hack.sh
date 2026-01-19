@@ -211,7 +211,7 @@ case "$ACTION" in
 
     "show-last")
         # Display the last user/model pair
-        "$BASE_DIR/recap.sh" -ll
+        "$BASE_DIR/recap.sh" -ll -nc
         ;;
 
     "cheat-sheet")
