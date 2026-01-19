@@ -210,8 +210,8 @@ case "$ACTION" in
         ;;
 
     "show-last")
-        # Display the last user/model pair using the pager
-        "$BASE_DIR/recap.sh" -ll | more
+        # Display the last user/model pair
+        "$BASE_DIR/recap.sh" -ll -nc
         ;;
 
     "cheat-sheet")

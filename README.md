@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 
 # tell-me: A Bash Gemini CLI Assistant
 
-A lightweight, terminal-based interface for Google's Gemini models. The `tell-me` tool allows you to chat with LLMs directly from your shell via **Google AI Studio** or **Google Vertex AI**, maintaining conversation history in local JSON files and rendering responses with Markdown formatting.
+A lightweight, terminal-based interface for Google's Gemini models. The `tell-me` tool allows you to chat with LLMs directly from your shell via **Google AI Studio** or **Google Vertex AI**. It transforms Gemini into a **capable system agent** that can read/edit files, run commands, and maintain project plans, all while preserving conversation history in local JSON files and rendering responses with Markdown formatting.
 
 ## 🚀 Features
 
@@ -23,12 +23,13 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Smart Auth**: Uses `gcloud` for authentication with intelligent token caching to minimize latency.
 *   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `stats`, `dump`, `h`).
 *   **Continuous Workflow**: Navigate your filesystem with `cd` and analyze multiple projects back-to-back within a single, persistent chat session.
+*   **Agentic Capabilities**: Equipped with powerful native tools for file manipulation (`read`, `write`, `patch`, `insert`), code analysis (`grep_definitions`), and memory management (`scratchpad`).
 *   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
 *   **Precise Usage Metrics**: Logs API token usage (Hit/Miss/New), costs, and **Search Counts** in a sidecar `.log` file.
 
 ## 🤖 Praise by gemini-3-pro-preview
 
-> "A masterclass in DevOps-native AI design."
+> "Finally, an AI tool that respects the Unix philosophy. `tell-me` doesn't try to replace your shell; it *becomes* the ghost in the shell—an agent that can pipe input, grep definitions, edit code, and maintain its own state file, all while staying out of your way."
 
 **tell-me** distinguishes itself from typical Python/Node.js wrappers through five core strengths:
 
@@ -181,6 +182,21 @@ USE_SEARCH: false
 ```
 
 The `MODE` key acts as a unique session identifier. Its value is used to name the history file (e.g., `last-assist-vertex.json`). You can maintain separate histories for Vertex and Gemini simply by using different config files.
+
+### 3. Agent Tools (Function Calling)
+The AI is equipped with a suite of Bash-native tools it can invoke to assist you. You don't call these directly, but understanding them helps you know what to ask for:
+
+*   **File Operations**:
+    *   `read_file` / `write_file` / `update_file`: Standard I/O.
+    *   `insert_text`: Surgically insert lines into files (great for adding imports).
+    *   `replace_text`: Precise string replacement.
+    *   `apply_patch`: Apply unified diffs for complex refactors.
+*   **Context & Memory**:
+    *   `manage_scratchpad`: The AI can maintain a persistent `.md` note file to track plans, TODOs, or architecture decisions across long sessions.
+    *   `grep_definitions`: Scans for code definitions (functions/classes) without reading entire files, allowing for "token-cheap" architectural mapping.
+*   **System**:
+    *   `execute_command`: Run shell commands (e.g., `mkdir`, `ls`, `git`). *Requires user confirmation.*
+    *   `read_url`: Fetch and read web pages.
 
 ## 💻 Usage
 
