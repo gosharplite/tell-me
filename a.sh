@@ -984,11 +984,17 @@ except Exception as e:
                         fi
                         # -------------------------------------------------------------
 
-                        OUTPUT=$(patch --batch --forward -p1 < "$PATCH_FILE" 2>&1)
+                        # GNU patch specific: prevent .orig files on mismatch (cleaner workspace)
+                        PATCH_ARGS="--batch --forward"
+                        if patch --help 2>&1 | grep -q "\--no-backup-if-mismatch"; then
+                            PATCH_ARGS="$PATCH_ARGS --no-backup-if-mismatch"
+                        fi
+
+                        OUTPUT=$(patch $PATCH_ARGS -p1 < "$PATCH_FILE" 2>&1)
                         EXIT_CODE=$?
                         
                         if [ $EXIT_CODE -ne 0 ]; then
-                            OUTPUT_RETRY=$(patch --batch --forward < "$PATCH_FILE" 2>&1)
+                            OUTPUT_RETRY=$(patch $PATCH_ARGS < "$PATCH_FILE" 2>&1)
                             if [ $? -eq 0 ]; then
                                 OUTPUT="$OUTPUT_RETRY"
                                 EXIT_CODE=0
