@@ -210,6 +210,20 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
       },
       "required": ["command"]
     }
+  },
+  {
+    "name": "get_git_diff",
+    "description": "Retrieves the git diff of the current repository.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "staged": {
+          "type": "BOOLEAN",
+          "description": "If true, shows staged changes.",
+          "default": false
+        }
+      }
+    }
   }
 ]
 EOM
@@ -258,7 +272,7 @@ fi
 # Handles multi-turn interactions (Tool Call -> Execution -> Tool Response)
 # ==============================================================================
 
-MAX_TURNS=5
+MAX_TURNS=15
 CURRENT_TURN=0
 FINAL_TEXT_RESPONSE=""
 
@@ -767,6 +781,30 @@ except Exception as e:
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+
+                elif [ "$F_NAME" == "get_git_diff" ]; then
+                    FC_STAGED=$(echo "$FC_DATA" | jq -r '.args.staged // false')
+                    echo -e "\033[0;36m[Tool Request] Git Diff (Staged: $FC_STAGED)\033[0m"
+
+                    if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+                        [ "$FC_STAGED" == "true" ] && RESULT_MSG=$(git diff --cached 2>&1) || RESULT_MSG=$(git diff 2>&1)
+                        [ -z "$RESULT_MSG" ] && RESULT_MSG="No changes found."
+                        LINE_COUNT=$(echo "$RESULT_MSG" | wc -l)
+                        [ "$LINE_COUNT" -gt 200 ] && RESULT_MSG="$(echo "$RESULT_MSG" | head -n 200)\n... (Truncated) ..."
+                        echo -e "\033[0;32m[Tool Success] Git diff retrieved.\033[0m"
+                    else
+                        RESULT_MSG="Error: Not a git repo or git missing."
+                        echo -e "\033[0;31m[Tool Failed] Git Error.\033[0m"
+                    fi
+
+                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+                        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn."
+                    fi
+
+                    jq -n --arg name "get_git_diff" --arg content "$RESULT_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.part"
 
