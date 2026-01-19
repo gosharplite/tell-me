@@ -307,7 +307,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
                     # Append to Array
                     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.part"
-
+                
                 elif [ "$F_NAME" == "update_file" ]; then
                     # Extract Arguments
                     FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
