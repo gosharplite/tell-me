@@ -400,6 +400,10 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
           "type": "INTEGER",
           "description": "Number of commits to show (default: 10).",
           "default": 10
+        },
+        "filepath": {
+          "type": "STRING",
+          "description": "Optional file path to filter the log for a specific file."
         }
       }
     }
@@ -1622,10 +1626,22 @@ except Exception as e:
 
                 elif [ "$F_NAME" == "get_git_log" ]; then
                     FC_LIMIT=$(echo "$FC_DATA" | jq -r '.args.limit // 10')
-                    echo -e "\033[0;36m[Tool Request] Git Log (Limit: $FC_LIMIT)\033[0m"
+                    FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath // empty')
+                    
+                    if [ -n "$FC_PATH" ]; then
+                        echo -e "\033[0;36m[Tool Request] Git Log (Limit: $FC_LIMIT, File: $FC_PATH)\033[0m"
+                    else
+                        echo -e "\033[0;36m[Tool Request] Git Log (Limit: $FC_LIMIT)\033[0m"
+                    fi
 
                     if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-                        RESULT_MSG=$(git log --oneline -n "$FC_LIMIT" 2>&1)
+                        # Build command with optional file path
+                        CMD="git log --oneline -n \"$FC_LIMIT\""
+                        if [ -n "$FC_PATH" ]; then
+                            CMD="$CMD -- \"$FC_PATH\""
+                        fi
+                        
+                        RESULT_MSG=$(eval "$CMD" 2>&1)
                         if [ -z "$RESULT_MSG" ]; then RESULT_MSG="No commits found."; fi
                         echo -e "\033[0;32m[Tool Success] Git log retrieved.\033[0m"
                     else
