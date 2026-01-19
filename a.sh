@@ -200,7 +200,8 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
         if [ "$IS_SAFE" = true ]; then
             # 2. Execute Action (Write File)
             mkdir -p "$(dirname "$FC_PATH")"
-            echo "$FC_CONTENT" > "$FC_PATH"
+            # Use printf to avoid trailing newline and argument misinterpretation
+            printf "%s" "$FC_CONTENT" > "$FC_PATH"
             WRITE_STATUS=$?
 
             if [ $WRITE_STATUS -eq 0 ]; then
