@@ -188,13 +188,21 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
   },
   {
     "name": "read_file",
-    "description": "Reads the content of a specific file. Use this to inspect code or configs before editing them.",
+    "description": "Reads the content of a specific file. Supports pagination via line ranges.",
     "parameters": {
       "type": "OBJECT",
       "properties": {
         "filepath": {
           "type": "STRING",
           "description": "The path to the file to read (e.g., ./src/main.py)"
+        },
+        "start_line": {
+          "type": "INTEGER",
+          "description": "The line number to start reading from (default: 1)."
+        },
+        "end_line": {
+          "type": "INTEGER",
+          "description": "The line number to stop reading at (optional, reads to end if omitted)."
         }
       },
       "required": ["filepath"]
@@ -888,8 +896,16 @@ except Exception as e:
                 elif [ "$F_NAME" == "read_file" ]; then
                     # Extract Arguments
                     FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
+                    FC_START=$(echo "$FC_DATA" | jq -r '.args.start_line // 1')
+                    FC_END=$(echo "$FC_DATA" | jq -r '.args.end_line // empty')
 
-                    echo -e "\033[0;36m[Tool Request] Reading: $FC_PATH\033[0m"
+                    if [ -z "$FC_END" ] || [ "$FC_END" == "null" ]; then
+                        RANGE_DESC="Start: $FC_START"
+                    else
+                        RANGE_DESC="Lines: $FC_START-$FC_END"
+                    fi
+
+                    echo -e "\033[0;36m[Tool Request] Reading: $FC_PATH ($RANGE_DESC)\033[0m"
 
                     # Security Check: Ensure path is within CWD
                     IS_SAFE=false
@@ -904,16 +920,45 @@ except Exception as e:
 
                     if [ "$IS_SAFE" = true ]; then
                         if [ -f "$FC_PATH" ]; then
-                            # Read file content
-                            # Limit size to prevent token explosion (e.g., 500 lines)
-                            LINE_COUNT=$(wc -l < "$FC_PATH")
-                            if [ "$LINE_COUNT" -gt 500 ]; then
-                                RESULT_MSG=$(head -n 500 "$FC_PATH")
-                                RESULT_MSG="${RESULT_MSG}\n\n... (File truncated at 500 lines) ..."
-                            else
-                                RESULT_MSG=$(cat "$FC_PATH")
+                            TOTAL_LINES=$(wc -l < "$FC_PATH")
+                            
+                            # Validate Start
+                            if [ "$FC_START" -lt 1 ]; then FC_START=1; fi
+                            
+                            # Determine End
+                            if [ -z "$FC_END" ] || [ "$FC_END" == "null" ]; then
+                                # If no end specified, read 500 lines max
+                                FC_END=$((FC_START + 499))
                             fi
-                            echo -e "\033[0;32m[Tool Success] File read.\033[0m"
+                            
+                            # Cap End at Total
+                            if [ "$TOTAL_LINES" -gt 0 ]; then
+                                if [ "$FC_END" -gt "$TOTAL_LINES" ]; then
+                                    FC_END="$TOTAL_LINES"
+                                fi
+                            fi
+
+                            # Calculate limit check
+                            LINES_TO_READ=$((FC_END - FC_START + 1))
+                            
+                            # Sanity check if range is inverted
+                            if [ "$LINES_TO_READ" -lt 1 ]; then
+                                LINES_TO_READ=0
+                                FC_END=$FC_START
+                            fi
+
+                            if [ "$LINES_TO_READ" -gt 500 ]; then
+                                # Cap at 500 lines for safety
+                                FC_END=$((FC_START + 499))
+                                TRUNC_MSG="\n\n... (Output truncated to 500 lines. Use pagination to read more) ..."
+                            else
+                                TRUNC_MSG=""
+                            fi
+
+                            RESULT_MSG=$(sed -n "${FC_START},${FC_END}p" "$FC_PATH")
+                            RESULT_MSG="${RESULT_MSG}${TRUNC_MSG}"
+                            
+                            echo -e "\033[0;32m[Tool Success] File read ($FC_START-$FC_END).\033[0m"
                         else
                             RESULT_MSG="Error: File not found."
                             echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
