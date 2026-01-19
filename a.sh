@@ -170,78 +170,85 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
 
     CANDIDATE=$(echo "$RESPONSE_JSON" | jq -c '.candidates[0].content')
     
-    # 5. Check for Function Call
-    FUNC_NAME=$(echo "$CANDIDATE" | jq -r '.parts[0].functionCall.name // empty')
+    # 5. Check for Function Call(s)
+    # Gemini may return multiple function calls in one turn (parallel calling).
+    # We must identify if ANY part is a function call.
+    HAS_FUNC=$(echo "$CANDIDATE" | jq -e '.parts[] | has("functionCall")' >/dev/null 2>&1 && echo "yes" || echo "no")
 
-    if [ "$FUNC_NAME" == "update_file" ]; then
-        # --- Handle Tool Execution ---
+    if [ "$HAS_FUNC" == "yes" ]; then
+        # --- Handle Tool Execution (Parallel Compatible) ---
         
-        # 1. Extract Arguments
-        FC_PATH=$(echo "$CANDIDATE" | jq -r '.parts[0].functionCall.args.filepath')
-        FC_CONTENT=$(echo "$CANDIDATE" | jq -r '.parts[0].functionCall.args.content')
-
-        echo -e "\033[0;36m[Tool Request] Writing to file: $FC_PATH\033[0m"
-
-        # Security Check: Ensure path is within CWD
-        # Use Python3 if available for reliable cross-platform resolution, otherwise fallback to simple string checks
-        IS_SAFE=false
-        if command -v python3 >/dev/null 2>&1; then
-            # Reliable: Check if absolute target path starts with absolute CWD path
-            REL_CHECK=$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]).startswith(os.getcwd()))" "$FC_PATH")
-            [ "$REL_CHECK" == "True" ] && IS_SAFE=true
-        elif command -v realpath >/dev/null 2>&1; then
-             # Linux standard: Check if realpath matches pwd prefix
-             [ "$(realpath -m "$FC_PATH")" == "$(pwd -P)"* ] && IS_SAFE=true
-        else
-             # Fallback: Deny if absolute or contains '..'
-             if [[ "$FC_PATH" != /* && "$FC_PATH" != *".."* ]]; then IS_SAFE=true; fi
-        fi
-
-        if [ "$IS_SAFE" = true ]; then
-            # 2. Execute Action (Write File)
-            mkdir -p "$(dirname "$FC_PATH")"
-            # Use printf to avoid trailing newline and argument misinterpretation
-            printf "%s" "$FC_CONTENT" > "$FC_PATH"
-            WRITE_STATUS=$?
-
-            if [ $WRITE_STATUS -eq 0 ]; then
-                RESULT_MSG="File updated successfully."
-                echo -e "\033[0;32m[Tool Success] File updated.\033[0m"
-            else
-                RESULT_MSG="Error: Failed to write file."
-                echo -e "\033[0;31m[Tool Failed] Could not write file.\033[0m"
-            fi
-        else
-            RESULT_MSG="Error: Security violation. Write path must be within current working directory."
-            echo -e "\033[0;31m[Tool Security Block] Write denied: $FC_PATH\033[0m"
-        fi
-
-        # 3. Inject Warning if approaching Max Turns
-        if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-             WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now. Do not call any more tools, or the process will terminate without your response."
-             RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
-             echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
-        fi
-
-        # 4. Update History with the Model's Request (The Function Call)
+        # 1. Update History with the Model's Request (The Function Call)
         update_history "$CANDIDATE"
 
-        # 5. Construct Function Response Object
-        # The API requires the response to match the 'functionResponse' schema
-        TOOL_RESPONSE=$(jq -n \
-            --arg name "update_file" \
-            --arg content "$RESULT_MSG" \
-            '{
-                role: "function",
-                parts: [{
-                    functionResponse: {
-                        name: $name,
-                        response: { result: $content }
-                    }
-                }]
-            }')
+        # 2. Iterate over parts to execute calls and build responses
+        RESP_PARTS_FILE=$(mktemp)
+        echo "[]" > "$RESP_PARTS_FILE"
         
-        # 6. Update History with Tool Result
+        PART_COUNT=$(echo "$CANDIDATE" | jq '.parts | length')
+
+        for (( i=0; i<$PART_COUNT; i++ )); do
+            FC_DATA=$(echo "$CANDIDATE" | jq -c ".parts[$i].functionCall // empty")
+            
+            if [ -n "$FC_DATA" ]; then
+                F_NAME=$(echo "$FC_DATA" | jq -r '.name')
+                
+                if [ "$F_NAME" == "update_file" ]; then
+                    # Extract Arguments
+                    FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
+                    FC_CONTENT=$(echo "$FC_DATA" | jq -r '.args.content')
+
+                    echo -e "\033[0;36m[Tool Request] Writing to file: $FC_PATH\033[0m"
+
+                    # Security Check: Ensure path is within CWD
+                    IS_SAFE=false
+                    if command -v python3 >/dev/null 2>&1; then
+                        REL_CHECK=$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]).startswith(os.getcwd()))" "$FC_PATH")
+                        [ "$REL_CHECK" == "True" ] && IS_SAFE=true
+                    elif command -v realpath >/dev/null 2>&1; then
+                        [ "$(realpath -m "$FC_PATH")" == "$(pwd -P)"* ] && IS_SAFE=true
+                    else
+                        if [[ "$FC_PATH" != /* && "$FC_PATH" != *".."* ]]; then IS_SAFE=true; fi
+                    fi
+
+                    if [ "$IS_SAFE" = true ]; then
+                        mkdir -p "$(dirname "$FC_PATH")"
+                        printf "%s" "$FC_CONTENT" > "$FC_PATH"
+                        if [ $? -eq 0 ]; then
+                            RESULT_MSG="File updated successfully."
+                            echo -e "\033[0;32m[Tool Success] File updated.\033[0m"
+                        else
+                            RESULT_MSG="Error: Failed to write file."
+                            echo -e "\033[0;31m[Tool Failed] Could not write file.\033[0m"
+                        fi
+                    else
+                        RESULT_MSG="Error: Security violation. Write path must be within current working directory."
+                        echo -e "\033[0;31m[Tool Security Block] Write denied: $FC_PATH\033[0m"
+                    fi
+
+                    # Inject Warning if approaching Max Turns
+                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+                        WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
+                        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
+                        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+                    fi
+
+                    # Construct Function Response Part
+                    jq -n --arg name "update_file" --arg content "$RESULT_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    
+                    # Append to Array
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+                fi
+            fi
+        done
+
+        # 3. Construct Full Tool Response
+        TOOL_RESPONSE=$(jq -n --slurpfile parts "$RESP_PARTS_FILE" '{ role: "function", parts: $parts[0] }')
+        rm "$RESP_PARTS_FILE"
+        
+        # 4. Update History with Tool Result
         update_history "$TOOL_RESPONSE"
 
         # Loop continues to send this result back to the model...
