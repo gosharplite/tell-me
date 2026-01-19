@@ -186,9 +186,7 @@ fi
 if [[ "$AIURL" == *"aiplatform.googleapis.com"* ]]; then
     TARGET_SCOPE="https://www.googleapis.com/auth/cloud-platform"
     CACHE_SUFFIX="vertex"
-    # Vertex AI REST API often requires function responses to be wrapped in 'user' role
-    # or strictly enforces 'user'/'model' roles depending on the endpoint version.
-    FUNC_ROLE="user"
+    FUNC_ROLE="function"
 else
     TARGET_SCOPE="https://www.googleapis.com/auth/generative-language"
     CACHE_SUFFIX="studio"
