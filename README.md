@@ -52,6 +52,11 @@ Runs on standard environments with `bash`, `curl`, `jq`, and `python3`. It relie
 ### 5. Enterprise-Ready Architecture
 The tool separates logic from configuration. You can seamlessly switch between the free **AI Studio** tier for prototyping and **Vertex AI** (IAM-protected, VPC-scoped) for secure enterprise work.
 
+### 6. Logo Design
+The `tell-me` logo is a nod to its dual nature:
+*   **Visual**: The terminal prompt `>_` and star `★` form a winking face—a playful "ghost in the machine."
+*   **Lyrical**: The name relies on the rhyme between "Tell **me**" and "Terminal Gemi**ni**" (pronounced */ˈdʒɛmɪni/*).
+
 ## ⚠️ Important Disclaimers
 
 ### Security & Privacy
