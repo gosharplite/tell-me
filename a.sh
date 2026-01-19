@@ -103,6 +103,25 @@ read -r -d '' FUNC_DECLARATIONS <<EOM
       },
       "required": ["filepath"]
     }
+  },
+  {
+    "name": "search_files",
+    "description": "Searches for a text pattern in files within a directory. Use this to find code usage or definitions.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "query": {
+          "type": "STRING",
+          "description": "The string or regex to search for."
+        },
+        "path": {
+          "type": "STRING",
+          "description": "The directory to search (defaults to '.')",
+          "default": "."
+        }
+      },
+      "required": ["query"]
+    }
   }
 ]
 EOM
@@ -363,6 +382,60 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
 
                     # Construct Function Response Part
                     jq -n --arg name "read_file" --arg content "$RESULT_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    
+                    # Append to Array
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
+
+                elif [ "$F_NAME" == "search_files" ]; then
+                    # Extract Arguments
+                    FC_QUERY=$(echo "$FC_DATA" | jq -r '.args.query')
+                    FC_PATH=$(echo "$FC_DATA" | jq -r '.args.path // "."')
+
+                    echo -e "\033[0;36m[Tool Request] Searching for \"$FC_QUERY\" in: $FC_PATH\033[0m"
+
+                    # Security Check: Ensure path is within CWD
+                    IS_SAFE=false
+                    if command -v python3 >/dev/null 2>&1; then
+                        REL_CHECK=$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]).startswith(os.getcwd()))" "$FC_PATH")
+                        [ "$REL_CHECK" == "True" ] && IS_SAFE=true
+                    elif command -v realpath >/dev/null 2>&1; then
+                        [ "$(realpath -m "$FC_PATH")" == "$(pwd -P)"* ] && IS_SAFE=true
+                    else
+                        if [[ "$FC_PATH" != /* && "$FC_PATH" != *".."* ]]; then IS_SAFE=true; fi
+                    fi
+
+                    if [ "$IS_SAFE" = true ]; then
+                        if [ -e "$FC_PATH" ]; then
+                            # Grep: recursive, line numbers, binary ignored
+                            # Limit to first 50 lines to prevent token explosion
+                            RESULT_MSG=$(grep -rnI "$FC_QUERY" "$FC_PATH" 2>/dev/null | head -n 50)
+                            
+                            if [ -z "$RESULT_MSG" ]; then
+                                RESULT_MSG="No matches found."
+                            elif [ $(echo "$RESULT_MSG" | wc -l) -eq 50 ]; then
+                                RESULT_MSG="${RESULT_MSG}\n... (Matches truncated at 50 lines) ..."
+                            fi
+                            echo -e "\033[0;32m[Tool Success] Search complete.\033[0m"
+                        else
+                            RESULT_MSG="Error: Path does not exist."
+                            echo -e "\033[0;31m[Tool Failed] Path not found.\033[0m"
+                        fi
+                    else
+                        RESULT_MSG="Error: Security violation. Path must be within current working directory."
+                        echo -e "\033[0;31m[Tool Security Block] Search denied: $FC_PATH\033[0m"
+                    fi
+
+                    # Inject Warning if approaching Max Turns
+                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+                        WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
+                        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
+                        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+                    fi
+
+                    # Construct Function Response Part
+                    jq -n --arg name "search_files" --arg content "$RESULT_MSG" \
                         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
                     
                     # Append to Array
