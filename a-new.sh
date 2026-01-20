@@ -107,6 +107,14 @@ source "$BASE_DIR/lib/read_file.sh"
 # ==============================================================================
 source "$BASE_DIR/lib/read_image.sh"
 
+source "$BASE_DIR/lib/read_url.sh"
+source "$BASE_DIR/lib/git_diff.sh"
+source "$BASE_DIR/lib/git_status.sh"
+source "$BASE_DIR/lib/git_blame.sh"
+source "$BASE_DIR/lib/git_log.sh"
+source "$BASE_DIR/lib/git_commit.sh"
+source "$BASE_DIR/lib/file_search.sh"
+source "$BASE_DIR/lib/file_edit.sh"
 MAX_TURNS=100
 source "$BASE_DIR/lib/ask_user.sh"
 CURRENT_TURN=0
@@ -131,16 +139,12 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
         },
         safetySettings: [
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-source "$BASE_DIR/lib/read_url.sh"
           { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
         ]
       } + 
       (if $person != "" then { systemInstruction: { role: "system", parts: [{text: $person}] } } else {} end)'
-source "$BASE_DIR/lib/git_diff.sh"
-source "$BASE_DIR/lib/git_status.sh"
-source "$BASE_DIR/lib/git_blame.sh"
     )
 
     PAYLOAD_FILE=$(mktemp) || exit 1
@@ -148,10 +152,6 @@ source "$BASE_DIR/lib/git_blame.sh"
 
     # 4. Call API with Retry Logic
     RETRY_COUNT=0
-source "$BASE_DIR/lib/git_log.sh"
-source "$BASE_DIR/lib/git_commit.sh"
-source "$BASE_DIR/lib/file_search.sh"
-source "$BASE_DIR/lib/file_edit.sh"
     MAX_RETRIES=3
     
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
