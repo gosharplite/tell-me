@@ -104,7 +104,7 @@ source "$BASE_DIR/lib/auth.sh"
 # Handles multi-turn interactions (Tool Call -> Execution -> Tool Response)
 # ==============================================================================
 
-MAX_TURNS=30
+MAX_TURNS=100
 CURRENT_TURN=0
 FINAL_TEXT_RESPONSE=""
 
