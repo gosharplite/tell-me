@@ -5,7 +5,6 @@ tool_update_file() {
     local RESP_PARTS_FILE="$2"
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
-    local FC_CONTENT=$(echo "$FC_DATA" | jq -r '.args.content')
 
     echo -e "\033[0;36m[Tool Request] Writing to file: $FC_PATH\033[0m"
 
@@ -21,7 +20,9 @@ tool_update_file() {
         fi
         # -------------------
 
-        printf "%s" "$FC_CONTENT" > "$FC_PATH"
+        # Use jq to write directly to avoid stripping newlines via command substitution
+        echo "$FC_DATA" | jq -r '.args.content' > "$FC_PATH"
+        
         if [ $? -eq 0 ]; then
             RESULT_MSG="File updated successfully."
             echo -e "\033[0;32m[Tool Success] File updated.\033[0m"
@@ -49,9 +50,7 @@ tool_replace_text() {
     local RESP_PARTS_FILE="$2"
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
-    local FC_OLD=$(echo "$FC_DATA" | jq -r '.args.old_text')
-    local FC_NEW=$(echo "$FC_DATA" | jq -r '.args.new_text')
-
+    
     echo -e "\033[0;36m[Tool Request] Replacing text in: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
@@ -64,19 +63,23 @@ tool_replace_text() {
                 backup_file "$FC_PATH"
             fi
             
-            # Use Python for safe replacement
-            export PYTHON_OLD="$FC_OLD"
-            export PYTHON_NEW="$FC_NEW"
-            export PYTHON_PATH="$FC_PATH"
+            # Prepare data file for Python to avoid shell variable stripping
+            local PY_DATA_FILE=$(mktemp)
+            echo "$FC_DATA" > "$PY_DATA_FILE"
+            export PY_DATA_FILE
             
             python3 -c '
-import os, sys
+import os, sys, json
 
-path = os.environ["PYTHON_PATH"]
-old = os.environ["PYTHON_OLD"]
-new = os.environ["PYTHON_NEW"]
-
+data_file = os.environ["PY_DATA_FILE"]
 try:
+    with open(data_file, "r") as f:
+        data = json.load(f)
+        
+    path = data["args"]["filepath"]
+    old = data["args"]["old_text"]
+    new = data["args"]["new_text"]
+    
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
     
@@ -97,7 +100,7 @@ except Exception as e:
             
             local PY_EXIT=$?
             RESULT_MSG=$(cat "${RESP_PARTS_FILE}.py_out")
-            rm "${RESP_PARTS_FILE}.py_out"
+            rm "${RESP_PARTS_FILE}.py_out" "$PY_DATA_FILE"
             
             if [ $PY_EXIT -eq 0 ]; then
                 echo -e "\033[0;32m[Tool Success] $RESULT_MSG\033[0m"
@@ -128,11 +131,9 @@ tool_insert_text() {
     local RESP_PARTS_FILE="$2"
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
-    local FC_TEXT=$(echo "$FC_DATA" | jq -r '.args.text')
-    local FC_LINE=$(echo "$FC_DATA" | jq -r '.args.line_number')
-    local FC_PLACE=$(echo "$FC_DATA" | jq -r '.args.placement')
+    # FC_TEXT and others are extracted inside Python via JSON file to preserve newlines
 
-    echo -e "\033[0;36m[Tool Request] Inserting text $FC_PLACE line $FC_LINE in: $FC_PATH\033[0m"
+    echo -e "\033[0;36m[Tool Request] Inserting text in: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -143,20 +144,23 @@ tool_insert_text() {
                 backup_file "$FC_PATH"
             fi
 
-            export PY_PATH="$FC_PATH"
-            export PY_TEXT="$FC_TEXT"
-            export PY_LINE="$FC_LINE"
-            export PY_PLACE="$FC_PLACE"
+            local PY_DATA_FILE=$(mktemp)
+            echo "$FC_DATA" > "$PY_DATA_FILE"
+            export PY_DATA_FILE
 
             python3 -c '
-import os, sys
+import os, sys, json
 
-path = os.environ["PY_PATH"]
-text = os.environ["PY_TEXT"]
-line_num = int(os.environ["PY_LINE"])
-place = os.environ["PY_PLACE"]
-
+data_file = os.environ["PY_DATA_FILE"]
 try:
+    with open(data_file, "r") as f:
+        data = json.load(f)
+        
+    path = data["args"]["filepath"]
+    text = data["args"]["text"]
+    line_num = int(data["args"]["line_number"])
+    place = data["args"]["placement"]
+
     with open(path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
@@ -193,7 +197,7 @@ except Exception as e:
 
             local PY_EXIT=$?
             RESULT_MSG=$(cat "${RESP_PARTS_FILE}.py_out")
-            rm "${RESP_PARTS_FILE}.py_out"
+            rm "${RESP_PARTS_FILE}.py_out" "$PY_DATA_FILE"
 
             if [ $PY_EXIT -eq 0 ]; then
                 echo -e "\033[0;32m[Tool Success] $RESULT_MSG\033[0m"
@@ -223,7 +227,6 @@ tool_apply_patch() {
     local FC_DATA="$1"
     local RESP_PARTS_FILE="$2"
 
-    local FC_PATCH=$(echo "$FC_DATA" | jq -r '.args.patch_content')
     echo -e "\033[0;36m[Tool Request] Applying Patch\033[0m"
     
     local RESULT_MSG
@@ -233,7 +236,8 @@ tool_apply_patch() {
          echo -e "\033[0;31m[Tool Failed] patch missing.\033[0m"
     else
         local PATCH_FILE=$(mktemp)
-        printf "%s" "$FC_PATCH" > "$PATCH_FILE"
+        # Use jq to write directly to avoid stripping newlines via command substitution
+        echo "$FC_DATA" | jq -r '.args.patch_content' > "$PATCH_FILE"
         
         local TARGET_FILE=$(grep -m 1 "^+++ b/" "$PATCH_FILE" | sed 's|^+++ b/||')
         if [ -n "$TARGET_FILE" ] && [ -f "$TARGET_FILE" ]; then
