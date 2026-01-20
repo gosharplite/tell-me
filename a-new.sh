@@ -136,6 +136,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
         ]
       } + 
       (if $person != "" then { systemInstruction: { role: "system", parts: [{text: $person}] } } else {} end)'
+source "$BASE_DIR/lib/git_status.sh"
 source "$BASE_DIR/lib/git_blame.sh"
     )
 
@@ -1216,24 +1217,7 @@ except Exception as e:
                     rm "${RESP_PARTS_FILE}.part"
 
                 elif [ "$F_NAME" == "get_git_status" ]; then
-                    echo -e "\033[0;36m[Tool Request] Git Status\033[0m"
-
-                    if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-                        RESULT_MSG=$(git status --short --branch 2>&1)
-                        echo -e "\033[0;32m[Tool Success] Git status retrieved.\033[0m"
-                    else
-                        RESULT_MSG="Error: Not a git repo or git missing."
-                        echo -e "\033[0;31m[Tool Failed] Git Error.\033[0m"
-                    fi
-
-                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-                        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn."
-                    fi
-
-                    jq -n --arg name "get_git_status" --rawfile content <(printf "%s" "$RESULT_MSG") \
-                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
-                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
-                    rm "${RESP_PARTS_FILE}.part"
+                    tool_get_git_status "$FC_DATA" "$RESP_PARTS_FILE"
                     
                 elif [ "$F_NAME" == "get_git_blame" ]; then
                     tool_get_git_blame "$FC_DATA" "$RESP_PARTS_FILE"
