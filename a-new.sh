@@ -107,6 +107,7 @@ source "$BASE_DIR/lib/read_file.sh"
 source "$BASE_DIR/lib/read_image.sh"
 
 MAX_TURNS=100
+source "$BASE_DIR/lib/ask_user.sh"
 CURRENT_TURN=0
 FINAL_TEXT_RESPONSE=""
 
@@ -211,35 +212,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
                 F_NAME=$(echo "$FC_DATA" | jq -r '.name')
 
                 if [ "$F_NAME" == "ask_user" ]; then
-                    # Extract Arguments
-                    FC_QUESTION=$(echo "$FC_DATA" | jq -r '.args.question')
-
-                    echo -e "\033[1;35m[AI Question] $FC_QUESTION\033[0m"
-
-                    # Read user input directly from TTY
-                    if [ -t 0 ]; then
-                        read -e -p "Answer > " USER_ANSWER
-                    else
-                         read -e -p "Answer > " USER_ANSWER < /dev/tty
-                    fi
-                    
-                    RESULT_MSG="$USER_ANSWER"
-                    echo -e "\033[0;32m[User Answered]\033[0m"
-
-                    # Inject Warning if approaching Max Turns
-                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-                        WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
-                        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
-                        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
-                    fi
-
-                    # Construct Function Response Part
-                    jq -n --arg name "ask_user" --rawfile content <(printf "%s" "$RESULT_MSG") \
-                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
-                    
-                    # Append to Array
-                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
-                    rm "${RESP_PARTS_FILE}.part"
+                    tool_ask_user "$FC_DATA" "$RESP_PARTS_FILE"
                 
                 elif [ "$F_NAME" == "manage_scratchpad" ]; then
                     # Extract Arguments
