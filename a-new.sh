@@ -99,15 +99,15 @@ fi
 
 # --- Auth Setup ---
 source "$BASE_DIR/lib/auth.sh"
+
+# --- Load Tools ---
+source "$BASE_DIR/lib/utils.sh"
 source "$BASE_DIR/lib/read_file.sh"
-
-# ==============================================================================
-# MAIN INTERACTION LOOP
-# Handles multi-turn interactions (Tool Call -> Execution -> Tool Response)
-# ==============================================================================
 source "$BASE_DIR/lib/read_image.sh"
-
 source "$BASE_DIR/lib/read_url.sh"
+source "$BASE_DIR/lib/scratchpad.sh"
+source "$BASE_DIR/lib/sys_exec.sh"
+source "$BASE_DIR/lib/ask_user.sh"
 source "$BASE_DIR/lib/git_diff.sh"
 source "$BASE_DIR/lib/git_status.sh"
 source "$BASE_DIR/lib/git_blame.sh"
@@ -115,8 +115,13 @@ source "$BASE_DIR/lib/git_log.sh"
 source "$BASE_DIR/lib/git_commit.sh"
 source "$BASE_DIR/lib/file_search.sh"
 source "$BASE_DIR/lib/file_edit.sh"
+
+# ==============================================================================
+# MAIN INTERACTION LOOP
+# Handles multi-turn interactions (Tool Call -> Execution -> Tool Response)
+# ==============================================================================
+
 MAX_TURNS=100
-source "$BASE_DIR/lib/ask_user.sh"
 CURRENT_TURN=0
 FINAL_TEXT_RESPONSE=""
 
@@ -224,61 +229,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
                     tool_ask_user "$FC_DATA" "$RESP_PARTS_FILE"
                 
                 elif [ "$F_NAME" == "manage_scratchpad" ]; then
-                    # Extract Arguments
-                    FC_ACTION=$(echo "$FC_DATA" | jq -r '.args.action')
-                    FC_CONTENT=$(echo "$FC_DATA" | jq -r '.args.content // empty')
-                    
-                    SCRATCHPAD_FILE="${file%.*}.scratchpad.md"
-
-                    echo -e "\033[0;36m[Tool Request] Scratchpad Action: $FC_ACTION\033[0m"
-
-                    case "$FC_ACTION" in
-                        "read")
-                            if [ -f "$SCRATCHPAD_FILE" ]; then
-                                RESULT_MSG=$(cat "$SCRATCHPAD_FILE")
-                                if [ -z "$RESULT_MSG" ]; then RESULT_MSG="[Scratchpad is empty]"; fi
-                            else
-                                RESULT_MSG="[Scratchpad does not exist yet]"
-                            fi
-                            ;;
-                        "write")
-                            echo "$FC_CONTENT" > "$SCRATCHPAD_FILE"
-                            RESULT_MSG="Scratchpad overwritten."
-                            ;;
-                        "append")
-                            # Ensure we don't append to the end of a line if no newline exists
-                            if [ -s "$SCRATCHPAD_FILE" ]; then
-                                # Add a newline separator if appending to non-empty file
-                                echo "" >> "$SCRATCHPAD_FILE"
-                            fi
-                            echo "$FC_CONTENT" >> "$SCRATCHPAD_FILE"
-                            RESULT_MSG="Content appended to scratchpad."
-                            ;;
-                        "clear")
-                            echo "" > "$SCRATCHPAD_FILE"
-                            RESULT_MSG="Scratchpad cleared."
-                            ;;
-                        *)
-                            RESULT_MSG="Error: Invalid action. Use read, write, append, or clear."
-                            ;;
-                    esac
-
-                    echo -e "\033[0;32m[Tool Success] $RESULT_MSG\033[0m"
-
-                    # Inject Warning if approaching Max Turns
-                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-                        WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
-                        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
-                        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
-                    fi
-
-                    # Construct Function Response Part
-                    jq -n --arg name "manage_scratchpad" --rawfile content <(printf "%s" "$RESULT_MSG") \
-                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
-                    
-                    # Append to Array
-                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
-                    rm "${RESP_PARTS_FILE}.part"
+                    tool_manage_scratchpad "$FC_DATA" "$RESP_PARTS_FILE"
 
                 elif [ "$F_NAME" == "update_file" ]; then
                     tool_update_file "$FC_DATA" "$RESP_PARTS_FILE"
@@ -342,59 +293,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
                     tool_get_git_blame "$FC_DATA" "$RESP_PARTS_FILE"
 
                 elif [ "$F_NAME" == "execute_command" ]; then
-                    # Extract Arguments
-                    FC_CMD=$(echo "$FC_DATA" | jq -r '.args.command')
-
-                    echo -e "\033[0;36m[Tool Request] Execute Command: $FC_CMD\033[0m"
-
-                    # Safety: Ask for confirmation
-                    CONFIRM="n"
-                    if [ -t 0 ]; then
-                        # Interactive mode: Ask user
-                        # We use /dev/tty to ensure we read from keyboard even if stdin was piped initially
-                        read -p "⚠️  Execute this command? (y/N) " -n 1 -r CONFIRM < /dev/tty
-                        echo "" 
-                    else
-                        echo "Non-interactive mode: Auto-denying command execution."
-                    fi
-
-                    if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-                        # Execute and capture stdout + stderr
-                        CMD_OUTPUT=$(eval "$FC_CMD" 2>&1)
-                        EXIT_CODE=$?
-                        
-                        # Truncate if too long (100 lines)
-                        LINE_COUNT=$(echo "$CMD_OUTPUT" | wc -l)
-                        if [ "$LINE_COUNT" -gt 100 ]; then
-                            CMD_OUTPUT="$(echo "$CMD_OUTPUT" | head -n 100)\n... (Output truncated at 100 lines) ..."
-                        fi
-
-                        if [ $EXIT_CODE -eq 0 ]; then
-                            RESULT_MSG="Exit Code: 0\nOutput:\n$CMD_OUTPUT"
-                            echo -e "\033[0;32m[Tool Success] Command executed.\033[0m"
-                        else
-                            RESULT_MSG="Exit Code: $EXIT_CODE\nError/Output:\n$CMD_OUTPUT"
-                            echo -e "\033[0;31m[Tool Failed] Command returned non-zero exit code.\033[0m"
-                        fi
-                    else
-                        RESULT_MSG="User denied execution of command: $FC_CMD"
-                        echo -e "\033[0;33m[Tool Skipped] Execution denied.\033[0m"
-                    fi
-
-                    # Inject Warning if approaching Max Turns
-                    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-                        WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
-                        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
-                        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
-                    fi
-
-                    # Construct Function Response Part
-                    jq -n --arg name "execute_command" --rawfile content <(printf "%s" "$RESULT_MSG") \
-                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
-                    
-                    # Append to Array
-                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
-                    rm "${RESP_PARTS_FILE}.part"
+                    tool_execute_command "$FC_DATA" "$RESP_PARTS_FILE"
                 fi
             fi
         done
