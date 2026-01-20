@@ -5,9 +5,16 @@
 # Resolve Script Directory
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Initialize Temp File Variables
+PAYLOAD_FILE=""
+RESP_PARTS_FILE=""
+RECAP_OUT=""
+
 # Define cleanup function for trap
 cleanup() {
-    rm -f "$PAYLOAD_FILE" "$RESP_PARTS_FILE" "$RECAP_OUT"
+    [ -n "$PAYLOAD_FILE" ] && rm -f "$PAYLOAD_FILE"
+    [ -n "$RESP_PARTS_FILE" ] && rm -f "$RESP_PARTS_FILE"
+    [ -n "$RECAP_OUT" ] && rm -f "$RECAP_OUT"
 }
 trap cleanup EXIT
 
@@ -220,9 +227,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
 
         # 3. Construct Full Tool Response
         TOOL_RESPONSE=$(jq -n --arg role "$FUNC_ROLE" --slurpfile parts "$RESP_PARTS_FILE" '{ role: $role, parts: $parts[0] }')
-        # rm "$RESP_PARTS_FILE" # Handled by trap? No, we might need it for the next loop if we didn't use trap correctly. 
-        # Actually, trap handles FINAL cleanup. Intermediate files should still be removed to avoid disk bloat if loop runs long.
-        rm "$RESP_PARTS_FILE" 
+        rm "$RESP_PARTS_FILE"
         
         # 4. Update History with Tool Result
         update_history "$TOOL_RESPONSE"
