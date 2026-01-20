@@ -13,7 +13,10 @@ tool_execute_command() {
     # Extract the first word of the command to check against whitelist
     local CMD_BASE=$(echo "$FC_CMD" | awk '{print $1}')
 
-    if [[ "$CMD_BASE" =~ ^($SAFE_COMMANDS)$ ]]; then
+    # Strict Validation:
+    # 1. Must start with a safe command.
+    # 2. Must NOT contain command separators (; | &), redirection (> <), or subshells ($ `).
+    if [[ "$CMD_BASE" =~ ^($SAFE_COMMANDS)$ ]] && [[ ! "$FC_CMD" =~ [\|\&\;\>\<] ]] && [[ ! "$FC_CMD" =~ \$\( ]] && [[ ! "$FC_CMD" =~ \` ]]; then
          echo -e "\033[0;32m[Auto-Approved] Safe read-only command detected.\033[0m"
          CONFIRM="y"
     elif [ -t 0 ]; then

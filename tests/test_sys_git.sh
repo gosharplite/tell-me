@@ -66,6 +66,18 @@ INPUT_UNSAFE=$(jq -n '{args: {command: "touch unsafe_file"}}')
 tool_execute_command "$INPUT_UNSAFE" "$RESP_FILE" < /dev/null
 RESULT=$(get_result)
 
+# Case 3: Chained malicious command (should be denied despite starting with safe command)
+# "ls" is safe, but "; touch" is not.
+INPUT_CHAINED=$(jq -n '{args: {command: "ls -la; touch malicious_file"}}')
+tool_execute_command "$INPUT_CHAINED" "$RESP_FILE" < /dev/null
+RESULT=$(get_result)
+
+if [[ "$RESULT" == *"User denied execution"* ]] || [[ "$RESULT" == *"Auto-denying"* ]]; then
+    pass "execute_command denied chained malicious command (ls; touch)"
+else
+    fail "execute_command incorrectly allowed chained malicious command: $RESULT"
+fi
+
 if [[ "$RESULT" == *"User denied execution"* ]] || [[ "$RESULT" == *"Auto-denying"* ]]; then
     pass "execute_command denied unsafe command in non-interactive mode"
 else
