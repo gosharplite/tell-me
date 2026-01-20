@@ -5,6 +5,19 @@
 # Resolve Script Directory
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Initialize Temp File Variables
+PAYLOAD_FILE=""
+RESP_PARTS_FILE=""
+RECAP_OUT=""
+
+# Define cleanup function for trap
+cleanup() {
+    [ -n "$PAYLOAD_FILE" ] && rm -f "$PAYLOAD_FILE"
+    [ -n "$RESP_PARTS_FILE" ] && rm -f "$RESP_PARTS_FILE"
+    [ -n "$RECAP_OUT" ] && rm -f "$RECAP_OUT"
+}
+trap cleanup EXIT
+
 # Check Dependencies
 for cmd in jq curl gcloud awk python3 patch; do
     if ! command -v "$cmd" &> /dev/null; then
@@ -16,50 +29,18 @@ done
 source "$BASE_DIR/lib/utils.sh"
 # Helper function to append messages to history safely
 update_history() {
-  local json_content="$1"
-  local item_file=$(mktemp)
-  printf "%s" "$json_content" > "$item_file"
-  
-  if [ -s "$file" ] && jq empty "$file" > /dev/null 2>&1; then
-    if ! jq --slurpfile item "$item_file" '.messages += $item' "$file" > "${file}.tmp"; then
-        echo "Error: Failed to process history file." >&2
-        rm "$item_file"
-        exit 1
-    fi
-    mv "${file}.tmp" "$file"
-  else
-    jq -n --slurpfile item "$item_file" '{messages: $item}' > "$file"
-  fi
-  rm "$item_file"
+  update_history_file "$1" "$file"
 }
 
-# Helper: Shadow Backup Logic
-BACKUP_DIR="${TMPDIR:-/tmp}/tellme_backups"
-# Prune backups older than 24 hours
-find "$BACKUP_DIR" -type f -mtime +1 -delete 2>/dev/null
-mkdir -p "$BACKUP_DIR"
+# Ensure critical variables are set
+if [ -z "$file" ]; then
+    echo "Warning: \$file not set. Defaulting to ./history.json" >&2
+    file="./history.json"
+fi
 
-backup_file() {
-    local target="$1"
-    if [ -f "$target" ]; then
-        # Create a flat filename (e.g. ./src/main.py -> _src_main.py)
-        local flat_name=$(echo "$target" | sed 's/[\/\.]/_/g')
-        cp "$target" "$BACKUP_DIR/$flat_name"
-    fi
-}
-
-restore_backup() {
-    local target="$1"
-    local flat_name=$(echo "$target" | sed 's/[\/\.]/_/g')
-    local backup_path="$BACKUP_DIR/$flat_name"
-    
-    if [ -f "$backup_path" ]; then
-        cp "$backup_path" "$target"
-        return 0
-    else
-        return 1
-    fi
-}
+if [ -z "$PERSON" ]; then
+   PERSON="You are a helpful AI assistant."
+fi
 
 # 1. Update Conversation History (User Input)
 PROMPT_TEXT="$1"
@@ -74,8 +55,7 @@ if [ -n "$STDIN_DATA" ]; then
 elif [ -n "$PROMPT_TEXT" ]; then
     MSG_TEXT="$PROMPT_TEXT"
 else
-    MSG_TEXT="$DATA"
-    echo "Usage: a \"Your message\" or pipe content via stdin" >&2
+    echo "Error: No input provided. Usage: a \"Your message\" or pipe content via stdin" >&2
     exit 1
 fi
 
@@ -90,6 +70,8 @@ else
     echo "Error: Tool definitions not found at $BASE_DIR/lib/tools.json" >&2
     exit 1
 fi
+# Define role for function responses (Gemini expects 'function')
+FUNC_ROLE="function"
 
 if [ "$USE_SEARCH" == "true" ]; then
     TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "googleSearch": {} }, { "functionDeclarations": $funcs }]')
@@ -101,7 +83,6 @@ fi
 source "$BASE_DIR/lib/auth.sh"
 
 # --- Load Tools ---
-source "$BASE_DIR/lib/utils.sh"
 source "$BASE_DIR/lib/read_file.sh"
 source "$BASE_DIR/lib/read_image.sh"
 source "$BASE_DIR/lib/read_url.sh"
@@ -141,6 +122,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
         generationConfig: { 
             temperature: 1.0 
             # thinkingConfig removed for compatibility
+
         },
         safetySettings: [
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -165,34 +147,30 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
           -H "Authorization: Bearer $TOKEN" \
           -d @"$PAYLOAD_FILE")
         
-        # Check for Rate Limit (429 or "Resource exhausted")
-        # Note: curl output is JSON, we look for error code/status inside the JSON if HTTP 200 returned a soft error,
-        # or handle HTTP status if we were capturing headers.
-        # Simple check: Does the JSON contain an error with code 429 or message "RESOURCE_EXHAUSTED"?
+        # Check for Rate Limit (429) or Server Errors (500, 503)
+        # Note: curl output is JSON, we look for error code/status inside the JSON if HTTP 200 returned a soft error.
         
-        IS_RATE_LIMIT="no"
-        if echo "$RESPONSE_JSON" | jq -e '.error.code == 429 or .error.status == "RESOURCE_EXHAUSTED" or (.error.message | contains("Resource exhausted"))' > /dev/null 2>&1; then
-            IS_RATE_LIMIT="yes"
+        SHOULD_RETRY="no"
+        if echo "$RESPONSE_JSON" | jq -e '.error.code == 429 or .error.code == 500 or .error.code == 503 or .error.status == "RESOURCE_EXHAUSTED" or (.error.message | contains("Resource exhausted"))' > /dev/null 2>&1; then
+            SHOULD_RETRY="yes"
         fi
 
-        if [ "$IS_RATE_LIMIT" == "yes" ]; then
+        if [ "$SHOULD_RETRY" == "yes" ]; then
              RETRY_COUNT=$((RETRY_COUNT + 1))
              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                 echo -e "\033[0;33m[System] Rate Limit Hit (429). Retrying in 5s... ($RETRY_COUNT/$MAX_RETRIES)\033[0m"
+                 echo -e "\033[0;33m[System] API Error (Rate Limit/Server). Retrying in 5s... ($RETRY_COUNT/$MAX_RETRIES)\033[0m"
                  sleep 5
                  continue
              else
-                 echo -e "\033[31mError: Rate limit exhausted after $MAX_RETRIES retries.\033[0m"
-                 rm "$PAYLOAD_FILE"
+                 echo -e "\033[31mError: API retry limit exhausted after $MAX_RETRIES retries.\033[0m"
+                 # Cleanup happens via trap
                  exit 1
              fi
         else
-             # Not a rate limit error, break the retry loop
+             # Not a retryable error, break the retry loop
              break
         fi
     done
-
-    rm "$PAYLOAD_FILE"
 
     # Basic Validation
     if echo "$RESPONSE_JSON" | jq -e '.error' > /dev/null 2>&1; then
@@ -201,6 +179,11 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     fi
 
     CANDIDATE=$(echo "$RESPONSE_JSON" | jq -c '.candidates[0].content')
+
+    if [ "$CANDIDATE" == "null" ] || [ -z "$CANDIDATE" ]; then
+        echo -e "\033[31mError: API returned no content (Check Safety Settings or Input).\033[0m"
+        exit 1
+    fi
     
     # 5. Check for Function Call(s)
     # Gemini may return multiple function calls in one turn (parallel calling).
@@ -224,76 +207,20 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
             
             if [ -n "$FC_DATA" ]; then
                 F_NAME=$(echo "$FC_DATA" | jq -r '.name')
+                CMD_NAME="tool_${F_NAME}"
 
-                if [ "$F_NAME" == "ask_user" ]; then
-                    tool_ask_user "$FC_DATA" "$RESP_PARTS_FILE"
-                
-                elif [ "$F_NAME" == "manage_scratchpad" ]; then
-                    tool_manage_scratchpad "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "update_file" ]; then
-                    tool_update_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "replace_text" ]; then
-                    tool_replace_text "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "insert_text" ]; then
-                    tool_insert_text "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "apply_patch" ]; then
-                    tool_apply_patch "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "rollback_file" ]; then
-                    tool_rollback_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "move_file" ]; then
-                    tool_move_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "delete_file" ]; then
-                    tool_delete_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "list_files" ]; then
-                    tool_list_files "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "get_file_info" ]; then
-                    tool_get_file_info "$FC_DATA" "$RESP_PARTS_FILE"
-                
-                elif [ "$F_NAME" == "read_file" ]; then
-                    tool_read_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "read_image" ]; then
-                    tool_read_image "$FC_DATA" "$RESP_PARTS_FILE"
-                elif [ "$F_NAME" == "read_url" ]; then
-                    tool_read_url "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "search_files" ]; then
-                    tool_search_files "$FC_DATA" "$RESP_PARTS_FILE"
-                
-                elif [ "$F_NAME" == "grep_definitions" ]; then
-                    tool_grep_definitions "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "find_file" ]; then
-                    tool_find_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "get_tree" ]; then
-                    tool_get_tree "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "get_git_diff" ]; then
-                    tool_get_git_diff "$FC_DATA" "$RESP_PARTS_FILE"
-                elif [ "$F_NAME" == "read_git_commit" ]; then
-                    tool_read_git_commit "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "get_git_log" ]; then
-                    tool_get_git_log "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "get_git_status" ]; then
-                    tool_get_git_status "$FC_DATA" "$RESP_PARTS_FILE"
+                if declare -f "$CMD_NAME" > /dev/null; then
+                    "$CMD_NAME" "$FC_DATA" "$RESP_PARTS_FILE"
+                else
+                    # Handle unknown tool
+                    ERR_MSG="Error: Tool '$F_NAME' not found or not supported."
+                    echo -e "\033[0;31m[System] $ERR_MSG\033[0m"
                     
-                elif [ "$F_NAME" == "get_git_blame" ]; then
-                    tool_get_git_blame "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "execute_command" ]; then
-                    tool_execute_command "$FC_DATA" "$RESP_PARTS_FILE"
+                    # Send error back to model so it can correct itself
+                    jq -n --arg name "$F_NAME" --arg content "$ERR_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
                 fi
             fi
         done
@@ -319,6 +246,11 @@ done
 END_TIME=$(date +%s.%N)
 DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
 
+if [ -z "$FINAL_TEXT_RESPONSE" ]; then
+    echo -e "\033[31mError: Maximum conversation turns ($MAX_TURNS) exceeded without a final response.\033[0m"
+    exit 1
+fi
+
 # 6. Render Output
 # Use the final JSON response for Recap and Stats
 # Note: Recap reads from the *file* history, but we want to render the last message.
@@ -327,7 +259,13 @@ if [ -z "$RECAP_OUT" ]; then
     RECAP_OUT="${TMPDIR:-/tmp}/tellme_recap_${RANDOM}.txt"
 fi
 
-"$BASE_DIR/recap.sh" -l > "$RECAP_OUT"
+if [ -f "$BASE_DIR/recap.sh" ] && [ -x "$BASE_DIR/recap.sh" ]; then
+    "$BASE_DIR/recap.sh" -l > "$RECAP_OUT"
+else
+    # Fallback: just cat the final response text if recap is missing
+    echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].content.parts[].text // empty' > "$RECAP_OUT"
+fi
+
 LINE_COUNT=$(wc -l < "$RECAP_OUT")
 
 if [ "$LINE_COUNT" -gt 20 ]; then
@@ -337,7 +275,7 @@ if [ "$LINE_COUNT" -gt 20 ]; then
 else
     cat "$RECAP_OUT"
 fi
-rm -f "$RECAP_OUT"
+# rm -f "$RECAP_OUT" # Handled by trap
 
 # 7. Grounding Detection
 SEARCH_COUNT=$(echo "$FINAL_TEXT_RESPONSE" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')

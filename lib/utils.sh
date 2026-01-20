@@ -38,3 +38,31 @@ update_history_file() {
   fi
   rm "$item_file"
 }
+
+# Helper: Shadow Backup Logic
+BACKUP_DIR="${TMPDIR:-/tmp}/tellme_backups"
+# Prune backups older than 24 hours
+mkdir -p "$BACKUP_DIR"
+find "$BACKUP_DIR" -type f -mtime +1 -delete 2>/dev/null
+
+backup_file() {
+    local target="$1"
+    if [ -f "$target" ]; then
+        # Create a flat filename (e.g. ./src/main.py -> _src_main.py)
+        local flat_name=$(echo "$target" | sed 's/[\/\.]/_/g')
+        cp "$target" "$BACKUP_DIR/$flat_name"
+    fi
+}
+
+restore_backup() {
+    local target="$1"
+    local flat_name=$(echo "$target" | sed 's/[\/\.]/_/g')
+    local backup_path="$BACKUP_DIR/$flat_name"
+    
+    if [ -f "$backup_path" ]; then
+        cp "$backup_path" "$target"
+        return 0
+    else
+        return 1
+    fi
+}
