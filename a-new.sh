@@ -33,33 +33,9 @@ update_history() {
   rm "$item_file"
 }
 
-# Helper: Shadow Backup Logic
-BACKUP_DIR="${TMPDIR:-/tmp}/tellme_backups"
-# Prune backups older than 24 hours
-find "$BACKUP_DIR" -type f -mtime +1 -delete 2>/dev/null
-mkdir -p "$BACKUP_DIR"
 
-backup_file() {
-    local target="$1"
-    if [ -f "$target" ]; then
-        # Create a flat filename (e.g. ./src/main.py -> _src_main.py)
-        local flat_name=$(echo "$target" | sed 's/[\/\.]/_/g')
-        cp "$target" "$BACKUP_DIR/$flat_name"
-    fi
-}
 
-restore_backup() {
-    local target="$1"
-    local flat_name=$(echo "$target" | sed 's/[\/\.]/_/g')
-    local backup_path="$BACKUP_DIR/$flat_name"
-    
-    if [ -f "$backup_path" ]; then
-        cp "$backup_path" "$target"
-        return 0
-    else
-        return 1
-    fi
-}
+
 
 # 1. Update Conversation History (User Input)
 PROMPT_TEXT="$1"
@@ -143,10 +119,6 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
             temperature: 1.0 
             # thinkingConfig removed for compatibility
 
-    if [ "$CANDIDATE" == "null" ] || [ -z "$CANDIDATE" ]; then
-        echo -e "\033[31mError: API returned no content (Check Safety Settings or Input).\033[0m"
-        exit 1
-    fi
         },
         safetySettings: [
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -207,6 +179,11 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     fi
 
     CANDIDATE=$(echo "$RESPONSE_JSON" | jq -c '.candidates[0].content')
+
+    if [ "$CANDIDATE" == "null" ] || [ -z "$CANDIDATE" ]; then
+        echo -e "\033[31mError: API returned no content (Check Safety Settings or Input).\033[0m"
+        exit 1
+    fi
     
     # 5. Check for Function Call(s)
     # Gemini may return multiple function calls in one turn (parallel calling).
@@ -230,76 +207,20 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
             
             if [ -n "$FC_DATA" ]; then
                 F_NAME=$(echo "$FC_DATA" | jq -r '.name')
+                CMD_NAME="tool_${F_NAME}"
 
-                if [ "$F_NAME" == "ask_user" ]; then
-                    tool_ask_user "$FC_DATA" "$RESP_PARTS_FILE"
-                
-                elif [ "$F_NAME" == "manage_scratchpad" ]; then
-                    tool_manage_scratchpad "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "update_file" ]; then
-                    tool_update_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "replace_text" ]; then
-                    tool_replace_text "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "insert_text" ]; then
-                    tool_insert_text "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "apply_patch" ]; then
-                    tool_apply_patch "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "rollback_file" ]; then
-                    tool_rollback_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "move_file" ]; then
-                    tool_move_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "delete_file" ]; then
-                    tool_delete_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "list_files" ]; then
-                    tool_list_files "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "get_file_info" ]; then
-                    tool_get_file_info "$FC_DATA" "$RESP_PARTS_FILE"
-                
-                elif [ "$F_NAME" == "read_file" ]; then
-                    tool_read_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "read_image" ]; then
-                    tool_read_image "$FC_DATA" "$RESP_PARTS_FILE"
-                elif [ "$F_NAME" == "read_url" ]; then
-                    tool_read_url "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "search_files" ]; then
-                    tool_search_files "$FC_DATA" "$RESP_PARTS_FILE"
-                
-                elif [ "$F_NAME" == "grep_definitions" ]; then
-                    tool_grep_definitions "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "find_file" ]; then
-                    tool_find_file "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "get_tree" ]; then
-                    tool_get_tree "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "get_git_diff" ]; then
-                    tool_get_git_diff "$FC_DATA" "$RESP_PARTS_FILE"
-                elif [ "$F_NAME" == "read_git_commit" ]; then
-                    tool_read_git_commit "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "get_git_log" ]; then
-                    tool_get_git_log "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "get_git_status" ]; then
-                    tool_get_git_status "$FC_DATA" "$RESP_PARTS_FILE"
+                if declare -f "$CMD_NAME" > /dev/null; then
+                    "$CMD_NAME" "$FC_DATA" "$RESP_PARTS_FILE"
+                else
+                    # Handle unknown tool
+                    ERR_MSG="Error: Tool '$F_NAME' not found or not supported."
+                    echo -e "\033[0;31m[System] $ERR_MSG\033[0m"
                     
-                elif [ "$F_NAME" == "get_git_blame" ]; then
-                    tool_get_git_blame "$FC_DATA" "$RESP_PARTS_FILE"
-
-                elif [ "$F_NAME" == "execute_command" ]; then
-                    tool_execute_command "$FC_DATA" "$RESP_PARTS_FILE"
+                    # Send error back to model so it can correct itself
+                    jq -n --arg name "$F_NAME" --arg content "$ERR_MSG" \
+                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.part"
                 fi
             fi
         done
