@@ -190,7 +190,7 @@
   },
   {
     "name": "read_file",
-    "description": "Reads the content of a specific file. Supports pagination via line ranges.",
+    "description": "Reads the content of a specific file. Supports pagination via line ranges. For large files, consider using 'get_file_skeleton' first to save tokens.",
     "parameters": {
       "type": "OBJECT",
       "properties": {
@@ -407,5 +407,112 @@
       },
       "required": ["filepath"]
     }
+  },
+  {
+    "name": "get_file_skeleton",
+    "description": "Returns the skeleton (function signatures, classes, structs, and docstrings) of a source code file, omitting function bodies. Useful for understanding large files without reading the full content.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the source code file."
+        }
+      },
+      "required": ["filepath"]
+    }
+  },
+  {
+    "name": "run_tests",
+    "description": "Executes a test command and returns a concise summary. If the tests pass, returns 'PASS'. If they fail, returns the error output to help diagnose the issue.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "command": {
+          "type": "STRING",
+          "description": "The test command to execute (e.g., 'pytest tests/', 'npm test', 'go test ./...')."
+        }
+      },
+      "required": ["command"]
+    }
+  },
+  {
+    "name": "validate_syntax",
+    "description": "Checks the syntax of a source code file without executing it. Supports Bash, Python, JSON, and JS.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the file to validate."
+        }
+      },
+      "required": ["filepath"]
+    }
+  },
+  {
+    "name": "manage_tasks",
+    "description": "Manages a todo list of tasks. Supports adding, updating, listing, and deleting tasks.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "action": {
+          "type": "STRING",
+          "description": "The action to perform: 'add', 'update', 'list', 'delete', 'clear'.",
+          "enum": ["add", "update", "list", "delete", "clear"]
+        },
+        "content": {
+          "type": "STRING",
+          "description": "The task description (required for 'add')."
+        },
+        "task_id": {
+          "type": "INTEGER",
+          "description": "The ID of the task to update or delete."
+        },
+        "status": {
+          "type": "STRING",
+          "description": "The new status (e.g., 'completed', 'pending') for 'update' or filter for 'list'."
+        }
+      },
+      "required": ["action"]
+    }
+  },
+  {
+    "name": "find_usages",
+    "description": "Finds usages of a specific symbol (function, variable, class) in the codebase, excluding definitions where possible.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "query": {
+          "type": "STRING",
+          "description": "The symbol name to search for."
+        },
+        "path": {
+          "type": "STRING",
+          "description": "The directory path to search (defaults to '.').",
+          "default": "."
+        },
+        "file_type": {
+          "type": "STRING",
+          "description": "Optional file extension filter (e.g., '.py')."
+        }
+      },
+      "required": ["query"]
+    }
+  },
+  {
+    "name": "calculate_complexity",
+    "description": "Calculates the cyclomatic complexity of code in a file. Useful for identifying refactoring candidates.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the file to analyze."
+        }
+      },
+      "required": ["filepath"]
+    }
   }
 ]
+

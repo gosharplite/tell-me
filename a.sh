@@ -64,6 +64,7 @@ update_history "$USER_MSG"
 
 # 2. Configure Tools & Auth
 # --- Tool Definitions ---
+# CHANGED: Use tools.json for review version
 if [ -f "$BASE_DIR/lib/tools.json" ]; then
     FUNC_DECLARATIONS=$(cat "$BASE_DIR/lib/tools.json")
 else
@@ -86,6 +87,8 @@ source "$BASE_DIR/lib/auth.sh"
 source "$BASE_DIR/lib/read_file.sh"
 source "$BASE_DIR/lib/read_image.sh"
 source "$BASE_DIR/lib/read_url.sh"
+source "$BASE_DIR/lib/code_analysis.sh"
+source "$BASE_DIR/lib/testing.sh"
 source "$BASE_DIR/lib/scratchpad.sh"
 source "$BASE_DIR/lib/sys_exec.sh"
 source "$BASE_DIR/lib/ask_user.sh"
@@ -96,6 +99,9 @@ source "$BASE_DIR/lib/git_log.sh"
 source "$BASE_DIR/lib/git_commit.sh"
 source "$BASE_DIR/lib/file_search.sh"
 source "$BASE_DIR/lib/file_edit.sh"
+source "$BASE_DIR/lib/linter.sh"
+# CHANGED: Source task_manager.sh
+source "$BASE_DIR/lib/task_manager.sh"
 
 # ==============================================================================
 # MAIN INTERACTION LOOP
