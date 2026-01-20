@@ -5,6 +5,13 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+VERBOSE=false
+
+# Check for verbose flag
+if [ "$1" == "-v" ]; then
+    VERBOSE=true
+fi
+
 echo "Starting All Tests..."
 echo "====================="
 
@@ -13,21 +20,27 @@ PASS_COUNT=0
 
 # Loop through all test scripts in the tests directory
 for test_script in tests/*.sh; do
-    # Skip this script itself if it were in the tests dir (it's currently not, but good practice)
-    if [ "$(basename "$test_script")" == "run_all_tests.sh" ]; then
-        continue
-    fi
-
-    echo -n "Running $(basename "$test_script")... "
+    TEST_NAME=$(basename "$test_script")
     
-    # Run the test script and capture exit code
-    # We suppress stdout to keep the summary clean, but show stderr
-    OUTPUT=$("$test_script" 2>&1)
+    # Skip non-files
+    if [ ! -f "$test_script" ]; then continue; fi
+
+    echo -n "Running $TEST_NAME... "
+    
+    # Run the test script explicitly with bash
+    # Capture output
+    OUTPUT=$(bash "$test_script" 2>&1)
     EXIT_CODE=$?
 
     if [ $EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}PASS${NC}"
         PASS_COUNT=$((PASS_COUNT + 1))
+        
+        if [ "$VERBOSE" == "true" ]; then
+             echo "--- Output [$TEST_NAME] ---"
+             echo "$OUTPUT" | sed 's/^/  /'
+             echo "---------------------------"
+        fi
     else
         echo -e "${RED}FAIL${NC}"
         echo "---------------------------------------------------"
