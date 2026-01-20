@@ -50,27 +50,26 @@ get_result() {
 # --- Test execute_command ---
 echo "Testing execute_command..."
 
-# Case 1: Non-interactive mode (auto-deny)
-# In this script, stdin is not a TTY (usually), or we rely on the tool's check.
-# The tool checks [ -t 0 ]. When running this script, it might be true if run from terminal.
-# To force non-interactive, we can redirect stdin.
-
-# JSON input for tool
-INPUT_EXEC=$(jq -n '{args: {command: "echo test_exec"}}')
-
-# Run tool with redirected stdin to force non-interactive
-tool_execute_command "$INPUT_EXEC" "$RESP_FILE" < /dev/null
-
+# Case 1: Whitelisted command (should succeed automatically)
+INPUT_SAFE=$(jq -n '{args: {command: "echo safe_check"}}')
+tool_execute_command "$INPUT_SAFE" "$RESP_FILE" < /dev/null
 RESULT=$(get_result)
-if [[ "$RESULT" == *"User denied execution"* ]] || [[ "$RESULT" == *"Auto-denying"* ]]; then
-    pass "execute_command denied in non-interactive mode"
+
+if [[ "$RESULT" == *"Exit Code: 0"* && "$RESULT" == *"safe_check"* ]]; then
+    pass "execute_command allowed whitelisted command (echo)"
 else
-    # If the environment allows TTY, we might need another strategy, but for now assuming auto-deny or "n" default
-    if [[ "$RESULT" == *"Exit Code: 0"* ]]; then
-         echo "Warning: Command executed. This might be expected if running interactively."
-    else
-         pass "execute_command handled safely ($RESULT)"
-    fi
+    fail "execute_command failed to allow whitelisted command: $RESULT"
+fi
+
+# Case 2: Non-whitelisted command (should be denied in non-interactive)
+INPUT_UNSAFE=$(jq -n '{args: {command: "touch unsafe_file"}}')
+tool_execute_command "$INPUT_UNSAFE" "$RESP_FILE" < /dev/null
+RESULT=$(get_result)
+
+if [[ "$RESULT" == *"User denied execution"* ]] || [[ "$RESULT" == *"Auto-denying"* ]]; then
+    pass "execute_command denied unsafe command in non-interactive mode"
+else
+    fail "execute_command incorrectly allowed unsafe command: $RESULT"
 fi
 
 # --- Test Git Tools ---

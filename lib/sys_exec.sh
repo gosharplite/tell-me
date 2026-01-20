@@ -7,9 +7,16 @@ tool_execute_command() {
 
     echo -e "\033[0;36m[Tool Request] Execute Command: $FC_CMD\033[0m"
 
-    # Safety: Ask for confirmation
     local CONFIRM="n"
-    if [ -t 0 ]; then
+    local SAFE_COMMANDS="grep|ls|find|pwd|cat|echo|head|tail|wc|stat|date|whoami"
+    
+    # Extract the first word of the command to check against whitelist
+    local CMD_BASE=$(echo "$FC_CMD" | awk '{print $1}')
+
+    if [[ "$CMD_BASE" =~ ^($SAFE_COMMANDS)$ ]]; then
+         echo -e "\033[0;32m[Auto-Approved] Safe read-only command detected.\033[0m"
+         CONFIRM="y"
+    elif [ -t 0 ]; then
         # Interactive mode: Ask user
         # We use /dev/tty to ensure we read from keyboard even if stdin was piped initially
         read -p "⚠️  Execute this command? (y/N) " -n 1 -r CONFIRM < /dev/tty
