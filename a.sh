@@ -5,6 +5,12 @@
 # Resolve Script Directory
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Define cleanup function for trap
+cleanup() {
+    rm -f "$PAYLOAD_FILE" "$RESP_PARTS_FILE" "$RECAP_OUT"
+}
+trap cleanup EXIT
+
 # Check Dependencies
 for cmd in jq curl gcloud awk python3 patch; do
     if ! command -v "$cmd" &> /dev/null; then
@@ -134,34 +140,30 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
           -H "Authorization: Bearer $TOKEN" \
           -d @"$PAYLOAD_FILE")
         
-        # Check for Rate Limit (429 or "Resource exhausted")
-        # Note: curl output is JSON, we look for error code/status inside the JSON if HTTP 200 returned a soft error,
-        # or handle HTTP status if we were capturing headers.
-        # Simple check: Does the JSON contain an error with code 429 or message "RESOURCE_EXHAUSTED"?
+        # Check for Rate Limit (429) or Server Errors (500, 503)
+        # Note: curl output is JSON, we look for error code/status inside the JSON if HTTP 200 returned a soft error.
         
-        IS_RATE_LIMIT="no"
-        if echo "$RESPONSE_JSON" | jq -e '.error.code == 429 or .error.status == "RESOURCE_EXHAUSTED" or (.error.message | contains("Resource exhausted"))' > /dev/null 2>&1; then
-            IS_RATE_LIMIT="yes"
+        SHOULD_RETRY="no"
+        if echo "$RESPONSE_JSON" | jq -e '.error.code == 429 or .error.code == 500 or .error.code == 503 or .error.status == "RESOURCE_EXHAUSTED" or (.error.message | contains("Resource exhausted"))' > /dev/null 2>&1; then
+            SHOULD_RETRY="yes"
         fi
 
-        if [ "$IS_RATE_LIMIT" == "yes" ]; then
+        if [ "$SHOULD_RETRY" == "yes" ]; then
              RETRY_COUNT=$((RETRY_COUNT + 1))
              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                 echo -e "\033[0;33m[System] Rate Limit Hit (429). Retrying in 5s... ($RETRY_COUNT/$MAX_RETRIES)\033[0m"
+                 echo -e "\033[0;33m[System] API Error (Rate Limit/Server). Retrying in 5s... ($RETRY_COUNT/$MAX_RETRIES)\033[0m"
                  sleep 5
                  continue
              else
-                 echo -e "\033[31mError: Rate limit exhausted after $MAX_RETRIES retries.\033[0m"
-                 rm "$PAYLOAD_FILE"
+                 echo -e "\033[31mError: API retry limit exhausted after $MAX_RETRIES retries.\033[0m"
+                 # Cleanup happens via trap
                  exit 1
              fi
         else
-             # Not a rate limit error, break the retry loop
+             # Not a retryable error, break the retry loop
              break
         fi
     done
-
-    rm "$PAYLOAD_FILE"
 
     # Basic Validation
     if echo "$RESPONSE_JSON" | jq -e '.error' > /dev/null 2>&1; then
@@ -218,7 +220,9 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
 
         # 3. Construct Full Tool Response
         TOOL_RESPONSE=$(jq -n --arg role "$FUNC_ROLE" --slurpfile parts "$RESP_PARTS_FILE" '{ role: $role, parts: $parts[0] }')
-        rm "$RESP_PARTS_FILE"
+        # rm "$RESP_PARTS_FILE" # Handled by trap? No, we might need it for the next loop if we didn't use trap correctly. 
+        # Actually, trap handles FINAL cleanup. Intermediate files should still be removed to avoid disk bloat if loop runs long.
+        rm "$RESP_PARTS_FILE" 
         
         # 4. Update History with Tool Result
         update_history "$TOOL_RESPONSE"
@@ -266,7 +270,7 @@ if [ "$LINE_COUNT" -gt 20 ]; then
 else
     cat "$RECAP_OUT"
 fi
-rm -f "$RECAP_OUT"
+# rm -f "$RECAP_OUT" # Handled by trap
 
 # 7. Grounding Detection
 SEARCH_COUNT=$(echo "$FINAL_TEXT_RESPONSE" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
@@ -310,4 +314,3 @@ if [ -f "${file}" ]; then
     TIMESTAMP=$(date -u "+%y%m%d-%H")$(printf "%02d" $(( (10#$(date -u "+%M") / 10) * 10 )) )
     cp "$file" "${file%.*}-${TIMESTAMP}-trace.${file##*.}"
 fi
-
