@@ -82,6 +82,7 @@ options=(
     "code-only"
     "show-last"
     "read-scratchpad-tasks"
+    "restart-session"
     "cheat-sheet"
 )
 
@@ -218,6 +219,11 @@ case "$ACTION" in
     "read-scratchpad-tasks")
         send_prompt "Read scratchpad and tasks"
         ;;
+
+    "restart-session")
+        send_prompt "I need to restart session. Please revise scratchpad and tasks if needed."
+        ;;
+
     "cheat-sheet")
         cat <<'EOF'
 -------------------------------------
