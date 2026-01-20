@@ -19,6 +19,16 @@ update_history() {
   update_history_file "$1" "$file"
 }
 
+# Ensure critical variables are set
+if [ -z "$file" ]; then
+    echo "Warning: \$file not set. Defaulting to ./history.json" >&2
+    file="./history.json"
+fi
+
+if [ -z "$PERSON" ]; then
+   PERSON="You are a helpful AI assistant."
+fi
+
 # 1. Update Conversation History (User Input)
 PROMPT_TEXT="$1"
 STDIN_DATA=""
@@ -227,6 +237,11 @@ done
 END_TIME=$(date +%s.%N)
 DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
 
+if [ -z "$FINAL_TEXT_RESPONSE" ]; then
+    echo -e "\033[31mError: Maximum conversation turns ($MAX_TURNS) exceeded without a final response.\033[0m"
+    exit 1
+fi
+
 # 6. Render Output
 # Use the final JSON response for Recap and Stats
 # Note: Recap reads from the *file* history, but we want to render the last message.
@@ -235,7 +250,13 @@ if [ -z "$RECAP_OUT" ]; then
     RECAP_OUT="${TMPDIR:-/tmp}/tellme_recap_${RANDOM}.txt"
 fi
 
-"$BASE_DIR/recap.sh" -l > "$RECAP_OUT"
+if [ -f "$BASE_DIR/recap.sh" ] && [ -x "$BASE_DIR/recap.sh" ]; then
+    "$BASE_DIR/recap.sh" -l > "$RECAP_OUT"
+else
+    # Fallback: just cat the final response text if recap is missing
+    echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].content.parts[].text // empty' > "$RECAP_OUT"
+fi
+
 LINE_COUNT=$(wc -l < "$RECAP_OUT")
 
 if [ "$LINE_COUNT" -gt 20 ]; then
