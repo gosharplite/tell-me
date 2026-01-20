@@ -190,7 +190,7 @@
   },
   {
     "name": "read_file",
-    "description": "Reads the content of a specific file. Supports pagination via line ranges.",
+    "description": "Reads the content of a specific file. Supports pagination via line ranges. For large files, consider using 'get_file_skeleton' first to save tokens.",
     "parameters": {
       "type": "OBJECT",
       "properties": {
