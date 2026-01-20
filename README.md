@@ -192,17 +192,12 @@ The `MODE` key acts as a unique session identifier. Its value is used to name th
 ### 3. Agent Tools (Function Calling)
 The AI is equipped with a suite of Bash-native tools it can invoke to assist you. You don't call these directly, but understanding them helps you know what to ask for:
 
-*   **File Operations**:
-    *   `read_file` / `write_file` / `update_file`: Standard I/O.
-    *   `insert_text`: Surgically insert lines into files (great for adding imports).
-    *   `replace_text`: Precise string replacement.
-    *   `apply_patch`: Apply unified diffs for complex refactors.
-*   **Context & Memory**:
-    *   `manage_scratchpad`: The AI can maintain a persistent `.md` note file to track plans, TODOs, or architecture decisions across long sessions.
-    *   `grep_definitions`: Scans for code definitions (functions/classes) without reading entire files, allowing for "token-cheap" architectural mapping.
-*   **System**:
-    *   `execute_command`: Run shell commands (e.g., `mkdir`, `ls`, `git`). *Requires user confirmation.*
-    *   `read_url`: Fetch and read web pages.
+*   **File Manipulation**: `update_file`, `replace_text`, `insert_text`, `apply_patch`, `rollback_file`, `move_file`, `delete_file`.
+*   **File System & Navigation**: `list_files`, `get_file_info`, `read_file`, `find_file`, `get_tree`, `search_files`, `read_image`.
+*   **Code Analysis**: `get_file_skeleton`, `grep_definitions`, `find_usages`, `calculate_complexity`, `validate_syntax`, `read_url`.
+*   **Git / Version Control**: `get_git_status`, `get_git_diff`, `get_git_log`, `read_git_commit`, `get_git_blame`.
+*   **System & Execution**: `execute_command`, `run_tests`.
+*   **Communication & Memory**: `ask_user`, `manage_scratchpad`, `manage_tasks`.
 
 ## 💻 Usage
 
