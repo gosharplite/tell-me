@@ -98,6 +98,8 @@ source "$BASE_DIR/lib/git_log.sh"
 source "$BASE_DIR/lib/git_commit.sh"
 source "$BASE_DIR/lib/file_search.sh"
 source "$BASE_DIR/lib/file_edit.sh"
+# CHANGED: Source linter
+source "$BASE_DIR/lib/linter.sh"
 
 # ==============================================================================
 # MAIN INTERACTION LOOP

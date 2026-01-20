@@ -1,5 +1,28 @@
 # Ignore all files within the output directory...
 output/*
-
-# ...except for the .gitkeep file, which ensures the directory is tracked.
 !output/.gitkeep
+
+# Session History and Logs
+history.json
+history-*.json
+*.log
+
+# Temporary Files
+*.tmp
+*.part
+*.py_out
+
+# Python
+__pycache__/
+*.pyc
+
+# Test Artifacts
+test_valid.*
+test_invalid.*
+test_resp_parts.json
+
+# Editor/OS files
+.DS_Store
+.vscode/
+.idea/
+
