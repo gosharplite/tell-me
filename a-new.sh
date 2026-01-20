@@ -1590,3 +1590,56 @@ if [ -z "$RECAP_OUT" ]; then
 fi
 
 "$BASE_DIR/recap.sh" -l > "$RECAP_OUT"
+LINE_COUNT=$(wc -l < "$RECAP_OUT")
+
+if [ "$LINE_COUNT" -gt 20 ]; then
+    head -n 10 "$RECAP_OUT"
+    echo -e "\n\033[1;30m... (Content Snipped) ...\033[0m\n"
+    tail -n 5 "$RECAP_OUT"
+else
+    cat "$RECAP_OUT"
+fi
+rm -f "$RECAP_OUT"
+
+# 7. Grounding Detection
+SEARCH_COUNT=$(echo "$FINAL_TEXT_RESPONSE" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
+if [ "$SEARCH_COUNT" -gt 0 ]; then
+    echo -e "\033[0;33m[Grounding] Performed $SEARCH_COUNT Google Search(es):\033[0m"
+    echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].groundingMetadata.webSearchQueries[]' | while read -r query; do
+            echo -e "  \033[0;33m> \"$query\"\033[0m"
+    done
+fi
+
+printf "\033[0;35m[Response Time] %.2f seconds\033[0m\n" "$DURATION"
+
+# 8. Stats & Metrics
+read -r HIT PROMPT_TOTAL COMPLETION TOTAL <<< $(echo "$FINAL_TEXT_RESPONSE" | jq -r '
+  .usageMetadata | 
+  (.cachedContentTokenCount // 0), 
+  (.promptTokenCount // 0), 
+  (.candidatesTokenCount // .completionTokenCount // 0), 
+  (.totalTokenCount // 0)
+' | xargs)
+
+MISS=$(( PROMPT_TOTAL - HIT ))
+NEWTOKEN=$(( MISS + COMPLETION ))
+
+if [ "$TOTAL" -gt 0 ]; then PERCENT=$(( ($NEWTOKEN * 100) / $TOTAL )); else PERCENT=0; fi
+
+LOG_FILE="${file}.log"
+STATS_MSG=$(printf "[%s] H: %d M: %d C: %d T: %d N: %d(%d%%) S: %d [%.2fs]" \
+  "$(date +%H:%M:%S)" "$HIT" "$MISS" "$COMPLETION" "$TOTAL" "$NEWTOKEN" "$PERCENT" "$SEARCH_COUNT" "$DURATION")
+echo "$STATS_MSG" >> "$LOG_FILE"
+
+if [ -f "$LOG_FILE" ]; then
+    echo -e "\033[0;36m--- Usage History ---\033[0m"
+    tail -n 3 "$LOG_FILE"
+    echo ""
+    awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "$LOG_FILE"
+fi
+
+# Backup History
+if [ -f "${file}" ]; then
+    TIMESTAMP=$(date -u "+%y%m%d-%H")$(printf "%02d" $(( (10#$(date -u "+%M") / 10) * 10 )) )
+    cp "$file" "${file%.*}-${TIMESTAMP}-trace.${file##*.}"
+fi
