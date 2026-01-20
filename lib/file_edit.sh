@@ -6,10 +6,13 @@ tool_update_file() {
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
-    echo -e "\033[0;36m[Tool Request] Writing to file: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Writing to file: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         mkdir -p "$(dirname "$FC_PATH")"
@@ -25,14 +28,17 @@ tool_update_file() {
         
         if [ $? -eq 0 ]; then
             RESULT_MSG="File updated successfully."
-            echo -e "\033[0;32m[Tool Success] File updated.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] File updated.\033[0m"
         else
             RESULT_MSG="Error: Failed to write file."
-            echo -e "\033[0;31m[Tool Failed] Could not write file.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Could not write file.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Write path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Write denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Write denied: $FC_PATH\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -51,10 +57,12 @@ tool_replace_text() {
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
     
-    echo -e "\033[0;36m[Tool Request] Replacing text in: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Replacing text in: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -f "$FC_PATH" ]; then
@@ -103,17 +111,21 @@ except Exception as e:
             rm "${RESP_PARTS_FILE}.py_out" "$PY_DATA_FILE"
             
             if [ $PY_EXIT -eq 0 ]; then
-                echo -e "\033[0;32m[Tool Success] $RESULT_MSG\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;32m[Tool Success] $RESULT_MSG\033[0m"
             else
-                echo -e "\033[0;31m[Tool Failed] $RESULT_MSG\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;31m[Tool Failed] $RESULT_MSG\033[0m"
             fi
         else
              RESULT_MSG="Error: File not found."
-             echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+             DUR=$(get_log_duration)
+             echo -e "${DUR} \033[0;31m[Tool Failed] File not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Edit path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Edit denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Edit denied: $FC_PATH\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -133,10 +145,12 @@ tool_insert_text() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
     # FC_TEXT and others are extracted inside Python via JSON file to preserve newlines
 
-    echo -e "\033[0;36m[Tool Request] Inserting text in: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Inserting text in: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -f "$FC_PATH" ]; then
@@ -200,17 +214,21 @@ except Exception as e:
             rm "${RESP_PARTS_FILE}.py_out" "$PY_DATA_FILE"
 
             if [ $PY_EXIT -eq 0 ]; then
-                echo -e "\033[0;32m[Tool Success] $RESULT_MSG\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;32m[Tool Success] $RESULT_MSG\033[0m"
             else
-                echo -e "\033[0;31m[Tool Failed] $RESULT_MSG\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;31m[Tool Failed] $RESULT_MSG\033[0m"
             fi
         else
              RESULT_MSG="Error: File not found."
-             echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+             DUR=$(get_log_duration)
+             echo -e "${DUR} \033[0;31m[Tool Failed] File not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Edit path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Insert denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Insert denied: $FC_PATH\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -227,13 +245,16 @@ tool_apply_patch() {
     local FC_DATA="$1"
     local RESP_PARTS_FILE="$2"
 
-    echo -e "\033[0;36m[Tool Request] Applying Patch\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Applying Patch\033[0m"
     
     local RESULT_MSG
+    local DUR=""
 
     if ! command -v patch >/dev/null 2>&1; then
          RESULT_MSG="Error: 'patch' command not found."
-         echo -e "\033[0;31m[Tool Failed] patch missing.\033[0m"
+         DUR=$(get_log_duration)
+         echo -e "${DUR} \033[0;31m[Tool Failed] patch missing.\033[0m"
     else
         local PATCH_FILE=$(mktemp)
         # Use jq to write directly to avoid stripping newlines via command substitution
@@ -270,10 +291,12 @@ tool_apply_patch() {
 
         if [ $EXIT_CODE -eq 0 ]; then
             RESULT_MSG="Success:\n$OUTPUT"
-            echo -e "\033[0;32m[Tool Success] Patch applied.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] Patch applied.\033[0m"
         else
             RESULT_MSG="Error applying patch:\n$OUTPUT"
-            echo -e "\033[0;31m[Tool Failed] Patch failed.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Patch failed.\033[0m"
         fi
     fi
 
@@ -292,16 +315,20 @@ tool_rollback_file() {
     local RESP_PARTS_FILE="$2"
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
-    echo -e "\033[0;36m[Tool Request] Rolling back: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Rolling back: $FC_PATH\033[0m"
 
     local RESULT_MSG
+    local DUR=""
     # Assuming restore_backup is available
     if declare -f restore_backup > /dev/null && restore_backup "$FC_PATH"; then
         RESULT_MSG="Success: Reverted $FC_PATH to previous state."
-        echo -e "\033[0;32m[Tool Success] Rollback complete.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;32m[Tool Success] Rollback complete.\033[0m"
     else
         RESULT_MSG="Error: No backup found for $FC_PATH or restore failed."
-        echo -e "\033[0;31m[Tool Failed] No backup available.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Failed] No backup available.\033[0m"
     fi
 
     jq -n --arg name "rollback_file" --rawfile content <(printf "%s" "$RESULT_MSG") \
@@ -317,11 +344,13 @@ tool_move_file() {
     local FC_SRC=$(echo "$FC_DATA" | jq -r '.args.source_path')
     local FC_DEST=$(echo "$FC_DATA" | jq -r '.args.dest_path')
 
-    echo -e "\033[0;36m[Tool Request] Moving: $FC_SRC -> $FC_DEST\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Moving: $FC_SRC -> $FC_DEST\033[0m"
 
     local SAFE_SRC=$(check_path_safety "$FC_SRC")
     local SAFE_DEST=$(check_path_safety "$FC_DEST")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$SAFE_SRC" == "true" ] && [ "$SAFE_DEST" == "true" ]; then
         if [ -e "$FC_SRC" ]; then
@@ -333,18 +362,22 @@ tool_move_file() {
             mv "$FC_SRC" "$FC_DEST" 2>&1
             if [ $? -eq 0 ]; then
                 RESULT_MSG="Success: Moved $FC_SRC to $FC_DEST"
-                echo -e "\033[0;32m[Tool Success] File moved.\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;32m[Tool Success] File moved.\033[0m"
             else
                 RESULT_MSG="Error: Failed to move file."
-                echo -e "\033[0;31m[Tool Failed] Move failed.\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;31m[Tool Failed] Move failed.\033[0m"
             fi
         else
              RESULT_MSG="Error: Source path does not exist."
-             echo -e "\033[0;31m[Tool Failed] Source not found.\033[0m"
+             DUR=$(get_log_duration)
+             echo -e "${DUR} \033[0;31m[Tool Failed] Source not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Source and Destination must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Move denied.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Move denied.\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -363,33 +396,40 @@ tool_delete_file() {
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
-    echo -e "\033[0;36m[Tool Request] Deleting: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Deleting: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -e "$FC_PATH" ]; then
             if [ "$(realpath -m "$FC_PATH")" == "$(pwd -P)" ]; then
                 RESULT_MSG="Error: Cannot delete current working directory."
-                echo -e "\033[0;31m[Tool Failed] Deletion Blocked.\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;31m[Tool Failed] Deletion Blocked.\033[0m"
             else
                 rm -rf "$FC_PATH" 2>&1
                 if [ $? -eq 0 ]; then
                     RESULT_MSG="Success: Deleted $FC_PATH"
-                    echo -e "\033[0;32m[Tool Success] File deleted.\033[0m"
+                    DUR=$(get_log_duration)
+                    echo -e "${DUR} \033[0;32m[Tool Success] File deleted.\033[0m"
                 else
                     RESULT_MSG="Error: Failed to delete file/directory."
-                    echo -e "\033[0;31m[Tool Failed] Delete failed.\033[0m"
+                    DUR=$(get_log_duration)
+                    echo -e "${DUR} \033[0;31m[Tool Failed] Delete failed.\033[0m"
                 fi
             fi
         else
              RESULT_MSG="Error: Path does not exist."
-             echo -e "\033[0;31m[Tool Failed] Path not found.\033[0m"
+             DUR=$(get_log_duration)
+             echo -e "${DUR} \033[0;31m[Tool Failed] Path not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Delete denied.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Delete denied.\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then

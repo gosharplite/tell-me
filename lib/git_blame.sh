@@ -15,7 +15,8 @@ tool_get_git_blame() {
     FC_START=$(echo "$FC_DATA" | jq -r '.args.start_line // 1')
     FC_END=$(echo "$FC_DATA" | jq -r '.args.end_line // empty')
 
-    echo -e "\033[0;36m[Tool Request] Git Blame: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Git Blame: $FC_PATH\033[0m"
 
     # Security Check: Ensure path is within CWD
     IS_SAFE=false
@@ -27,6 +28,8 @@ tool_get_git_blame() {
     else
         if [[ "$FC_PATH" != /* && "$FC_PATH" != *".."* ]]; then IS_SAFE=true; fi
     fi
+    
+    local DUR=""
 
     if [ "$IS_SAFE" = true ]; then
         if [ -f "$FC_PATH" ]; then
@@ -48,18 +51,22 @@ tool_get_git_blame() {
                 elif [ $(echo "$RESULT_MSG" | wc -l) -eq 100 ]; then
                     RESULT_MSG="${RESULT_MSG}\n... (Output truncated at 100 lines) ..."
                 fi
-                echo -e "\033[0;32m[Tool Success] Git blame retrieved.\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;32m[Tool Success] Git blame retrieved.\033[0m"
             else
                 RESULT_MSG="Error: Not a git repo or git missing."
-                echo -e "\033[0;31m[Tool Failed] Git Error.\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;31m[Tool Failed] Git Error.\033[0m"
             fi
         else
                 RESULT_MSG="Error: File not found."
-                echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;31m[Tool Failed] File not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Blame denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Blame denied: $FC_PATH\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then

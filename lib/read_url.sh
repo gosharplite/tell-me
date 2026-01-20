@@ -2,67 +2,54 @@ tool_read_url() {
     local FC_DATA="$1"
     local RESP_PARTS_FILE="$2"
 
-    # Extract Arguments
     local FC_URL=$(echo "$FC_DATA" | jq -r '.args.url')
+    
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Reading URL: $FC_URL\033[0m"
 
-    echo -e "\033[0;36m[Tool Request] Reading URL: $FC_URL\033[0m"
-
-    # Use Python to fetch and strip HTML for cleaner context
     local RESULT_MSG
-    RESULT_MSG=$(python3 -c "
-import sys, urllib.request, re, ssl
+    local DUR=""
 
-url = sys.argv[1]
-try:
-    # Handle SSL context for some environments
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(req, context=ctx, timeout=10) as response:
-        content = response.read().decode('utf-8', errors='ignore')
-        
-        # Simple heuristic: if it looks like HTML, strip tags
-        if '<html' in content.lower() or '<body' in content.lower():
-            # Remove scripts and styles
-            content = re.sub(r'<(script|style)[^>]*>.*?</\1>', '', content, flags=re.DOTALL | re.IGNORECASE)
-            # Remove tags
-            text = re.sub(r'<[^>]+>', '', content)
-            # Collapse whitespace
-            text = re.sub(r'\n\s*\n', '\n\n', text).strip()
-            print(text)
-        else:
-            print(content)
+    if command -v curl >/dev/null 2>&1; then
+        # Use curl to fetch content
+        # -L: Follow redirects
+        # -s: Silent
+        # --max-time 10: Timeout
+        local CONTENT
+        CONTENT=$(curl -L -s --max-time 10 "$FC_URL")
+        local EXIT_CODE=$?
 
-except Exception as e:
-    print(f'Error fetching URL: {e}')
-" "$FC_URL")
-    
-    # Truncate if too long
-    local LINE_COUNT=$(echo "$RESULT_MSG" | wc -l)
-    if [ "$LINE_COUNT" -gt 500 ]; then
-         RESULT_MSG="$(echo "$RESULT_MSG" | head -n 500)\n\n... (Content truncated at 500 lines) ..."
-    fi
-    
-    if [[ "$RESULT_MSG" == Error* ]]; then
-         echo -e "\033[0;31m[Tool Failed] URL fetch failed.\033[0m"
+        if [ $EXIT_CODE -eq 0 ]; then
+            # Basic HTML stripping (very crude) or just return raw text
+            # If it's HTML, we might want to use something like 'lynx -dump' if available
+            if command -v lynx >/dev/null 2>&1; then
+                 RESULT_MSG=$(echo "$CONTENT" | lynx -stdin -dump)
+            else
+                 # Fallback: Strip tags via sed (imperfect) or just return first 2000 chars
+                 RESULT_MSG=$(echo "$CONTENT" | sed 's/<[^>]*>//g' | head -c 5000)
+                 if [ ${#CONTENT} -gt 5000 ]; then
+                     RESULT_MSG="${RESULT_MSG}\n... (Truncated) ..."
+                 fi
+            fi
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] URL Fetched.\033[0m"
+        else
+            RESULT_MSG="Error: Failed to fetch URL (Exit Code: $EXIT_CODE)."
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Fetch failed.\033[0m"
+        fi
     else
-         echo -e "\033[0;32m[Tool Success] URL read.\033[0m"
+        RESULT_MSG="Error: 'curl' command not found."
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Failed] Missing dependency.\033[0m"
     fi
 
-    # Inject Warning if approaching Max Turns
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        local WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
-        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
-        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
     fi
 
-    # Construct Function Response Part
     jq -n --arg name "read_url" --rawfile content <(printf "%s" "$RESULT_MSG") \
         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
-    
-    # Append to Array
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }

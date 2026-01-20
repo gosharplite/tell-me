@@ -21,7 +21,8 @@ tool_read_file() {
         RANGE_DESC="Lines: $FC_START-$FC_END"
     fi
 
-    echo -e "\033[0;36m[Tool Request] Reading: $FC_PATH ($RANGE_DESC)\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Reading: $FC_PATH ($RANGE_DESC)\033[0m"
 
     # Security Check: Ensure path is within CWD
     IS_SAFE=false
@@ -33,6 +34,8 @@ tool_read_file() {
     else
         if [[ "$FC_PATH" != /* && "$FC_PATH" != *".."* ]]; then IS_SAFE=true; fi
     fi
+
+    local DUR=""
 
     if [ "$IS_SAFE" = true ]; then
         if [ -f "$FC_PATH" ]; then
@@ -74,14 +77,17 @@ tool_read_file() {
             RESULT_MSG=$(sed -n "${FC_START},${FC_END}p" "$FC_PATH")
             RESULT_MSG="${RESULT_MSG}${TRUNC_MSG}"
             
-            echo -e "\033[0;32m[Tool Success] File read ($FC_START-$FC_END).\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] File read ($FC_START-$FC_END).\033[0m"
         else
             RESULT_MSG="Error: File not found."
-            echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] File not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Read denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Read denied: $FC_PATH\033[0m"
     fi
 
     # Inject Warning if approaching Max Turns

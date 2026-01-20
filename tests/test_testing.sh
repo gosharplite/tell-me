@@ -13,9 +13,14 @@ RESP_FILE=$(mktemp)
 echo "[]" > "$RESP_FILE"
 FAILED=0
 
+# Create dummy test script
+echo "#!/bin/bash" > ./dummy_run_tests.sh
+echo "echo 'All good'" >> ./dummy_run_tests.sh
+chmod +x ./dummy_run_tests.sh
+
 # Test 1: Passing Test
 echo "Test 1: Passing Test"
-ARGS=$(jq -n --arg command "echo 'All good'" '{args: {command: $command}}')
+ARGS=$(jq -n --arg command "./dummy_run_tests.sh" '{args: {command: $command}}')
 tool_run_tests "$ARGS" "$RESP_FILE"
 
 RESULT=$(jq -r '.[-1].functionResponse.response.result' "$RESP_FILE")
@@ -28,8 +33,12 @@ else
 fi
 
 # Test 2: Failing Test
+# Rewrite dummy to fail
+echo "#!/bin/bash" > ./dummy_run_tests.sh
+echo "echo 'Bad error' >&2; exit 1" >> ./dummy_run_tests.sh
+
 echo "Test 2: Failing Test"
-ARGS=$(jq -n --arg command "echo 'Bad error' >&2; exit 1" '{args: {command: $command}}')
+ARGS=$(jq -n --arg command "./dummy_run_tests.sh" '{args: {command: $command}}')
 tool_run_tests "$ARGS" "$RESP_FILE"
 
 RESULT=$(jq -r '.[-1].functionResponse.response.result' "$RESP_FILE")
@@ -49,8 +58,8 @@ else
 fi
 
 rm "$RESP_FILE"
+rm ./dummy_run_tests.sh
 
 if [ $FAILED -eq 1 ]; then
     exit 1
 fi
-

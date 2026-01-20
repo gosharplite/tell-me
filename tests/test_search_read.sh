@@ -56,7 +56,7 @@ tool_read_image "$INPUT_IMG" "$RESP_FILE"
 RESULT=$(get_result)
 
 # Check if we got "Image loaded successfully" message
-if [[ "$RESULT" == *"Image loaded successfully"* ]]; then
+if [[ "$RESULT" == *"Image read successfully"* ]]; then
     # Check if the side-channel parts file was created/merged correctly
     # The tool appends to RESP_FILE. We expect an inlineData part before the functionResponse part?
     # Wait, the tool logic:
@@ -85,7 +85,7 @@ INPUT_TXT=$(jq -n '{args: {filepath: "text_file.txt"}}')
 tool_read_image "$INPUT_TXT" "$RESP_FILE"
 RESULT=$(get_result)
 
-if [[ "$RESULT" == *"Error: File is not a recognized image type"* ]]; then
+if [[ "$RESULT" == *"Error: File is not a supported image"* ]]; then
     pass "read_image rejected text file"
 else
     fail "read_image failed to reject text file: $RESULT"
@@ -94,22 +94,13 @@ fi
 # --- Test read_url ---
 echo "Testing read_url..."
 
-# Mock python3 for URL fetching
-# We create a local bin dir, put a wrapper python3 there, and add to PATH
-# Capture real python path BEFORE modifying PATH to avoid recursion
-REAL_PYTHON=$(which python3)
+# Mock curl for URL fetching
 mkdir -p ./bin
-cat << EOF > ./bin/python3
+cat << EOF > ./bin/curl
 #!/bin/bash
-# Check if the script content (passed as arg 2 usually with -c) contains urllib
-if [[ "\$@" == *"urllib.request"* ]]; then
-    echo "Mocked Web Content Body"
-else
-    # Pass through to real python3
-    exec "$REAL_PYTHON" "\$@"
-fi
+echo "Mocked Web Content Body"
 EOF
-chmod +x ./bin/python3
+chmod +x ./bin/curl
 export PATH="$PWD/bin:$PATH"
 
 INPUT_URL=$(jq -n '{args: {url: "http://example.com"}}')

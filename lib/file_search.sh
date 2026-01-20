@@ -3,23 +3,29 @@ tool_list_files() {
     local RESP_PARTS_FILE="$2"
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.path // "."')
-    echo -e "\033[0;36m[Tool Request] Listing: $FC_PATH\033[0m"
+    
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Listing: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -e "$FC_PATH" ]; then
             # Run ls -F (adds / to dirs, * to executables)
             RESULT_MSG=$(ls -F "$FC_PATH" 2>&1)
-            echo -e "\033[0;32m[Tool Success] Directory listed.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] Directory listed.\033[0m"
         else
             RESULT_MSG="Error: Path does not exist."
-            echo -e "\033[0;31m[Tool Failed] Path not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Path not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] List denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] List denied: $FC_PATH\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -37,10 +43,13 @@ tool_get_file_info() {
     local RESP_PARTS_FILE="$2"
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
-    echo -e "\033[0;36m[Tool Request] Getting Info: $FC_PATH\033[0m"
+    
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Getting Info: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -e "$FC_PATH" ]; then
@@ -51,14 +60,17 @@ tool_get_file_info() {
             else
                 RESULT_MSG="Path: $FC_PATH\n$STATS"
             fi
-            echo -e "\033[0;32m[Tool Success] Info retrieved.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] Info retrieved.\033[0m"
         else
             RESULT_MSG="Error: Path does not exist."
-            echo -e "\033[0;31m[Tool Failed] Path not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Path not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Info denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Info denied: $FC_PATH\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -78,10 +90,12 @@ tool_search_files() {
     local FC_QUERY=$(echo "$FC_DATA" | jq -r '.args.query')
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.path // "."')
 
-    echo -e "\033[0;36m[Tool Request] Searching for \"$FC_QUERY\" in: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Searching for \"$FC_QUERY\" in: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -e "$FC_PATH" ]; then
@@ -93,14 +107,17 @@ tool_search_files() {
             elif [ $(echo "$RESULT_MSG" | wc -l) -eq 50 ]; then
                 RESULT_MSG="${RESULT_MSG}\n... (Matches truncated at 50 lines) ..."
             fi
-            echo -e "\033[0;32m[Tool Success] Search complete.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] Search complete.\033[0m"
         else
             RESULT_MSG="Error: Path does not exist."
-            echo -e "\033[0;31m[Tool Failed] Path not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Path not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Search denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Search denied: $FC_PATH\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -120,10 +137,12 @@ tool_grep_definitions() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.path // "."')
     local FC_QUERY=$(echo "$FC_DATA" | jq -r '.args.query // empty')
 
-    echo -e "\033[0;36m[Tool Request] Grep Definitions in: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Grep Definitions in: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -e "$FC_PATH" ]; then
@@ -143,14 +162,17 @@ tool_grep_definitions() {
             fi
             
             if [ -z "$RESULT_MSG" ]; then RESULT_MSG="No definitions found."; fi
-            echo -e "\033[0;32m[Tool Success] Definitions found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] Definitions found.\033[0m"
         else
             RESULT_MSG="Error: Path does not exist."
-            echo -e "\033[0;31m[Tool Failed] Path not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Path not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Grep denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Grep denied: $FC_PATH\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -171,10 +193,12 @@ tool_find_file() {
     local FC_PATTERN=$(echo "$FC_DATA" | jq -r '.args.name_pattern')
     local FC_TYPE=$(echo "$FC_DATA" | jq -r '.args.type // empty')
 
-    echo -e "\033[0;36m[Tool Request] Find: $FC_PATTERN in $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Find: $FC_PATTERN in $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         local IGNORES="node_modules|.git|.idea|.vscode|__pycache__|output|dist|build|coverage|target|vendor|.DS_Store"
@@ -192,10 +216,12 @@ tool_find_file() {
         elif [ $(echo "$RESULT_MSG" | wc -l) -eq 50 ]; then
             RESULT_MSG="${RESULT_MSG}\n... (Matches truncated at 50 lines) ..."
         fi
-        echo -e "\033[0;32m[Tool Success] Find complete.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;32m[Tool Success] Find complete.\033[0m"
     else
         RESULT_MSG="Error: Security violation. Path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Find denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Find denied: $FC_PATH\033[0m"
     fi
     
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -215,10 +241,12 @@ tool_get_tree() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.path // "."')
     local FC_DEPTH=$(echo "$FC_DATA" | jq -r '.args.max_depth // 2')
 
-    echo -e "\033[0;36m[Tool Request] Generating Tree: $FC_PATH (Depth: $FC_DEPTH)\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Generating Tree: $FC_PATH (Depth: $FC_DEPTH)\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -d "$FC_PATH" ]; then
@@ -229,14 +257,17 @@ tool_get_tree() {
             else
                 RESULT_MSG=$(find "$FC_PATH" -maxdepth "$FC_DEPTH" -not -path '*/.*' -not -path "*node_modules*" -not -path "*output*" -not -path "*dist*" -not -path "*build*" | sort)
             fi
-            echo -e "\033[0;32m[Tool Success] Tree generated.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] Tree generated.\033[0m"
         else
             RESULT_MSG="Error: Path is not a directory."
-            echo -e "\033[0;31m[Tool Failed] Path not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Path not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Tree denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Tree denied: $FC_PATH\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
