@@ -449,5 +449,32 @@
       },
       "required": ["filepath"]
     }
+  },
+  {
+    "name": "manage_tasks",
+    "description": "Manages a todo list of tasks. Supports adding, updating, listing, and deleting tasks.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "action": {
+          "type": "STRING",
+          "description": "The action to perform: 'add', 'update', 'list', 'delete', 'clear'.",
+          "enum": ["add", "update", "list", "delete", "clear"]
+        },
+        "content": {
+          "type": "STRING",
+          "description": "The task description (required for 'add')."
+        },
+        "task_id": {
+          "type": "INTEGER",
+          "description": "The ID of the task to update or delete."
+        },
+        "status": {
+          "type": "STRING",
+          "description": "The new status (e.g., 'completed', 'pending') for 'update' or filter for 'list'."
+        }
+      },
+      "required": ["action"]
+    }
   }
 ]
