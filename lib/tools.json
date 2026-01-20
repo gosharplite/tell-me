@@ -407,5 +407,33 @@
       },
       "required": ["filepath"]
     }
+  },
+  {
+    "name": "get_file_skeleton",
+    "description": "Returns the skeleton (function signatures, classes, structs, and docstrings) of a source code file, omitting function bodies. Useful for understanding large files without reading the full content.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the source code file."
+        }
+      },
+      "required": ["filepath"]
+    }
+  },
+  {
+    "name": "run_tests",
+    "description": "Executes a test command and returns a concise summary. If the tests pass, returns 'PASS'. If they fail, returns the error output to help diagnose the issue.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "command": {
+          "type": "STRING",
+          "description": "The test command to execute (e.g., 'pytest tests/', 'npm test', 'go test ./...')."
+        }
+      },
+      "required": ["command"]
+    }
   }
 ]
