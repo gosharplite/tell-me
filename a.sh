@@ -16,26 +16,8 @@ done
 source "$BASE_DIR/lib/utils.sh"
 # Helper function to append messages to history safely
 update_history() {
-  local json_content="$1"
-  local item_file=$(mktemp)
-  printf "%s" "$json_content" > "$item_file"
-  
-  if [ -s "$file" ] && jq empty "$file" > /dev/null 2>&1; then
-    if ! jq --slurpfile item "$item_file" '.messages += $item' "$file" > "${file}.tmp"; then
-        echo "Error: Failed to process history file." >&2
-        rm "$item_file"
-        exit 1
-    fi
-    mv "${file}.tmp" "$file"
-  else
-    jq -n --slurpfile item "$item_file" '{messages: $item}' > "$file"
-  fi
-  rm "$item_file"
+  update_history_file "$1" "$file"
 }
-
-
-
-
 
 # 1. Update Conversation History (User Input)
 PROMPT_TEXT="$1"
@@ -78,7 +60,6 @@ fi
 source "$BASE_DIR/lib/auth.sh"
 
 # --- Load Tools ---
-source "$BASE_DIR/lib/utils.sh"
 source "$BASE_DIR/lib/read_file.sh"
 source "$BASE_DIR/lib/read_image.sh"
 source "$BASE_DIR/lib/read_url.sh"
@@ -308,3 +289,4 @@ if [ -f "${file}" ]; then
     TIMESTAMP=$(date -u "+%y%m%d-%H")$(printf "%02d" $(( (10#$(date -u "+%M") / 10) * 10 )) )
     cp "$file" "${file%.*}-${TIMESTAMP}-trace.${file##*.}"
 fi
+

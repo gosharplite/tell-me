@@ -16,7 +16,8 @@ mkdir -p "$TEST_DIR/bin"
 # --- Mocking Libraries ---
 
 # 1. Mock lib/utils.sh (sourced by a.sh)
-touch "$TEST_DIR/lib/utils.sh"
+# Copy the real utils to ensure update_history_file is available
+cp "$ORIGINAL_DIR/lib/utils.sh" "$TEST_DIR/lib/utils.sh"
 
 # 2. Mock lib/auth.sh
 echo 'export TOKEN="mock-token-123"' > "$TEST_DIR/lib/auth.sh"
