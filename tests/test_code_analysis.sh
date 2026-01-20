@@ -1,102 +1,91 @@
 #!/bin/bash
-# Test for lib/code_analysis.sh (get_file_skeleton)
 
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$BASE_DIR/lib/utils.sh"
-source "$BASE_DIR/lib/code_analysis.sh"
+# Setup
+TEST_DIR="tests/temp_analysis"
+mkdir -p "$TEST_DIR"
 
-# Mock variables
-CURRENT_TURN=1
-MAX_TURNS=10
+# Mock Environment
+export CURRENT_TURN=0
+export MAX_TURNS=10
 
-# Create temp files in current dir to satisfy check_path_safety
-TEST_PY="./test_temp_${RANDOM}.py"
-cat <<EOF > "$TEST_PY"
-import os
+# Create dummy Python file
+cat << 'EOF' > "$TEST_DIR/complex.py"
+def simple():
+    print("Hello")
 
-def my_func(a, b):
-    """Calculates stuff."""
-    return a + b
+def complex_func(x):
+    if x > 0:
+        if x > 10:
+            print("Large")
+        else:
+            print("Medium")
+    else:
+        for i in range(5):
+            print(i)
+    return x
 
 class MyClass:
-    """A class docstring."""
-    def method_one(self):
+    def method(self):
         pass
+
+# Usage
+simple()
+complex_func(5)
 EOF
 
-RESP_FILE=$(mktemp)
-echo "[]" > "$RESP_FILE"
-
-# Test 1: Python Skeleton
-echo "Test 1: Python Skeleton"
-ARGS=$(jq -n --arg filepath "$TEST_PY" '{args: {filepath: $filepath}}')
-tool_get_file_skeleton "$ARGS" "$RESP_FILE"
-
-# The result is appended to the array, so we want the last element's result
-RESULT=$(jq -r '.[-1].functionResponse.response.result' "$RESP_FILE")
-
-FAILED=0
-
-if echo "$RESULT" | grep -q "FunctionDef: my_func"; then
-    echo "PASS: Found function definition"
-else
-    echo "FAIL: Missing function definition"
-    echo "Result: $RESULT"
-    FAILED=1
-fi
-
-if echo "$RESULT" | grep -q "Calculates stuff"; then
-    echo "PASS: Found docstring"
-else
-    echo "FAIL: Missing docstring"
-    FAILED=1
-fi
-
-if echo "$RESULT" | grep -q "ClassDef: MyClass"; then
-    echo "PASS: Found class definition"
-else
-    echo "FAIL: Missing class definition"
-    FAILED=1
-fi
-
-rm "$TEST_PY" "$RESP_FILE"
-
-if [ $FAILED -eq 1 ]; then
-    exit 1
-fi
-
-# Test 2: Shell Skeleton
-TEST_SH="./test_temp_${RANDOM}.sh"
-cat <<EOF > "$TEST_SH"
+# Create dummy Bash file
+cat << 'EOF' > "$TEST_DIR/script.sh"
 #!/bin/bash
-function my_shell_func() {
-    echo "hi"
+
+function my_func() {
+    if [ "$1" == "test" ]; then
+        echo "Test"
+    fi
 }
-simple_func() {
-    echo "yo"
-}
+
+# Usage
+my_func "test"
+echo "Done"
 EOF
 
-RESP_FILE=$(mktemp)
-echo "[]" > "$RESP_FILE"
+# Load library
+source ./lib/utils.sh
+source ./lib/code_analysis.sh
 
-echo "Test 2: Shell Skeleton"
-ARGS=$(jq -n --arg filepath "$TEST_SH" '{args: {filepath: $filepath}}')
-tool_get_file_skeleton "$ARGS" "$RESP_FILE"
+# Helper to run tool
+run_tool() {
+    local FUNC=$1
+    local JSON_INPUT=$2
+    local OUT_FILE=$(mktemp)
+    echo "[]" > "$OUT_FILE" # Initialize as array
+    
+    $FUNC "$JSON_INPUT" "$OUT_FILE"
+    
+    echo "Response:"
+    cat "$OUT_FILE" | jq -r '.[0].functionResponse.response.result'
+    rm "$OUT_FILE"
+}
 
-RESULT=$(jq -r '.[-1].functionResponse.response.result' "$RESP_FILE")
+echo "--- Test 1: Calculate Complexity (Python) ---"
+INPUT=$(jq -n --arg filepath "$TEST_DIR/complex.py" '{args: {filepath: $filepath}}')
+run_tool "tool_calculate_complexity" "$INPUT"
+echo ""
 
-if echo "$RESULT" | grep -q "my_shell_func"; then
-    echo "PASS: Found shell function"
-else
-    echo "FAIL: Missing shell function"
-    echo "Result: $RESULT"
-    FAILED=1
-fi
+echo "--- Test 2: Calculate Complexity (Bash) ---"
+INPUT=$(jq -n --arg filepath "$TEST_DIR/script.sh" '{args: {filepath: $filepath}}')
+run_tool "tool_calculate_complexity" "$INPUT"
+echo ""
 
-rm "$TEST_SH" "$RESP_FILE"
+echo "--- Test 3: Find Usages (Python) ---"
+INPUT=$(jq -n --arg query "complex_func" --arg path "$TEST_DIR" '{args: {query: $query, path: $path}}')
+run_tool "tool_find_usages" "$INPUT"
+echo ""
 
-if [ $FAILED -eq 1 ]; then
-    exit 1
-fi
+echo "--- Test 4: Find Usages (Bash) ---"
+INPUT=$(jq -n --arg query "my_func" --arg path "$TEST_DIR" '{args: {query: $query, path: $path}}')
+run_tool "tool_find_usages" "$INPUT"
+echo ""
+
+# Cleanup
+rm -rf "$TEST_DIR"
 

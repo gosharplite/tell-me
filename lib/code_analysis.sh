@@ -113,3 +113,183 @@ EOF
     rm "${RESP_PARTS_FILE}.part"
 }
 
+tool_find_usages() {
+    local FC_DATA="$1"
+    local RESP_PARTS_FILE="$2"
+
+    local FC_QUERY=$(echo "$FC_DATA" | jq -r '.args.query')
+    local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.path // "."')
+    local FC_FILE_TYPE=$(echo "$FC_DATA" | jq -r '.args.file_type // empty')
+
+    echo -e "\033[0;36m[Tool Request] Finding usages of '$FC_QUERY' in $FC_PATH\033[0m"
+
+    local IS_SAFE=$(check_path_safety "$FC_PATH")
+    local RESULT_MSG
+
+    if [ "$IS_SAFE" == "true" ]; then
+        if [ -e "$FC_PATH" ]; then
+            # Build excludes
+            local EXCLUDES="--exclude-dir={.git,.idea,.vscode,__pycache__,node_modules,dist,build,coverage,vendor}"
+            local INCLUDES=""
+            if [ -n "$FC_FILE_TYPE" ]; then
+                INCLUDES="--include=*$FC_FILE_TYPE"
+            fi
+
+            # 1. Search for the word boundary match
+            # 2. Filter out definitions (heuristic)
+            
+            # Definition patterns to exclude
+            # Python: def query, class query
+            # JS/TS: function query, class query, var/let/const query =
+            # Go: func query, type query
+            # Bash: query() {, function query
+            
+            local RAW_MATCHES
+            # We use grep -rnI (recursive, line num, binary ignore) with word boundaries (-w)
+            # We accept failure (set +e equivalent) if no matches
+            RAW_MATCHES=$(grep -rnIw $INCLUDES $EXCLUDES "$FC_QUERY" "$FC_PATH" 2>/dev/null)
+            
+            if [ -z "$RAW_MATCHES" ]; then
+                RESULT_MSG="No usages found for '$FC_QUERY'."
+            else
+                # Filter out definitions
+                # We interpret the grep output (file:line:content)
+                # We exclude lines where the query is preceded by def/class/function/func
+                # or followed by () { (bash style)
+                
+                # Regex for definitions:
+                # ^.*(def|class|function|func|type|var|let|const)[[:space:]]+QUERY
+                # ^.*QUERY(\(\))?[[:space:]]*\{
+                
+                RESULT_MSG=$(echo "$RAW_MATCHES" | grep -vE "(:.*(def|class|function|func|type|var|let|const)[[:space:]]+${FC_QUERY}\b|:.*${FC_QUERY}(\(\))?[[:space:]]*\{)")
+                
+                if [ -z "$RESULT_MSG" ]; then
+                     RESULT_MSG="No usages found (only definitions were found)."
+                else
+                     local COUNT=$(echo "$RESULT_MSG" | wc -l)
+                     if [ "$COUNT" -gt 100 ]; then
+                         RESULT_MSG="$(echo "$RESULT_MSG" | head -n 100)\n... (Truncated at 100 matches) ..."
+                     fi
+                fi
+            fi
+            
+            echo -e "\033[0;32m[Tool Success] Usages found.\033[0m"
+        else
+            RESULT_MSG="Error: Path does not exist."
+            echo -e "\033[0;31m[Tool Failed] Path not found.\033[0m"
+        fi
+    else
+        RESULT_MSG="Error: Security violation."
+        echo -e "\033[0;31m[Tool Security Block] Find usages denied.\033[0m"
+    fi
+
+    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+    fi
+
+    jq -n --arg name "find_usages" --rawfile content <(printf "%s" "$RESULT_MSG") \
+        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+    rm "${RESP_PARTS_FILE}.part"
+}
+
+tool_calculate_complexity() {
+    local FC_DATA="$1"
+    local RESP_PARTS_FILE="$2"
+
+    local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
+
+    echo -e "\033[0;36m[Tool Request] Calculating Complexity: $FC_PATH\033[0m"
+
+    local IS_SAFE=$(check_path_safety "$FC_PATH")
+    local RESULT_MSG
+
+    if [ "$IS_SAFE" == "true" ]; then
+        if [ -f "$FC_PATH" ]; then
+             local EXT="${FC_PATH##*.}"
+             
+             if [ "$EXT" == "py" ]; then
+                 local PY_PARSER=$(mktemp)
+                 cat << 'EOF' > "$PY_PARSER"
+import ast
+import sys
+
+class ComplexityVisitor(ast.NodeVisitor):
+    def __init__(self):
+        self.functions = []
+
+    def visit_FunctionDef(self, node):
+        complexity = 1
+        for child in ast.walk(node):
+            if isinstance(child, (ast.If, ast.For, ast.While, ast.With, ast.Try, ast.ExceptHandler)):
+                complexity += 1
+            elif isinstance(child, ast.BoolOp):
+                complexity += len(child.values) - 1
+        
+        self.functions.append((node.name, complexity))
+        self.generic_visit(node)
+
+def analyze(file_path):
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+        visitor = ComplexityVisitor()
+        visitor.visit(tree)
+        
+        # Sort by complexity descending
+        visitor.functions.sort(key=lambda x: x[1], reverse=True)
+        
+        res = []
+        for name, score in visitor.functions:
+            res.append(f"{name}: {score}")
+            
+        if not res:
+            return "No functions found."
+        return "\n".join(res)
+    except Exception as e:
+        return f"Error parsing Python file: {e}"
+
+if __name__ == "__main__":
+    print(analyze(sys.argv[1]))
+EOF
+                 RESULT_MSG=$(python3 "$PY_PARSER" "$FC_PATH" 2>&1)
+                 rm "$PY_PARSER"
+             
+             elif [ "$EXT" == "sh" ] || [ "$EXT" == "bash" ]; then
+                 # Simple bash complexity: Count if/for/while/case inside functions
+                 # This is a rough heuristic
+                 RESULT_MSG=$(grep -rnE "^(function )?[a-zA-Z0-9_]+(\(\))? \{?|if |for |while |case " "$FC_PATH")
+                 
+                 # It's hard to parse scope with grep. 
+                 # Let's count keywords per file as a proxy, or just dump the raw stats.
+                 local COUNT_IF=$(grep -c "if " "$FC_PATH")
+                 local COUNT_FOR=$(grep -c "for " "$FC_PATH")
+                 local COUNT_WHILE=$(grep -c "while " "$FC_PATH")
+                 local COUNT_CASE=$(grep -c "case " "$FC_PATH")
+                 local TOTAL_SCORE=$((COUNT_IF + COUNT_FOR + COUNT_WHILE + COUNT_CASE))
+                 
+                 RESULT_MSG="Bash Complexity (Whole File Score):\nTotal Score: $TOTAL_SCORE\n(If: $COUNT_IF, For: $COUNT_FOR, While: $COUNT_WHILE, Case: $COUNT_CASE)\nNote: Per-function analysis requires more advanced parsing."
+             else
+                 RESULT_MSG="Complexity analysis not supported for this file type."
+             fi
+             
+             echo -e "\033[0;32m[Tool Success] Complexity calculated.\033[0m"
+        else
+            RESULT_MSG="Error: File not found."
+            echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+        fi
+    else
+        RESULT_MSG="Error: Security violation."
+        echo -e "\033[0;31m[Tool Security Block] Complexity denied.\033[0m"
+    fi
+
+    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+    fi
+
+    jq -n --arg name "calculate_complexity" --rawfile content <(printf "%s" "$RESULT_MSG") \
+        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+    rm "${RESP_PARTS_FILE}.part"
+}
+

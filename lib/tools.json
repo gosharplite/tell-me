@@ -476,5 +476,43 @@
       },
       "required": ["action"]
     }
+  },
+  {
+    "name": "find_usages",
+    "description": "Finds usages of a specific symbol (function, variable, class) in the codebase, excluding definitions where possible.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "query": {
+          "type": "STRING",
+          "description": "The symbol name to search for."
+        },
+        "path": {
+          "type": "STRING",
+          "description": "The directory path to search (defaults to '.').",
+          "default": "."
+        },
+        "file_type": {
+          "type": "STRING",
+          "description": "Optional file extension filter (e.g., '.py')."
+        }
+      },
+      "required": ["query"]
+    }
+  },
+  {
+    "name": "calculate_complexity",
+    "description": "Calculates the cyclomatic complexity of code in a file. Useful for identifying refactoring candidates.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the file to analyze."
+        }
+      },
+      "required": ["filepath"]
+    }
   }
 ]
+
