@@ -81,6 +81,7 @@ options=(
     "ext-dependency"
     "code-only"
     "show-last"
+    "read-scratchpad-tasks"
     "cheat-sheet"
 )
 
@@ -214,6 +215,9 @@ case "$ACTION" in
         "$BASE_DIR/recap.sh" -ll -nc
         ;;
 
+    "read-scratchpad-tasks")
+        send_prompt "Read scratchpad and tasks"
+        ;;
     "cheat-sheet")
         cat <<'EOF'
 -------------------------------------
