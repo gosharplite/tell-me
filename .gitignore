@@ -26,3 +26,6 @@ test_resp_parts.json
 .vscode/
 .idea/
 
+# Generated Assets
+assets/generated/
+

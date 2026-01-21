@@ -10,7 +10,9 @@
           "description": "The question to ask the user."
         }
       },
-      "required": ["question"]
+      "required": [
+        "question"
+      ]
     }
   },
   {
@@ -22,14 +24,21 @@
         "action": {
           "type": "STRING",
           "description": "The operation to perform: 'read', 'write' (overwrite), 'append', or 'clear'.",
-          "enum": ["read", "write", "append", "clear"]
+          "enum": [
+            "read",
+            "write",
+            "append",
+            "clear"
+          ]
         },
         "content": {
           "type": "STRING",
           "description": "The text content to write or append. Required for 'write' and 'append' actions."
         }
       },
-      "required": ["action"]
+      "required": [
+        "action"
+      ]
     }
   },
   {
@@ -47,7 +56,10 @@
           "description": "The full text content to write into the file"
         }
       },
-      "required": ["filepath", "content"]
+      "required": [
+        "filepath",
+        "content"
+      ]
     }
   },
   {
@@ -69,7 +81,11 @@
           "description": "The new text to insert."
         }
       },
-      "required": ["filepath", "old_text", "new_text"]
+      "required": [
+        "filepath",
+        "old_text",
+        "new_text"
+      ]
     }
   },
   {
@@ -93,10 +109,18 @@
         "placement": {
           "type": "STRING",
           "description": "Where to insert relative to the line number ('before' or 'after').",
-          "enum": ["before", "after"]
+          "enum": [
+            "before",
+            "after"
+          ]
         }
       },
-      "required": ["filepath", "text", "line_number", "placement"]
+      "required": [
+        "filepath",
+        "text",
+        "line_number",
+        "placement"
+      ]
     }
   },
   {
@@ -110,7 +134,9 @@
           "description": "The full text of the unified diff/patch."
         }
       },
-      "required": ["patch_content"]
+      "required": [
+        "patch_content"
+      ]
     }
   },
   {
@@ -124,7 +150,9 @@
           "description": "The path to the file to rollback."
         }
       },
-      "required": ["filepath"]
+      "required": [
+        "filepath"
+      ]
     }
   },
   {
@@ -142,7 +170,10 @@
           "description": "The destination path."
         }
       },
-      "required": ["source_path", "dest_path"]
+      "required": [
+        "source_path",
+        "dest_path"
+      ]
     }
   },
   {
@@ -156,7 +187,9 @@
           "description": "The path to the file or directory to delete."
         }
       },
-      "required": ["filepath"]
+      "required": [
+        "filepath"
+      ]
     }
   },
   {
@@ -171,7 +204,9 @@
           "default": "."
         }
       },
-      "required": ["path"]
+      "required": [
+        "path"
+      ]
     }
   },
   {
@@ -185,7 +220,9 @@
           "description": "The path to the file or directory."
         }
       },
-      "required": ["filepath"]
+      "required": [
+        "filepath"
+      ]
     }
   },
   {
@@ -207,7 +244,9 @@
           "description": "The line number to stop reading at (optional, reads to end if omitted)."
         }
       },
-      "required": ["filepath"]
+      "required": [
+        "filepath"
+      ]
     }
   },
   {
@@ -221,7 +260,9 @@
           "description": "The path to the image file (e.g., ./assets/logo.png)."
         }
       },
-      "required": ["filepath"]
+      "required": [
+        "filepath"
+      ]
     }
   },
   {
@@ -235,7 +276,9 @@
           "description": "The URL to fetch."
         }
       },
-      "required": ["url"]
+      "required": [
+        "url"
+      ]
     }
   },
   {
@@ -254,7 +297,9 @@
           "default": "."
         }
       },
-      "required": ["query"]
+      "required": [
+        "query"
+      ]
     }
   },
   {
@@ -272,7 +317,9 @@
           "description": "Optional name pattern to filter definitions (regex)."
         }
       },
-      "required": ["path"]
+      "required": [
+        "path"
+      ]
     }
   },
   {
@@ -295,7 +342,9 @@
           "description": "The type of file to search for (f=file, d=directory). Optional."
         }
       },
-      "required": ["name_pattern"]
+      "required": [
+        "name_pattern"
+      ]
     }
   },
   {
@@ -315,7 +364,9 @@
           "default": 2
         }
       },
-      "required": ["path"]
+      "required": [
+        "path"
+      ]
     }
   },
   {
@@ -329,7 +380,9 @@
           "description": "The shell command to execute (e.g., 'ls -la', 'python3 main.py')."
         }
       },
-      "required": ["command"]
+      "required": [
+        "command"
+      ]
     }
   },
   {
@@ -357,7 +410,9 @@
           "description": "The commit hash to inspect."
         }
       },
-      "required": ["hash"]
+      "required": [
+        "hash"
+      ]
     }
   },
   {
@@ -405,7 +460,9 @@
           "description": "End line number (optional)."
         }
       },
-      "required": ["filepath"]
+      "required": [
+        "filepath"
+      ]
     }
   },
   {
@@ -419,7 +476,9 @@
           "description": "The path to the source code file."
         }
       },
-      "required": ["filepath"]
+      "required": [
+        "filepath"
+      ]
     }
   },
   {
@@ -433,7 +492,9 @@
           "description": "The test command to execute (e.g., 'pytest tests/', 'npm test', 'go test ./...')."
         }
       },
-      "required": ["command"]
+      "required": [
+        "command"
+      ]
     }
   },
   {
@@ -447,7 +508,9 @@
           "description": "The path to the file to validate."
         }
       },
-      "required": ["filepath"]
+      "required": [
+        "filepath"
+      ]
     }
   },
   {
@@ -459,7 +522,13 @@
         "action": {
           "type": "STRING",
           "description": "The action to perform: 'add', 'update', 'list', 'delete', 'clear'.",
-          "enum": ["add", "update", "list", "delete", "clear"]
+          "enum": [
+            "add",
+            "update",
+            "list",
+            "delete",
+            "clear"
+          ]
         },
         "content": {
           "type": "STRING",
@@ -474,7 +543,9 @@
           "description": "The new status (e.g., 'completed', 'pending') for 'update' or filter for 'list'."
         }
       },
-      "required": ["action"]
+      "required": [
+        "action"
+      ]
     }
   },
   {
@@ -497,7 +568,9 @@
           "description": "Optional file extension filter (e.g., '.py')."
         }
       },
-      "required": ["query"]
+      "required": [
+        "query"
+      ]
     }
   },
   {
@@ -511,8 +584,36 @@
           "description": "The path to the file to analyze."
         }
       },
-      "required": ["filepath"]
+      "required": [
+        "filepath"
+      ]
+    }
+  },
+  {
+    "name": "create_image",
+    "description": "Generates an image based on a text prompt using the Gemini 3 Pro Image model. Use this when the user asks to draw, create, or generate a picture.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "prompt": {
+          "type": "STRING",
+          "description": "The detailed description of the image to generate."
+        },
+        "aspect_ratio": {
+          "type": "STRING",
+          "description": "The aspect ratio of the image (e.g., '1:1', '16:9', '4:3', '3:4', '9:16'). Defaults to '1:1'.",
+          "enum": [
+            "1:1",
+            "16:9",
+            "4:3",
+            "3:4",
+            "9:16"
+          ]
+        }
+      },
+      "required": [
+        "prompt"
+      ]
     }
   }
 ]
-
