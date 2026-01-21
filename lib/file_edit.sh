@@ -441,3 +441,53 @@ tool_delete_file() {
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }
+
+tool_append_file() {
+    local FC_DATA="$1"
+    local RESP_PARTS_FILE="$2"
+
+    local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
+
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Appending to file: $FC_PATH\033[0m"
+
+    local IS_SAFE=$(check_path_safety "$FC_PATH")
+    local RESULT_MSG
+    local DUR=""
+
+    if [ "$IS_SAFE" == "true" ]; then
+        mkdir -p "$(dirname "$FC_PATH")"
+
+        # --- Backup Hook ---
+        if declare -f backup_file > /dev/null; then
+            backup_file "$FC_PATH"
+        fi
+        # -------------------
+
+        # Use jq to write directly to avoid stripping newlines via command substitution
+        echo "$FC_DATA" | jq -r '.args.content' >> "$FC_PATH"
+        
+        if [ $? -eq 0 ]; then
+            RESULT_MSG="File appended successfully."
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] File appended.\033[0m"
+        else
+            RESULT_MSG="Error: Failed to append to file."
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Could not append to file.\033[0m"
+        fi
+    else
+        RESULT_MSG="Error: Security violation. Write path must be within current working directory."
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Append denied: $FC_PATH\033[0m"
+    fi
+
+    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+    fi
+
+    jq -n --arg name "append_file" --rawfile content <(printf "%s" "$RESULT_MSG") \
+        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
+    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+    rm "${RESP_PARTS_FILE}.part"
+}
