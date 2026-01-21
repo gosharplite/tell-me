@@ -221,7 +221,7 @@ case "$ACTION" in
         ;;
 
     "restart-session")
-        send_prompt "I need to restart session. Please revise scratchpad and tasks if needed."
+        send_prompt "I need to restart session. Please update scratchpad and tasks so you will remember what is going on."
         ;;
 
     "cheat-sheet")
