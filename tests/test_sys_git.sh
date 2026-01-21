@@ -61,6 +61,33 @@ else
     fail "execute_command failed to allow whitelisted command: $RESULT"
 fi
 
+# Case 1b: Diff command (Newly whitelisted)
+echo "A" > fileA
+echo "B" > fileB
+INPUT_DIFF=$(jq -n '{args: {command: "diff fileA fileB"}}')
+
+# Disable exit on error for this call because diff returns 1, and depending on shell settings/eval,
+# it might trigger a crash if not handled carefully, though assignment usually protects it.
+set +e
+tool_execute_command "$INPUT_DIFF" "$RESP_FILE" < /dev/null
+RET_CODE=$?
+set -e
+
+if [ $RET_CODE -ne 0 ]; then
+    fail "tool_execute_command crashed or returned non-zero code ($RET_CODE)"
+fi
+
+RESULT=$(get_result)
+# Diff returns exit code 1 when files differ, but the tool execution itself should be allowed (not denied).
+# We check if it ran (Output contains differences) vs "User denied".
+
+if [[ "$RESULT" == *"Exit Code: 1"* && "$RESULT" == *"< A"* ]]; then
+    pass "execute_command allowed whitelisted command (diff)"
+else
+    fail "execute_command failed to allow whitelisted command (diff): $RESULT"
+fi
+
+
 # Case 2: Non-whitelisted command (should be denied in non-interactive)
 INPUT_UNSAFE=$(jq -n '{args: {command: "touch unsafe_file"}}')
 tool_execute_command "$INPUT_UNSAFE" "$RESP_FILE" < /dev/null
@@ -184,4 +211,3 @@ cd "$ORIGINAL_DIR"
 rm -rf "$TEST_DIR"
 
 echo "All tests passed."
-
