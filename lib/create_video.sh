@@ -1,4 +1,4 @@
-# Function to generate videos using Veo 3.1 model
+# Function to generate videos using Veo 3.0 model
 # Usage: tool_create_video '{ "args": { "prompt": "...", "resolution": "720p", "aspect_ratio": "16:9", "duration_seconds": 8 } }' "output_file"
 
 tool_create_video() {
@@ -48,18 +48,28 @@ tool_create_video() {
         }
       }' > "$PAYLOAD_FILE"
 
-    # API Endpoint - Force v1beta1 for Veo
-    local VIDEO_MODEL="veo-3.1-generate-preview"
+    # API Endpoint - Use Veo 3.0 models
+    local VIDEO_MODEL="veo-3.0-generate-001"
     if [ "$FAST_GEN" == "true" ]; then
-        VIDEO_MODEL="veo-3.1-fast-generate-preview"
+        VIDEO_MODEL="veo-3.0-fast-generate-001"
     fi
     
-    # Force v1beta1 in the AIURL for prediction
-    local BETA_AIURL=$(echo "$AIURL" | sed 's|/v1/|/v1beta1/|')
-    local PREDICT_ENDPOINT="${BETA_AIURL}/${VIDEO_MODEL}:predictLongRunning"
+    # Note: AIURL is typically "https://aiplatform.googleapis.com/v1/projects/.../models"
+    # We strip the base and construct the regional URL
+    local REGIONAL_HOST="us-central1-aiplatform.googleapis.com"
+    local PROJECT_ID=$(echo "$AIURL" | sed -n 's|.*/projects/\([^/]*\)/.*|\1|p')
+    
+    # Fallback if project ID parsing fails
+    if [ -z "$PROJECT_ID" ]; then
+         PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
+    fi
+    
+    # Use Regional Endpoint for PREDICTION
+    # Keeping v1beta1 for safety, as Veo often requires it.
+    local PREDICT_ENDPOINT="https://${REGIONAL_HOST}/v1beta1/projects/${PROJECT_ID}/locations/us-central1/publishers/google/models/${VIDEO_MODEL}:predictLongRunning"
     
     # 1. Initiate Generation
-    echo -e "${TS} \033[0;33m[Tool info] Submitting job to $VIDEO_MODEL (v1beta1)...\033[0m"
+    echo -e "${TS} \033[0;33m[Tool info] Submitting job to $VIDEO_MODEL (us-central1)...\033[0m"
     local START_TIME=$(date +%s.%N)
     
     local USER_PROJECT=$(gcloud config get-value project 2>/dev/null)
@@ -108,17 +118,16 @@ tool_create_video() {
                 local API_HOST="aiplatform.googleapis.com" # Default Global
                 if [ -n "$OP_LOCATION" ] && [ "$OP_LOCATION" != "global" ]; then
                     API_HOST="${OP_LOCATION}-aiplatform.googleapis.com"
+                else
+                    # Fallback: If returned name is global, try using regional host anyway?
+                    # No, let's trust the name first.
+                    API_HOST="aiplatform.googleapis.com"
                 fi
                 
                 # Construct Polling URL (Always v1beta1 for Veo Operations)
+                # Note: We use the full OP_NAME which includes /publishers/...
                 local OP_URL="https://${API_HOST}/v1beta1/${OP_NAME}"
                 
-                # Debug output on first attempt
-                # if [ $ATTEMPTS -eq 1 ]; then
-                #      echo -e "\n\033[0;35m[DEBUG] OP_URL: $OP_URL\033[0m"
-                #      echo -e "\033[0;35m[DEBUG] Project Header: $USER_PROJECT\033[0m\n"
-                # fi
-
                 local POLL_RESP=$(curl -s "$OP_URL" \
                     -H "Content-Type: application/json" \
                     -H "Authorization: Bearer $TOKEN" \
