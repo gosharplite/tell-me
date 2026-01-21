@@ -87,6 +87,7 @@ source "$BASE_DIR/lib/auth.sh"
 source "$BASE_DIR/lib/read_file.sh"
 source "$BASE_DIR/lib/read_image.sh"
 source "$BASE_DIR/lib/create_image.sh"
+source "$BASE_DIR/lib/create_video.sh"
 source "$BASE_DIR/lib/read_url.sh"
 source "$BASE_DIR/lib/code_analysis.sh"
 source "$BASE_DIR/lib/testing.sh"
@@ -320,5 +321,3 @@ if [ -f "$LOG_FILE" ]; then
     echo ""
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "$LOG_FILE"
 fi
-
-

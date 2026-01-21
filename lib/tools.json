@@ -124,6 +124,27 @@
     }
   },
   {
+    "name": "append_file",
+    "description": "Appends content to the end of a specific file. Use this for adding logs, notes, or appending code.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the file to append to."
+        },
+        "content": {
+          "type": "STRING",
+          "description": "The text content to append."
+        }
+      },
+      "required": [
+        "filepath",
+        "content"
+      ]
+    }
+  },
+  {
     "name": "apply_patch",
     "description": "Applies a unified diff patch to files. Use this for complex edits or multiple changes in one go. The patch must have standard headers (--- a/file +++ b/file) and use context.",
     "parameters": {
@@ -530,13 +551,13 @@
             "clear"
           ]
         },
-        "content": {
-          "type": "STRING",
-          "description": "The task description (required for 'add')."
-        },
         "task_id": {
           "type": "INTEGER",
           "description": "The ID of the task to update or delete."
+        },
+        "content": {
+          "type": "STRING",
+          "description": "The task description (required for 'add')."
         },
         "status": {
           "type": "STRING",
@@ -609,6 +630,48 @@
             "3:4",
             "9:16"
           ]
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    }
+  },
+  {
+    "name": "create_video",
+    "description": "Generates a video based on a text prompt using the Veo 3.1 model. Returns a path to the generated MP4 file.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "prompt": {
+          "type": "STRING",
+          "description": "The detailed description of the video to generate."
+        },
+        "resolution": {
+          "type": "STRING",
+          "description": "Resolution of the video (e.g., '720p', '1080p'). Defaults to '720p'.",
+          "enum": [
+            "720p",
+            "1080p"
+          ]
+        },
+        "aspect_ratio": {
+          "type": "STRING",
+          "description": "The aspect ratio (e.g., '16:9', '1:1', '4:3'). Defaults to '16:9'.",
+          "enum": [
+            "16:9",
+            "1:1",
+            "4:3",
+            "9:16"
+          ]
+        },
+        "duration_seconds": {
+          "type": "INTEGER",
+          "description": "Duration of the video in seconds. Defaults to 8."
+        },
+        "fast_generation": {
+          "type": "BOOLEAN",
+          "description": "If true, uses the faster generation model (veo-3.1-fast-generate-preview)."
         }
       },
       "required": [
