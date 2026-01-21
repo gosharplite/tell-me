@@ -12,10 +12,16 @@ tool_create_video() {
     local DURATION=$(echo "$FC_DATA" | jq -r '.args.duration_seconds // 8')
     local FAST_GEN=$(echo "$FC_DATA" | jq -r '.args.fast_generation // false')
 
-    # Validate Duration
+    # Validate Duration (Veo supports 4, 6, 8)
     if ! [[ "$DURATION" =~ ^[0-9]+$ ]] || [ "$DURATION" -le 0 ]; then
         DURATION=8
+    elif [ "$DURATION" -lt 4 ]; then
+        DURATION=4
+    elif [ "$DURATION" -gt 8 ]; then
+        DURATION=8
     fi
+    if [ "$DURATION" -eq 5 ]; then DURATION=6; fi
+    if [ "$DURATION" -eq 7 ]; then DURATION=8; fi
     
     local TS=$(get_log_timestamp)
     echo -e "${TS} \033[0;36m[Tool Request] Generating Video: \"${PROMPT:0:50}...\" ($RESOLUTION, $ASPECT_RATIO, ${DURATION}s, Fast: $FAST_GEN)\033[0m"
@@ -54,24 +60,19 @@ tool_create_video() {
         VIDEO_MODEL="veo-3.0-fast-generate-001"
     fi
     
-    # Note: AIURL is typically "https://aiplatform.googleapis.com/v1/projects/.../models"
-    # We strip the base and construct the regional URL
     local REGIONAL_HOST="us-central1-aiplatform.googleapis.com"
     local PROJECT_ID=$(echo "$AIURL" | sed -n 's|.*/projects/\([^/]*\)/.*|\1|p')
+    if [ -z "$PROJECT_ID" ]; then PROJECT_ID=$(gcloud config get-value project 2>/dev/null); fi
     
-    # Fallback if project ID parsing fails
-    if [ -z "$PROJECT_ID" ]; then
-         PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
-    fi
+    local BETA_BASE_URL="https://${REGIONAL_HOST}/v1beta1/projects/${PROJECT_ID}/locations/us-central1/publishers/google/models/${VIDEO_MODEL}"
+    local V1_BASE_URL="https://${REGIONAL_HOST}/v1/projects/${PROJECT_ID}/locations/us-central1/publishers/google/models/${VIDEO_MODEL}"
     
-    # Use Regional Endpoint for PREDICTION
-    # Keeping v1beta1 for safety, as Veo often requires it.
-    local PREDICT_ENDPOINT="https://${REGIONAL_HOST}/v1beta1/projects/${PROJECT_ID}/locations/us-central1/publishers/google/models/${VIDEO_MODEL}:predictLongRunning"
+    local PREDICT_ENDPOINT="${BETA_BASE_URL}:predictLongRunning"
+    local FETCH_ENDPOINT="${V1_BASE_URL}:fetchPredictOperation"
     
     # 1. Initiate Generation
     echo -e "${TS} \033[0;33m[Tool info] Submitting job to $VIDEO_MODEL (us-central1)...\033[0m"
     local START_TIME=$(date +%s.%N)
-    
     local USER_PROJECT=$(gcloud config get-value project 2>/dev/null)
 
     local INIT_RESPONSE=$(curl -s "$PREDICT_ENDPOINT" \
@@ -82,141 +83,104 @@ tool_create_video() {
       
     rm "$PAYLOAD_FILE"
     
-    # Check for immediate error
     if ! echo "$INIT_RESPONSE" | jq -e . > /dev/null 2>&1; then
          RESULT_MSG="Error: Invalid JSON response from API during init."
          echo -e "\033[0;31m[Tool Failed] API returned non-JSON: ${INIT_RESPONSE:0:100}...\033[0m"
     elif echo "$INIT_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
         local ERR_MSG=$(echo "$INIT_RESPONSE" | jq -r '.error.message')
         RESULT_MSG="Error starting video generation: $ERR_MSG"
-        local DUR=$(get_log_duration)
-        echo -e "${DUR} \033[0;31m[Tool Failed] API Error: $ERR_MSG\033[0m"
+        echo -e "\033[0;31m[Tool Failed] API Error: $ERR_MSG\033[0m"
     else
-        # Extract Operation Name
         local OP_NAME=$(echo "$INIT_RESPONSE" | jq -r '.name // empty')
         
         if [ -z "$OP_NAME" ]; then
              RESULT_MSG="Error: No operation name returned."
-             echo -e "\033[0;31m[Tool Failed] Invalid response: $INIT_RESPONSE\033[0m"
         else
             echo -e "\033[0;33m[Tool info] Job started: $OP_NAME. Polling...\033[0m"
             
-            # 2. Poll Status
+            # 2. Poll Status (Using fetchPredictOperation)
             local DONE="false"
             local ATTEMPTS=0
             local MAX_ATTEMPTS=60 
+            local POLL_PAYLOAD=$(mktemp)
+            jq -n --arg name "$OP_NAME" '{operationName: $name}' > "$POLL_PAYLOAD"
             
+            local POLL_RESP=""
             while [ "$DONE" != "true" ] && [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
                 sleep 5
                 ((ATTEMPTS++))
                 
-                # Check Operation Status
-                # Extract Location from OP_NAME (e.g. projects/.../locations/us-central1/...)
-                local OP_LOCATION=$(echo "$OP_NAME" | sed -n 's|.*/locations/\([^/]*\)/.*|\1|p')
-                
-                # Determine API Host
-                local API_HOST="aiplatform.googleapis.com" # Default Global
-                if [ -n "$OP_LOCATION" ] && [ "$OP_LOCATION" != "global" ]; then
-                    API_HOST="${OP_LOCATION}-aiplatform.googleapis.com"
-                else
-                    # Fallback: If returned name is global, try using regional host anyway?
-                    # No, let's trust the name first.
-                    API_HOST="aiplatform.googleapis.com"
-                fi
-                
-                # Construct Polling URL (Always v1beta1 for Veo Operations)
-                # Note: We use the full OP_NAME which includes /publishers/...
-                local OP_URL="https://${API_HOST}/v1beta1/${OP_NAME}"
-                
-                local POLL_RESP=$(curl -s "$OP_URL" \
+                POLL_RESP=$(curl -s -X POST "$FETCH_ENDPOINT" \
                     -H "Content-Type: application/json" \
                     -H "Authorization: Bearer $TOKEN" \
-                    -H "x-goog-user-project: $USER_PROJECT")
+                    -H "x-goog-user-project: $USER_PROJECT" \
+                    -d @"$POLL_PAYLOAD")
                 
-                # Robust JSON Validation
                 if ! echo "$POLL_RESP" | jq -e . > /dev/null 2>&1; then
-                    echo -e "\n\033[0;31m[DEBUG] Invalid JSON received:\033[0m"
-                    echo "$POLL_RESP" | head -c 200
-                    echo -e "\n----------------------------------------"
-                    
-                    echo -ne "\r\033[0;31m[Tool Warning] Polling failed (Invalid JSON). Retrying ($ATTEMPTS/$MAX_ATTEMPTS)...\033[0m"
+                    echo -ne "\r\033[0;31m[Tool Warning] Polling failed (Invalid JSON)...\033[0m"
                     continue
                 fi
 
                 DONE=$(echo "$POLL_RESP" | jq -r '.done // "false"')
                 
                 if echo "$POLL_RESP" | jq -e '.error' > /dev/null 2>&1; then
-                    local ERR=$(echo "$POLL_RESP" | jq -r '.error.message')
-                    RESULT_MSG="Error during polling: $ERR"
+                    RESULT_MSG="Error during polling: $(echo "$POLL_RESP" | jq -r '.error.message')"
                     DONE="error"
                     break
                 fi
-                
                 echo -ne "\r\033[0;33m[Tool info] Polling ($ATTEMPTS/$MAX_ATTEMPTS)...\033[0m"
             done
             echo ""
+            rm "$POLL_PAYLOAD"
             
             if [ "$DONE" == "true" ]; then
-                # 3. Retrieve Result
                 if echo "$POLL_RESP" | jq -e '.response.error' > /dev/null 2>&1; then
                      RESULT_MSG="Video generation failed: $(echo "$POLL_RESP" | jq -r '.response.error.message')"
-                     echo -e "\033[0;31m[Tool Failed] $RESULT_MSG\033[0m"
                 else
                     # Extract Video Data
-                    local URI=$(echo "$POLL_RESP" | jq -r '.response.generatedSamples[0].video.uri // empty')
-                    local B64=$(echo "$POLL_RESP" | jq -r '.response.generatedSamples[0].video.bytesBase64Encoded // empty')
+                    local B64=$(echo "$POLL_RESP" | jq -r '.response.videos[0].bytesBase64Encoded // .response.generatedSamples[0].video.bytesBase64Encoded // empty')
+                    local GCS_URI=$(echo "$POLL_RESP" | jq -r '.response.videos[0].gcsUri // .response.videos[0].uri // .response.generatedSamples[0].video.uri // empty')
                     
                     if [ -n "$B64" ] && [ "$B64" != "null" ]; then
                         echo "$B64" | base64 -d > "$OUT_FILE"
                         RESULT_MSG="Video generated successfully. Saved to: $OUT_FILE"
                         local FILE_SIZE=$(du -h "$OUT_FILE" | cut -f1)
-                        local DUR=$(get_log_duration)
-                        echo -e "${DUR} \033[0;32m[Tool Success] Saved $OUT_FILE ($FILE_SIZE)\033[0m"
+                        echo -e "\033[0;32m[Tool Success] Saved $OUT_FILE ($FILE_SIZE)\033[0m"
                         display_media_file "$OUT_FILE"
-                    elif [ -n "$URI" ] && [ "$URI" != "null" ]; then
-                         if [[ "$URI" == gs://* ]]; then
-                            echo -e "\033[0;33m[Tool info] Downloading from $URI...\033[0m"
-                            if command -v gcloud &> /dev/null; then
-                                gcloud storage cp "$URI" "$OUT_FILE" 2>/dev/null
-                                if [ $? -eq 0 ]; then
-                                    RESULT_MSG="Video generated successfully. Saved to: $OUT_FILE"
-                                    local FILE_SIZE=$(du -h "$OUT_FILE" | cut -f1)
-                                    local DUR=$(get_log_duration)
-                                    echo -e "${DUR} \033[0;32m[Tool Success] Saved $OUT_FILE ($FILE_SIZE)\033[0m"
-                                    display_media_file "$OUT_FILE"
-                                else
-                                    RESULT_MSG="Video generated at $URI but failed to download."
-                                    echo -e "\033[0;31m[Tool Failed] Download failed.\033[0m"
-                                fi
-                            else
-                                RESULT_MSG="Video generated at $URI. Please download manually (gcloud not found)."
-                                echo -e "\033[0;33m[Tool Warning] gcloud missing.\033[0m"
-                            fi
+                    elif [ -n "$GCS_URI" ] && [ "$GCS_URI" != "null" ]; then
+                         if command -v gcloud &> /dev/null; then
+                             echo -e "\033[0;33m[Tool info] Downloading from $GCS_URI...\033[0m"
+                             gcloud storage cp "$GCS_URI" "$OUT_FILE" 2>/dev/null
+                             if [ $? -eq 0 ]; then
+                                 RESULT_MSG="Video generated successfully. Saved to: $OUT_FILE"
+                                 local FILE_SIZE=$(du -h "$OUT_FILE" | cut -f1)
+                                 echo -e "\033[0;32m[Tool Success] Saved $OUT_FILE ($FILE_SIZE)\033[0m"
+                                 display_media_file "$OUT_FILE"
+                             else
+                                 RESULT_MSG="Video generated at $GCS_URI but failed to download."
+                             fi
                          else
-                             curl -s "$URI" -o "$OUT_FILE"
-                             RESULT_MSG="Video generated successfully. Saved to: $OUT_FILE"
-                             local DUR=$(get_log_duration)
-                             echo -e "${DUR} \033[0;32m[Tool Success] Saved $OUT_FILE\033[0m"
-                             display_media_file "$OUT_FILE"
+                             RESULT_MSG="Video generated at $GCS_URI. Please download manually (gcloud not found)."
                          fi
                     else
-                        RESULT_MSG="Error: Operation completed but no video data found."
-                        echo -e "\033[0;31m[Tool Failed] No video data in response.\033[0m"
+                        local FILTERED=$(echo "$POLL_RESP" | jq -r '.response.raiMediaFilteredCount // 0')
+                        if [ "$FILTERED" -gt 0 ]; then
+                             RESULT_MSG="Video generation blocked by safety filters (Count: $FILTERED)."
+                        else
+                             RESULT_MSG="Error: Operation completed but no video data found."
+                        fi
                     fi
                 fi
             elif [ "$DONE" == "error" ]; then
                 :
             else
                 RESULT_MSG="Error: Timeout waiting for video generation."
-                echo -e "\033[0;31m[Tool Failed] Timeout.\033[0m"
             fi
         fi
     fi
 
-    # Return Result
     jq -n --arg name "create_video" --arg content "$RESULT_MSG" \
         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
-        
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }
