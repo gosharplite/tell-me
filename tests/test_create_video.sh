@@ -1,27 +1,43 @@
 #!/bin/bash
 # Test script for lib/create_video.sh
-# Covers: tool_create_video (Success, Error, Polling, Custom Duration)
+
+# Setup isolated environment
+TEST_DIR=$(mktemp -d)
+RESP_FILE="$TEST_DIR/test_video_resp.json"
+STATE_FILE="$TEST_DIR/test_video_state"
+URL_LOG="$TEST_DIR/curl_urls.log"
+
+# We also need to mock `assets/generated` output or ensure the tool writes there.
+# `create_video.sh` likely uses `assets/generated` relative to CWD.
+# We should override this if possible, or run the test from inside `TEST_DIR`.
+# Since `create_video.sh` is sourced, we can try to override `GEN_DIR` if it's a variable, 
+# but usually it's hardcoded or local.
+# Best approach: Copy lib to TEST_DIR, cd into TEST_DIR, and run everything there.
+
+cp -r lib "$TEST_DIR/"
+cd "$TEST_DIR"
 
 export CURRENT_TURN=0
 export MAX_TURNS=10
 export AIURL="https://mock-api.com/models"
 export TOKEN="mock-token"
-RESP_FILE="./output/test_video_resp.json"
-STATE_FILE="./output/test_video_state"
-mkdir -p output
+
+cleanup() {
+    cd ..
+    rm -rf "$TEST_DIR"
+}
+trap cleanup EXIT
 
 source lib/utils.sh
 source lib/create_video.sh
 
 # Mock curl with state persistence
 TEST_MODE="none"
-URL_LOG="./output/curl_urls.log"
 
 curl() {
-    # Log all arguments to capture URL regardless of flag position
+    # Log all arguments
     echo "$@" >> "$URL_LOG"
 
-    # Read and increment counter atomically-ish
     if [ -f "$STATE_FILE" ]; then
         local CNT=$(cat "$STATE_FILE")
         CNT=$((CNT + 1))
@@ -33,13 +49,10 @@ curl() {
     
     if [ "$TEST_MODE" == "success" ] || [ "$TEST_MODE" == "success_duration" ]; then
         if [ $CNT -eq 1 ]; then
-             # 1. Init Response
              jq -n '{ name: "projects/123/locations/us-central1/publishers/google/models/veo-3.1-generate-preview/operations/999" }'
         elif [ $CNT -eq 2 ]; then
-             # 2. Poll Response (Running)
              jq -n '{ done: false, name: "projects/123/locations/us-central1/publishers/google/models/veo-3.1-generate-preview/operations/999" }'
         else
-             # 3. Poll Response (Done with Base64)
              jq -n '{ done: true, response: { generatedSamples: [{ video: { bytesBase64Encoded: "AAAA" } }] } }'
         fi
     elif [ "$TEST_MODE" == "error_init" ]; then
@@ -47,13 +60,11 @@ curl() {
     fi
 }
 
-# Mock gcloud
 gcloud() {
     echo "mock-project"
     return 0
 }
 
-# Override sleep to be instant
 sleep() {
     :
 }
@@ -81,12 +92,12 @@ test_create_video_success() {
         return 1
     fi
     
+    # Check current directory inside TEST_DIR
     local GEN_FILE=$(ls -t assets/generated/*.mp4 2>/dev/null | head -n 1)
     if [ -f "$GEN_FILE" ]; then
          echo "PASS: Video file created: $GEN_FILE"
-         rm "$GEN_FILE"
     else
-         echo "FAIL: No mp4 found."
+         echo "FAIL: No mp4 found in $(pwd)/assets/generated"
          return 1
     fi
 }
@@ -98,8 +109,6 @@ test_create_video_duration() {
     echo "0" > "$STATE_FILE"
     : > "$URL_LOG"
     
-    local PROMPT="Short clip"
-    # Pass integer 3
     local ARGS='{"args":{"prompt":"Short clip", "duration_seconds": 3}}'
     
     echo "[]" > "$RESP_FILE"
@@ -122,7 +131,6 @@ test_create_video_fast() {
     echo "0" > "$STATE_FILE"
     : > "$URL_LOG"
     
-    local PROMPT="Fast car"
     local ARGS='{"args":{"prompt":"Fast car", "fast_generation": true}}'
     
     echo "[]" > "$RESP_FILE"
@@ -131,12 +139,10 @@ test_create_video_fast() {
     
     local RES=$(jq -r '.[0].functionResponse.response.result' "$RESP_FILE")
     if [[ "$RES" == *"Video generated successfully"* ]]; then
-         # Check if correct model was used in URL
          if grep -q "veo-3.0-fast-generate-001" "$URL_LOG"; then
              echo "PASS: Fast model requested"
          else
-             echo "FAIL: Fast model NOT requested. URLs logged:"
-             cat "$URL_LOG"
+             echo "FAIL: Fast model NOT requested."
              return 1
          fi
     else
@@ -171,8 +177,6 @@ test_create_video_success || FAILED=1
 test_create_video_duration || FAILED=1
 test_create_video_fast || FAILED=1
 test_create_video_error || FAILED=1
-
-rm -f "$RESP_FILE" "$STATE_FILE" "$URL_LOG"
 
 if [ $FAILED -eq 0 ]; then
     echo "All create_video tests passed."

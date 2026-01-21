@@ -147,7 +147,6 @@ tool_create_video() {
                         RESULT_MSG="Video generated successfully. Saved to: $OUT_FILE"
                         local FILE_SIZE=$(du -h "$OUT_FILE" | cut -f1)
                         echo -e "\033[0;32m[Tool Success] Saved $OUT_FILE ($FILE_SIZE)\033[0m"
-                        display_media_file "$OUT_FILE"
                     elif [ -n "$GCS_URI" ] && [ "$GCS_URI" != "null" ]; then
                          if command -v gcloud &> /dev/null; then
                              echo -e "\033[0;33m[Tool info] Downloading from $GCS_URI...\033[0m"
@@ -156,7 +155,6 @@ tool_create_video() {
                                  RESULT_MSG="Video generated successfully. Saved to: $OUT_FILE"
                                  local FILE_SIZE=$(du -h "$OUT_FILE" | cut -f1)
                                  echo -e "\033[0;32m[Tool Success] Saved $OUT_FILE ($FILE_SIZE)\033[0m"
-                                 display_media_file "$OUT_FILE"
                              else
                                  RESULT_MSG="Video generated at $GCS_URI but failed to download."
                                  echo -e "\033[0;31m[Tool Failed] Download failed.\033[0m"

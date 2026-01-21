@@ -83,6 +83,7 @@ options=(
     "show-last"
     "read-scratchpad-tasks"
     "restart-session"
+    "combine-tasks"
     "cheat-sheet"
 )
 
@@ -222,6 +223,10 @@ case "$ACTION" in
 
     "restart-session")
         send_prompt "I need to restart session. Please update scratchpad and tasks so you will remember what is going on. List all your tasks."
+        ;;
+
+    "combine-tasks")
+        send_prompt "Read all task and scratchpad files in output folder. Merge all contents and save for yourself. List all your tasks."
         ;;
 
     "cheat-sheet")

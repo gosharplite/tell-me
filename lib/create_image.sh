@@ -74,7 +74,6 @@ tool_create_image() {
                 local FILE_SIZE=$(du -h "$OUT_FILE" | cut -f1)
                 local DUR=$(get_log_duration)
                 echo -e "${DUR} \033[0;32m[Tool Success] Saved $OUT_FILE ($FILE_SIZE)\033[0m"
-                display_media_file "$OUT_FILE"
             else
                 RESULT_MSG="Error: Failed to decode base64 image data."
                 local DUR=$(get_log_duration)

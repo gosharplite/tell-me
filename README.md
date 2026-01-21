@@ -197,7 +197,7 @@ The AI is equipped with a suite of Bash-native tools it can invoke to assist you
 *   **File Manipulation**: `update_file`, `append_file`, `replace_text`, `insert_text`, `apply_patch`, `rollback_file`, `move_file`, `delete_file`.
 *   **File System & Navigation**: `list_files`, `get_file_info`, `read_file`, `find_file`, `get_tree`, `search_files`, `read_image`.
 *   **Media Generation**: `create_video` (Veo 3.1), `create_image` (Gemini 3 Pro Image).
-*   **Code Analysis**: `get_file_skeleton`, `grep_definitions`, `find_usages`, `calculate_complexity`, `validate_syntax`, `read_url`.
+*   **Code Analysis**: `get_file_skeleton`, `grep_definitions`, `find_usages`, `validate_syntax`, `read_url`.
 *   **Git / Version Control**: `get_git_status`, `get_git_diff`, `get_git_log`, `read_git_commit`, `get_git_blame`.
 *   **System & Execution**: `execute_command`, `run_tests`.
 *   **Communication & Memory**: `ask_user`, `manage_scratchpad`, `manage_tasks`.

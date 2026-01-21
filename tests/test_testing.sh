@@ -1,26 +1,43 @@
 #!/bin/bash
 # Test for lib/testing.sh (run_tests)
 
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$BASE_DIR/lib/utils.sh"
-source "$BASE_DIR/lib/testing.sh"
+# Setup isolated environment
+TEST_DIR=$(mktemp -d)
+RESP_FILE="$TEST_DIR/resp.json"
+
+cleanup() {
+    rm -rf "$TEST_DIR"
+}
+trap cleanup EXIT
+
+# Copy lib to use locally if needed, but we source from absolute path or relative to original.
+# We will CD into TEST_DIR, so we need to know where lib is.
+ORIGINAL_DIR="$(pwd)"
+cp -r lib "$TEST_DIR/"
+
+cd "$TEST_DIR"
+
+source "lib/utils.sh"
+source "lib/testing.sh"
 
 # Mock variables
 CURRENT_TURN=1
 MAX_TURNS=10
 
-RESP_FILE=$(mktemp)
 echo "[]" > "$RESP_FILE"
 FAILED=0
 
-# Create dummy test script
-echo "#!/bin/bash" > ./dummy_run_tests.sh
-echo "echo 'All good'" >> ./dummy_run_tests.sh
-chmod +x ./dummy_run_tests.sh
+# Create dummy test script named exactly as the allowed command
+cat <<EOF > "run_tests.sh"
+#!/bin/bash
+echo 'All good'
+EOF
+chmod +x "run_tests.sh"
 
 # Test 1: Passing Test
 echo "Test 1: Passing Test"
-ARGS=$(jq -n --arg command "./dummy_run_tests.sh" '{args: {command: $command}}')
+# Command must match whitelist exactly: ./run_tests.sh
+ARGS=$(jq -n --arg command "./run_tests.sh" '{args: {command: $command}}')
 tool_run_tests "$ARGS" "$RESP_FILE"
 
 RESULT=$(jq -r '.[-1].functionResponse.response.result' "$RESP_FILE")
@@ -33,12 +50,15 @@ else
 fi
 
 # Test 2: Failing Test
-# Rewrite dummy to fail
-echo "#!/bin/bash" > ./dummy_run_tests.sh
-echo "echo 'Bad error' >&2; exit 1" >> ./dummy_run_tests.sh
+cat <<EOF > "run_tests.sh"
+#!/bin/bash
+echo 'Bad error' >&2
+exit 1
+EOF
+chmod +x "run_tests.sh"
 
 echo "Test 2: Failing Test"
-ARGS=$(jq -n --arg command "./dummy_run_tests.sh" '{args: {command: $command}}')
+ARGS=$(jq -n --arg command "./run_tests.sh" '{args: {command: $command}}')
 tool_run_tests "$ARGS" "$RESP_FILE"
 
 RESULT=$(jq -r '.[-1].functionResponse.response.result' "$RESP_FILE")
@@ -57,8 +77,8 @@ else
     FAILED=1
 fi
 
-rm "$RESP_FILE"
-rm ./dummy_run_tests.sh
+# Return to original dir (though script exit handles it)
+cd "$ORIGINAL_DIR"
 
 if [ $FAILED -eq 1 ]; then
     exit 1

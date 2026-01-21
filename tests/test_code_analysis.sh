@@ -1,8 +1,12 @@
 #!/bin/bash
 
-# Setup
-TEST_DIR="tests/temp_analysis"
-mkdir -p "$TEST_DIR"
+# Setup isolated environment
+TEST_DIR=$(mktemp -d)
+
+cleanup() {
+    rm -rf "$TEST_DIR"
+}
+trap cleanup EXIT
 
 # Mock Environment
 export CURRENT_TURN=0
@@ -48,6 +52,9 @@ my_func "test"
 echo "Done"
 EOF
 
+# Create dummy JS file for skeleton fallback
+echo "function jsFunc() { return true; }" > "$TEST_DIR/test.js"
+
 # Load library
 source ./lib/utils.sh
 source ./lib/code_analysis.sh
@@ -56,36 +63,43 @@ source ./lib/code_analysis.sh
 run_tool() {
     local FUNC=$1
     local JSON_INPUT=$2
-    local OUT_FILE=$(mktemp)
-    echo "[]" > "$OUT_FILE" # Initialize as array
+    local OUT_FILE="$TEST_DIR/response.json"
+    echo "[]" > "$OUT_FILE" 
     
     $FUNC "$JSON_INPUT" "$OUT_FILE"
     
     echo "Response:"
     cat "$OUT_FILE" | jq -r '.[0].functionResponse.response.result'
-    rm "$OUT_FILE"
 }
 
-echo "--- Test 1: Calculate Complexity (Python) ---"
-INPUT=$(jq -n --arg filepath "$TEST_DIR/complex.py" '{args: {filepath: $filepath}}')
-run_tool "tool_calculate_complexity" "$INPUT"
-echo ""
-
-echo "--- Test 2: Calculate Complexity (Bash) ---"
-INPUT=$(jq -n --arg filepath "$TEST_DIR/script.sh" '{args: {filepath: $filepath}}')
-run_tool "tool_calculate_complexity" "$INPUT"
-echo ""
-
-echo "--- Test 3: Find Usages (Python) ---"
+echo "--- Test 1: Find Usages (Python) ---"
 INPUT=$(jq -n --arg query "complex_func" --arg path "$TEST_DIR" '{args: {query: $query, path: $path}}')
 run_tool "tool_find_usages" "$INPUT"
 echo ""
 
-echo "--- Test 4: Find Usages (Bash) ---"
+echo "--- Test 2: Find Usages (Bash) ---"
 INPUT=$(jq -n --arg query "my_func" --arg path "$TEST_DIR" '{args: {query: $query, path: $path}}')
 run_tool "tool_find_usages" "$INPUT"
 echo ""
 
-# Cleanup
-rm -rf "$TEST_DIR"
+echo "--- Test 3: Get File Skeleton (Python) ---"
+INPUT=$(jq -n --arg filepath "$TEST_DIR/complex.py" '{args: {filepath: $filepath}}')
+run_tool "tool_get_file_skeleton" "$INPUT"
+echo ""
+
+echo "--- Test 4: Get File Skeleton (Bash) ---"
+INPUT=$(jq -n --arg filepath "$TEST_DIR/script.sh" '{args: {filepath: $filepath}}')
+run_tool "tool_get_file_skeleton" "$INPUT"
+echo ""
+
+echo "--- Test 5: Get File Skeleton (Generic/JS) ---"
+INPUT=$(jq -n --arg filepath "$TEST_DIR/test.js" '{args: {filepath: $filepath}}')
+run_tool "tool_get_file_skeleton" "$INPUT"
+echo ""
+
+echo "--- Test 6: Get File Skeleton (Plain Text) ---"
+seq 30 > "$TEST_DIR/plain.txt"
+INPUT=$(jq -n --arg filepath "$TEST_DIR/plain.txt" '{args: {filepath: $filepath}}')
+run_tool "tool_get_file_skeleton" "$INPUT"
+echo ""
 

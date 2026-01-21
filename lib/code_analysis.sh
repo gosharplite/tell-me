@@ -76,7 +76,8 @@ EOF
             # --- Shell Logic ---
             elif [ "$EXT" == "sh" ] || [ "$EXT" == "bash" ]; then
                 # Grep for function definitions
-                RESULT_MSG=$(grep -E "^(function )?[a-zA-Z0-9_]+(\(\))? \{?" "$FC_PATH")
+                # Matches: "function name", "function name()", "name()" with optional braces
+                RESULT_MSG=$(grep -E "^[[:space:]]*(function[[:space:]]+[a-zA-Z0-9_]+(\(\))?|[a-zA-Z0-9_]+\(\))[[:space:]]*(\{|$)" "$FC_PATH")
                 if [ -z "$RESULT_MSG" ]; then RESULT_MSG="No shell functions found."; fi
 
             # --- Generic / JS / Go Logic (Simple Regex) ---
@@ -203,107 +204,3 @@ tool_find_usages() {
     rm "${RESP_PARTS_FILE}.part"
 }
 
-tool_calculate_complexity() {
-    local FC_DATA="$1"
-    local RESP_PARTS_FILE="$2"
-
-    local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
-
-    local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Calculating Complexity: $FC_PATH\033[0m"
-
-    local IS_SAFE=$(check_path_safety "$FC_PATH")
-    local RESULT_MSG
-    local DUR=""
-
-    if [ "$IS_SAFE" == "true" ]; then
-        if [ -f "$FC_PATH" ]; then
-             local EXT="${FC_PATH##*.}"
-             
-             if [ "$EXT" == "py" ]; then
-                 local PY_PARSER=$(mktemp)
-                 cat << 'EOF' > "$PY_PARSER"
-import ast
-import sys
-
-class ComplexityVisitor(ast.NodeVisitor):
-    def __init__(self):
-        self.functions = []
-
-    def visit_FunctionDef(self, node):
-        complexity = 1
-        for child in ast.walk(node):
-            if isinstance(child, (ast.If, ast.For, ast.While, ast.With, ast.Try, ast.ExceptHandler)):
-                complexity += 1
-            elif isinstance(child, ast.BoolOp):
-                complexity += len(child.values) - 1
-        
-        self.functions.append((node.name, complexity))
-        self.generic_visit(node)
-
-def analyze(file_path):
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            tree = ast.parse(f.read())
-        visitor = ComplexityVisitor()
-        visitor.visit(tree)
-        
-        # Sort by complexity descending
-        visitor.functions.sort(key=lambda x: x[1], reverse=True)
-        
-        res = []
-        for name, score in visitor.functions:
-            res.append(f"{name}: {score}")
-            
-        if not res:
-            return "No functions found."
-        return "\n".join(res)
-    except Exception as e:
-        return f"Error parsing Python file: {e}"
-
-if __name__ == "__main__":
-    print(analyze(sys.argv[1]))
-EOF
-                 RESULT_MSG=$(python3 "$PY_PARSER" "$FC_PATH" 2>&1)
-                 rm "$PY_PARSER"
-             
-             elif [ "$EXT" == "sh" ] || [ "$EXT" == "bash" ]; then
-                 # Simple bash complexity: Count if/for/while/case inside functions
-                 # This is a rough heuristic
-                 RESULT_MSG=$(grep -rnE "^(function )?[a-zA-Z0-9_]+(\(\))? \{?|if |for |while |case " "$FC_PATH")
-                 
-                 # It's hard to parse scope with grep. 
-                 # Let's count keywords per file as a proxy, or just dump the raw stats.
-                 local COUNT_IF=$(grep -c "if " "$FC_PATH")
-                 local COUNT_FOR=$(grep -c "for " "$FC_PATH")
-                 local COUNT_WHILE=$(grep -c "while " "$FC_PATH")
-                 local COUNT_CASE=$(grep -c "case " "$FC_PATH")
-                 local TOTAL_SCORE=$((COUNT_IF + COUNT_FOR + COUNT_WHILE + COUNT_CASE))
-                 
-                 RESULT_MSG="Bash Complexity (Whole File Score):\nTotal Score: $TOTAL_SCORE\n(If: $COUNT_IF, For: $COUNT_FOR, While: $COUNT_WHILE, Case: $COUNT_CASE)\nNote: Per-function analysis requires more advanced parsing."
-             else
-                 RESULT_MSG="Complexity analysis not supported for this file type."
-             fi
-             
-             DUR=$(get_log_duration)
-             echo -e "${DUR} \033[0;32m[Tool Success] Complexity calculated.\033[0m"
-        else
-            RESULT_MSG="Error: File not found."
-            DUR=$(get_log_duration)
-            echo -e "${DUR} \033[0;31m[Tool Failed] File not found.\033[0m"
-        fi
-    else
-        RESULT_MSG="Error: Security violation."
-        DUR=$(get_log_duration)
-        echo -e "${DUR} \033[0;31m[Tool Security Block] Complexity denied.\033[0m"
-    fi
-
-    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
-    fi
-
-    jq -n --arg name "calculate_complexity" --rawfile content <(printf "%s" "$RESULT_MSG") \
-        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
-    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
-    rm "${RESP_PARTS_FILE}.part"
-}

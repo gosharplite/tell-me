@@ -1,41 +1,36 @@
 #!/bin/bash
 
 # Test script for manage_tasks tool in lib/task_manager.sh
-# Mocks the necessary environment
 
-# --- Mock Environment ---
+# Setup isolated environment
+TEST_DIR=$(mktemp -d)
+RESP_PARTS_FILE="$TEST_DIR/test_resp_parts.json"
+TASKS_DIR="$TEST_DIR/test_output"
+
+cleanup() {
+    rm -rf "$TEST_DIR"
+}
+trap cleanup EXIT
+
+# Mock Environment
 BASE_DIR="$(pwd)"
 source "lib/utils.sh"
 source "lib/task_manager.sh"
 
-# Mock RESP_PARTS_FILE
-RESP_PARTS_FILE="./test_resp_parts.json"
-
 # Mock Global 'file' variable to simulate agent environment
-export file="./test_output/mock_history.json"
-TASKS_FILE="./test_output/mock_history.tasks.json"
+export file="$TASKS_DIR/mock_history.json"
+TASKS_FILE="$TASKS_DIR/mock_history.tasks.json"
 
-# Ensure clean slate
-rm -rf "./test_output"
-mkdir -p "./test_output"
-
-cleanup() {
-    rm -f "$RESP_PARTS_FILE"
-    rm -rf "./test_output"
-}
-trap cleanup EXIT
+mkdir -p "$TASKS_DIR"
 
 # --- Helper Function ---
 run_tool() {
     local json_args="$1"
     
-    # Initialize response file
     echo "[]" > "$RESP_PARTS_FILE"
 
-    # Run the tool
     tool_manage_tasks "$json_args" "$RESP_PARTS_FILE"
     
-    # Read result
     if [ -f "$RESP_PARTS_FILE" ]; then
         cat "$RESP_PARTS_FILE"
         rm "$RESP_PARTS_FILE"
@@ -46,7 +41,7 @@ run_tool() {
 
 echo "=== Starting Task Manager Tests ==="
 
-# Test 1: Add Task (Should create directory and file)
+# Test 1: Add Task
 echo -e "\n--- Test 1: Add Task ---"
 ARGS=$(jq -n '{args: {action: "add", content: "Buy milk"}}')
 OUTPUT=$(run_tool "$ARGS")
@@ -92,4 +87,3 @@ OUTPUT=$(run_tool "$ARGS")
 echo "$OUTPUT" | grep -q "All tasks cleared" && echo "PASS" || echo "FAIL"
 
 echo -e "\n=== Tests Complete ==="
-
