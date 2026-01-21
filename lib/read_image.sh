@@ -33,28 +33,15 @@ tool_read_image() {
                 local MIME_TYPE=$(file --mime-type -b "$FC_PATH")
                 # Validate MIME type (must be image)
                 if [[ "$MIME_TYPE" == image/* ]]; then
-                    local B64_DATA=$(base64 < "$FC_PATH" | tr -d '\n')
-                    
-                    # Create a special inline data object for Gemini
-                    # We don't put this in 'result' string, but structure it as a 'blob'
-                    
-                    # NOTE: 'a.sh' driver expects 'functionResponse' to usually contain 'result'.
-                    # But for images, we might need to conform to how the API expects inline data.
-                    # However, standard functionResponse in Gemini API is:
-                    # { name: "fn", response: { name: "fn", content: { ... } } }
-                    # We will return a text description in 'result' AND try to inject the blob if supported.
-                    # OR, we just return the base64 in the text and hope the driver handles it?
-                    # The driver 'a.sh' simply cat's the response parts.
-                    # If we want the Model to SEE the image, we can't just pass text.
-                    # We likely need to return a Blob in the tool output.
-                    # Current architecture might not fully support this without 'a.sh' modification.
-                    # Fallback: Return text saying "Image read successfully" and maybe a small description.
+                    # Stream base64 to a temp file to avoid "Argument list too long"
+                    base64 < "$FC_PATH" | tr -d '\n' > "${RESP_PARTS_FILE}.b64"
                     
                     RESULT_MSG="Image read successfully. MIME: $MIME_TYPE. Size: $(du -h "$FC_PATH" | cut -f1)."
                     
-                    # Inject Inline Data Part
-                    jq -n --arg mime "$MIME_TYPE" --arg data "$B64_DATA" \
+                    # Inject Inline Data Part using --rawfile
+                    jq -n --arg mime "$MIME_TYPE" --rawfile data "${RESP_PARTS_FILE}.b64" \
                         '{inlineData: {mimeType: $mime, data: $data}}' > "${RESP_PARTS_FILE}.blob"
+                    rm "${RESP_PARTS_FILE}.b64"
                     
                     jq --slurpfile new "${RESP_PARTS_FILE}.blob" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
                     rm "${RESP_PARTS_FILE}.blob"
