@@ -1,5 +1,5 @@
 # Function to generate videos using Veo 3.1 model
-# Usage: tool_create_video '{ "args": { "prompt": "...", "resolution": "720p", "aspect_ratio": "16:9" } }' "output_file"
+# Usage: tool_create_video '{ "args": { "prompt": "...", "resolution": "720p", "aspect_ratio": "16:9", "duration_seconds": 8 } }' "output_file"
 
 tool_create_video() {
     local FC_DATA="$1"
@@ -9,9 +9,15 @@ tool_create_video() {
     local PROMPT=$(echo "$FC_DATA" | jq -r '.args.prompt')
     local RESOLUTION=$(echo "$FC_DATA" | jq -r '.args.resolution // "720p"') # 720p, 1080p
     local ASPECT_RATIO=$(echo "$FC_DATA" | jq -r '.args.aspect_ratio // "16:9"')
+    local DURATION=$(echo "$FC_DATA" | jq -r '.args.duration_seconds // 8')
+
+    # Validate Duration (Simple integer check, ensure > 0)
+    if ! [[ "$DURATION" =~ ^[0-9]+$ ]] || [ "$DURATION" -le 0 ]; then
+        DURATION=8
+    fi
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Generating Video: \"${PROMPT:0:50}...\" ($RESOLUTION, $ASPECT_RATIO)\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request] Generating Video: \"${PROMPT:0:50}...\" ($RESOLUTION, $ASPECT_RATIO, ${DURATION}s)\033[0m"
 
     local RESULT_MSG=""
     local VIDEO_DIR="assets/generated"
@@ -30,13 +36,14 @@ tool_create_video() {
       --arg prompt "$PROMPT" \
       --arg resolution "$RESOLUTION" \
       --arg aspectRatio "$ASPECT_RATIO" \
+      --argjson duration "$DURATION" \
       '{
         instances: [{ prompt: $prompt }],
         parameters: {
             sampleCount: 1,
             resolution: $resolution,
             aspectRatio: $aspectRatio,
-            durationSeconds: 8
+            durationSeconds: $duration
         }
       }' > "$PAYLOAD_FILE"
 
@@ -172,4 +179,3 @@ tool_create_video() {
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }
-

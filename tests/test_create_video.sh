@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test script for lib/create_video.sh
-# Covers: tool_create_video (Success, Error, Polling)
+# Covers: tool_create_video (Success, Error, Polling, Custom Duration)
 
 export CURRENT_TURN=0
 export MAX_TURNS=10
@@ -27,7 +27,7 @@ curl() {
         local CNT=1
     fi
     
-    if [ "$TEST_MODE" == "success" ]; then
+    if [ "$TEST_MODE" == "success" ] || [ "$TEST_MODE" == "success_duration" ]; then
         if [ $CNT -eq 1 ]; then
              # 1. Init Response
              jq -n '{ name: "projects/123/locations/us-central1/publishers/google/models/veo-3.1-generate-preview/operations/999" }'
@@ -40,12 +40,6 @@ curl() {
         fi
     elif [ "$TEST_MODE" == "error_init" ]; then
         jq -n '{ error: { message: "Quota exceeded" } }'
-    elif [ "$TEST_MODE" == "error_poll" ]; then
-        if [ $CNT -eq 1 ]; then
-             jq -n '{ name: "op/123" }'
-        else
-             jq -n '{ error: { message: "Server error during poll" } }'
-        fi
     fi
 }
 
@@ -74,7 +68,6 @@ test_create_video_success() {
     tool_create_video "$ARGS" "$RESP_FILE"
     
     local RES=$(jq -r '.[0].functionResponse.response.result' "$RESP_FILE")
-    echo "Result: $RES"
     
     if [[ "$RES" == *"Video generated successfully"* ]]; then
         echo "PASS: Tool reported success"
@@ -89,6 +82,32 @@ test_create_video_success() {
          rm "$GEN_FILE"
     else
          echo "FAIL: No mp4 found."
+         return 1
+    fi
+}
+
+test_create_video_duration() {
+    echo "------------------------------------------------"
+    echo "Running test_create_video_duration..."
+    TEST_MODE="success_duration"
+    echo "0" > "$STATE_FILE"
+    
+    local PROMPT="Short clip"
+    # Pass integer 3
+    local ARGS='{"args":{"prompt":"Short clip", "duration_seconds": 3}}'
+    
+    echo "[]" > "$RESP_FILE"
+    
+    # We can't easily verify the curl payload internal to the function without more complex mocking,
+    # but we can verify it runs successfully and the log message (which we might see in stdout)
+    
+    tool_create_video "$ARGS" "$RESP_FILE"
+    
+    local RES=$(jq -r '.[0].functionResponse.response.result' "$RESP_FILE")
+    if [[ "$RES" == *"Video generated successfully"* ]]; then
+         echo "PASS: Duration request completed"
+    else
+         echo "FAIL: Duration request failed: $RES"
          return 1
     fi
 }
@@ -115,6 +134,7 @@ test_create_video_error() {
 
 FAILED=0
 test_create_video_success || FAILED=1
+test_create_video_duration || FAILED=1
 test_create_video_error || FAILED=1
 
 rm -f "$RESP_FILE" "$STATE_FILE"
