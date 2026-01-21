@@ -136,6 +136,7 @@ tool_create_video() {
             if [ "$DONE" == "true" ]; then
                 if echo "$POLL_RESP" | jq -e '.response.error' > /dev/null 2>&1; then
                      RESULT_MSG="Video generation failed: $(echo "$POLL_RESP" | jq -r '.response.error.message')"
+                     echo -e "\033[0;31m[Tool Failed] $RESULT_MSG\033[0m"
                 else
                     # Extract Video Data
                     local B64=$(echo "$POLL_RESP" | jq -r '.response.videos[0].bytesBase64Encoded // .response.generatedSamples[0].video.bytesBase64Encoded // empty')
@@ -158,6 +159,7 @@ tool_create_video() {
                                  display_media_file "$OUT_FILE"
                              else
                                  RESULT_MSG="Video generated at $GCS_URI but failed to download."
+                                 echo -e "\033[0;31m[Tool Failed] Download failed.\033[0m"
                              fi
                          else
                              RESULT_MSG="Video generated at $GCS_URI. Please download manually (gcloud not found)."
@@ -166,8 +168,10 @@ tool_create_video() {
                         local FILTERED=$(echo "$POLL_RESP" | jq -r '.response.raiMediaFilteredCount // 0')
                         if [ "$FILTERED" -gt 0 ]; then
                              RESULT_MSG="Video generation blocked by safety filters (Count: $FILTERED)."
+                             echo -e "\033[0;33m[Tool Warning] Safety Filter Triggered\033[0m"
                         else
                              RESULT_MSG="Error: Operation completed but no video data found."
+                             echo -e "\033[0;31m[Tool Failed] No video data. (See console for details)\033[0m"
                         fi
                     fi
                 fi
@@ -175,6 +179,7 @@ tool_create_video() {
                 :
             else
                 RESULT_MSG="Error: Timeout waiting for video generation."
+                echo -e "\033[0;31m[Tool Failed] Timeout.\033[0m"
             fi
         fi
     fi
