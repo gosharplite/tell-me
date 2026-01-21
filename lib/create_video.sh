@@ -133,6 +133,13 @@ tool_create_video() {
             echo ""
             rm "$POLL_PAYLOAD"
             
+            # Attempt to log usage from final poll response (if any)
+            local END_TIME=$(date +%s.%N)
+            local DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
+            if declare -f log_usage > /dev/null; then
+                log_usage "$POLL_RESP" "$DURATION" 0 "${file}.log"
+            fi
+
             if [ "$DONE" == "true" ]; then
                 if echo "$POLL_RESP" | jq -e '.response.error' > /dev/null 2>&1; then
                      RESULT_MSG="Video generation failed: $(echo "$POLL_RESP" | jq -r '.response.error.message')"
