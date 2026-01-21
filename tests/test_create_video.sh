@@ -15,8 +15,12 @@ source lib/create_video.sh
 
 # Mock curl with state persistence
 TEST_MODE="none"
+URL_LOG="./output/curl_urls.log"
 
 curl() {
+    # Log URL
+    echo "$1" >> "$URL_LOG"
+
     # Read and increment counter atomically-ish
     if [ -f "$STATE_FILE" ]; then
         local CNT=$(cat "$STATE_FILE")
@@ -98,6 +102,37 @@ test_create_video_duration() {
     
     echo "[]" > "$RESP_FILE"
     
+test_create_video_fast() {
+    echo "------------------------------------------------"
+    echo "Running test_create_video_fast..."
+    TEST_MODE="success"
+    echo "0" > "$STATE_FILE"
+    : > "$URL_LOG"
+    
+    local PROMPT="Fast car"
+    local ARGS='{"args":{"prompt":"Fast car", "fast_generation": true}}'
+    
+    echo "[]" > "$RESP_FILE"
+    
+    tool_create_video "$ARGS" "$RESP_FILE"
+    
+    local RES=$(jq -r '.[0].functionResponse.response.result' "$RESP_FILE")
+    if [[ "$RES" == *"Video generated successfully"* ]]; then
+         # Check if correct model was used in URL
+         if grep -q "veo-3.1-fast-generate-preview" "$URL_LOG"; then
+             echo "PASS: Fast model requested"
+         else
+             echo "FAIL: Fast model NOT requested. URLs logged:"
+             cat "$URL_LOG"
+             return 1
+         fi
+    else
+test_create_video_fast || FAILED=1
+        echo "FAIL: Fast request failed: $RES"
+        return 1
+    fi
+}
+
     # We can't easily verify the curl payload internal to the function without more complex mocking,
     # but we can verify it runs successfully and the log message (which we might see in stdout)
     
@@ -137,7 +172,7 @@ test_create_video_success || FAILED=1
 test_create_video_duration || FAILED=1
 test_create_video_error || FAILED=1
 
-rm -f "$RESP_FILE" "$STATE_FILE"
+rm -f "$RESP_FILE" "$STATE_FILE" "$URL_LOG"
 
 if [ $FAILED -eq 0 ]; then
     echo "All create_video tests passed."

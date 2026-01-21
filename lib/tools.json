@@ -647,6 +647,10 @@
         "duration_seconds": {
           "type": "INTEGER",
           "description": "Duration of the video in seconds. Defaults to 8."
+        },
+        "fast_generation": {
+          "type": "BOOLEAN",
+          "description": "If true, uses the faster generation model (veo-3.1-fast-generate-preview)."
         }
       },
       "required": [

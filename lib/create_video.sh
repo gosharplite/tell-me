@@ -10,6 +10,7 @@ tool_create_video() {
     local RESOLUTION=$(echo "$FC_DATA" | jq -r '.args.resolution // "720p"') # 720p, 1080p
     local ASPECT_RATIO=$(echo "$FC_DATA" | jq -r '.args.aspect_ratio // "16:9"')
     local DURATION=$(echo "$FC_DATA" | jq -r '.args.duration_seconds // 8')
+    local FAST_GEN=$(echo "$FC_DATA" | jq -r '.args.fast_generation // false')
 
     # Validate Duration (Simple integer check, ensure > 0)
     if ! [[ "$DURATION" =~ ^[0-9]+$ ]] || [ "$DURATION" -le 0 ]; then
@@ -17,7 +18,7 @@ tool_create_video() {
     fi
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Generating Video: \"${PROMPT:0:50}...\" ($RESOLUTION, $ASPECT_RATIO, ${DURATION}s)\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request] Generating Video: \"${PROMPT:0:50}...\" ($RESOLUTION, $ASPECT_RATIO, ${DURATION}s, Fast: $FAST_GEN)\033[0m"
 
     local RESULT_MSG=""
     local VIDEO_DIR="assets/generated"
@@ -49,6 +50,9 @@ tool_create_video() {
 
     # API Endpoint
     local VIDEO_MODEL="veo-3.1-generate-preview"
+    if [ "$FAST_GEN" == "true" ]; then
+        VIDEO_MODEL="veo-3.1-fast-generate-preview"
+    fi
     local PREDICT_ENDPOINT="${AIURL}/${VIDEO_MODEL}:predictLongRunning"
     
     # 1. Initiate Generation
