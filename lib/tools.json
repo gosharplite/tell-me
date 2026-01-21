@@ -421,7 +421,7 @@
     }
   },
   {
-    "name": "read_git_commit",
+    "name": "get_git_commit",
     "description": "Retrieves the full details (message and diff) of a specific git commit.",
     "parameters": {
       "type": "OBJECT",

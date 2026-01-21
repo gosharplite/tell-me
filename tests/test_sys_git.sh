@@ -5,7 +5,7 @@
 # - get_git_status
 # - get_git_diff
 # - get_git_log
-# - read_git_commit
+# - get_git_commit
 # - get_git_blame
 
 # Exit on error
@@ -171,17 +171,17 @@ else
     fail "get_git_status failed to see staged file: $RESULT"
 fi
 
-# 5. read_git_commit
+# 5. get_git_commit
 git commit -m "Second commit" > /dev/null
 COMMIT_HASH=$(git rev-parse HEAD)
 INPUT_COMMIT=$(jq -n --arg hash "$COMMIT_HASH" '{args: {hash: $hash}}')
-tool_read_git_commit "$INPUT_COMMIT" "$RESP_FILE"
+tool_get_git_commit "$INPUT_COMMIT" "$RESP_FILE"
 RESULT=$(get_result)
 
 if [[ "$RESULT" == *"Second commit"* && "$RESULT" == *"diff --git"* ]]; then
-    pass "read_git_commit retrieved commit details"
+    pass "get_git_commit retrieved commit details"
 else
-    fail "read_git_commit failed: $RESULT"
+    fail "get_git_commit failed: $RESULT"
 fi
 
 # 6. get_git_log
