@@ -110,6 +110,7 @@ log_usage() {
     local resp="$1"
     local dur="$2"
     local search_cnt="$3"
+    local log_file="$4"
 
     read -r hit prompt_total completion total <<< $(echo "$resp" | jq -r '
       .usageMetadata | 
@@ -124,7 +125,6 @@ log_usage() {
     local percent=0
     if [ "$total" -gt 0 ]; then percent=$(( (newtoken * 100) / total )); fi
 
-    local log_file="${file}.log"
     local stats_msg=$(printf "[%s] H: %d M: %d C: %d T: %d N: %d(%d%%) S: %d [%.2fs]" \
       "$(date +%H:%M:%S)" "$hit" "$miss" "$completion" "$total" "$newtoken" "$percent" "$search_cnt" "$dur")
     
@@ -275,7 +275,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
 
         # 4.5 Log Usage for this turn (After tool execution)
         TURN_SEARCH=$(echo "$RESPONSE_JSON" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
-        log_usage "$RESPONSE_JSON" "$TURN_DUR" "$TURN_SEARCH"
+        log_usage "$RESPONSE_JSON" "$TURN_DUR" "$TURN_SEARCH" "${file}.log"
 
         # Loop continues to send this result back to the model...
         continue
@@ -334,7 +334,7 @@ fi
 
 # 8. Log Final Text Turn Usage
 FINAL_SEARCH_COUNT=$(echo "$FINAL_TEXT_RESPONSE" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
-log_usage "$FINAL_TEXT_RESPONSE" "$FINAL_TURN_DUR" "$FINAL_SEARCH_COUNT"
+log_usage "$FINAL_TEXT_RESPONSE" "$FINAL_TURN_DUR" "$FINAL_SEARCH_COUNT" "${file}.log"
 
 printf "\033[0;35m[Total Duration] %.2f seconds\033[0m\n" "$DURATION"
 
@@ -346,3 +346,4 @@ if [ -f "$LOG_FILE" ]; then
     echo ""
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "$LOG_FILE"
 fi
+
