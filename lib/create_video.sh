@@ -89,12 +89,10 @@ tool_create_video() {
                 ((ATTEMPTS++))
                 
                 # Check Operation Status
-                # URL: https://generativelanguage.googleapis.com/v1beta/{OP_NAME}
-                # But AIURL might be .../models. 
-                # If OP_NAME is "models/veo.../operations/...", we need BASE_URL/OP_NAME
-                # AIURL is usually BASE_URL/models. We need BASE_URL.
-                local BASE_URL=$(echo "$AIURL" | sed 's|/models$||')
-                local OP_URL="${BASE_URL}/${OP_NAME}"
+                # Construct OP_URL correctly
+                # Extract https://host/version from AIURL
+                local API_ROOT=$(echo "$AIURL" | sed -E 's|^(https://[^/]+/[^/]+).*|\1|')
+                local OP_URL="${API_ROOT}/${OP_NAME}"
                 
                 local POLL_RESP=$(curl -s "$OP_URL" \
                     -H "Content-Type: application/json" \

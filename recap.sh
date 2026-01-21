@@ -172,7 +172,7 @@ produce_output() {
          else \"## 🤖 MODEL\" end) + \"\\n\" +
         ((.parts // []) | map(
             .text // 
-            (.functionCall | \"> Calling: **\" + .name + \"**\\n> Args: `\" + (.args | tojson) + \"`\") // 
+            (.functionCall | \"> Calling: **\" + .name + \"**\\n> Args: \`\" + (.args | tojson) + \"\`\") // 
             (.functionResponse | \"> Tool: **\" + .name + \"**\\n> Result: \" + (.response.result | tostring)) // 
             \"*[Non-text content]*\"
         ) | join(\"\")) +
@@ -205,4 +205,3 @@ elif [ "$TAIL_LINES" -gt 0 ]; then
 else
     produce_output
 fi
-
