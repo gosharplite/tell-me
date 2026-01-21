@@ -105,6 +105,34 @@ source "$BASE_DIR/lib/linter.sh"
 # CHANGED: Source task_manager.sh
 source "$BASE_DIR/lib/task_manager.sh"
 
+# --- Logging Helper ---
+log_usage() {
+    local resp="$1"
+    local dur="$2"
+    local search_cnt="$3"
+
+    read -r hit prompt_total completion total <<< $(echo "$resp" | jq -r '
+      .usageMetadata | 
+      (.cachedContentTokenCount // 0), 
+      (.promptTokenCount // 0), 
+      (.candidatesTokenCount // .completionTokenCount // 0), 
+      (.totalTokenCount // 0)
+    ' | xargs)
+
+    local miss=$(( prompt_total - hit ))
+    local newtoken=$(( miss + completion ))
+    local percent=0
+    if [ "$total" -gt 0 ]; then percent=$(( (newtoken * 100) / total )); fi
+
+    local log_file="${file}.log"
+    local stats_msg=$(printf "[%s] H: %d M: %d C: %d T: %d N: %d(%d%%) S: %d [%.2fs]" \
+      "$(date +%H:%M:%S)" "$hit" "$miss" "$completion" "$total" "$newtoken" "$percent" "$search_cnt" "$dur")
+    
+    echo "$stats_msg" >> "$log_file"
+    # Show real-time metrics in a subtle color (gray)
+    echo -e "\033[0;90m$stats_msg\033[0m"
+}
+
 # ==============================================================================
 # MAIN INTERACTION LOOP
 # Handles multi-turn interactions (Tool Call -> Execution -> Tool Response)
@@ -145,6 +173,8 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     PAYLOAD_FILE=$(mktemp) || exit 1
     echo "$APIDATA" > "$PAYLOAD_FILE"
 
+    TURN_START=$(date +%s.%N)
+
     # 4. Call API with Retry Logic
     RETRY_COUNT=0
     MAX_RETRIES=3
@@ -179,6 +209,9 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
              break
         fi
     done
+
+    TURN_END=$(date +%s.%N)
+    TURN_DUR=$(awk -v start="$TURN_START" -v end="$TURN_END" 'BEGIN { print end - start }')
 
     # Basic Validation
     if echo "$RESPONSE_JSON" | jq -e '.error' > /dev/null 2>&1; then
@@ -240,12 +273,17 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
         # 4. Update History with Tool Result
         update_history "$TOOL_RESPONSE"
 
+        # 4.5 Log Usage for this turn (After tool execution)
+        TURN_SEARCH=$(echo "$RESPONSE_JSON" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
+        log_usage "$RESPONSE_JSON" "$TURN_DUR" "$TURN_SEARCH"
+
         # Loop continues to send this result back to the model...
         continue
 
     else
         # --- Handle Text Response (Final Answer) ---
         FINAL_TEXT_RESPONSE="$RESPONSE_JSON"
+        FINAL_TURN_DUR="$TURN_DUR"
         update_history "$CANDIDATE"
         break
     fi
@@ -294,27 +332,14 @@ if [ "$SEARCH_COUNT" -gt 0 ]; then
     done
 fi
 
-printf "\033[0;35m[Response Time] %.2f seconds\033[0m\n" "$DURATION"
+# 8. Log Final Text Turn Usage
+FINAL_SEARCH_COUNT=$(echo "$FINAL_TEXT_RESPONSE" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
+log_usage "$FINAL_TEXT_RESPONSE" "$FINAL_TURN_DUR" "$FINAL_SEARCH_COUNT"
+
+printf "\033[0;35m[Total Duration] %.2f seconds\033[0m\n" "$DURATION"
 
 # 8. Stats & Metrics
-read -r HIT PROMPT_TOTAL COMPLETION TOTAL <<< $(echo "$FINAL_TEXT_RESPONSE" | jq -r '
-  .usageMetadata | 
-  (.cachedContentTokenCount // 0), 
-  (.promptTokenCount // 0), 
-  (.candidatesTokenCount // .completionTokenCount // 0), 
-  (.totalTokenCount // 0)
-' | xargs)
-
-MISS=$(( PROMPT_TOTAL - HIT ))
-NEWTOKEN=$(( MISS + COMPLETION ))
-
-if [ "$TOTAL" -gt 0 ]; then PERCENT=$(( ($NEWTOKEN * 100) / $TOTAL )); else PERCENT=0; fi
-
 LOG_FILE="${file}.log"
-STATS_MSG=$(printf "[%s] H: %d M: %d C: %d T: %d N: %d(%d%%) S: %d [%.2fs]" \
-  "$(date +%H:%M:%S)" "$HIT" "$MISS" "$COMPLETION" "$TOTAL" "$NEWTOKEN" "$PERCENT" "$SEARCH_COUNT" "$DURATION")
-echo "$STATS_MSG" >> "$LOG_FILE"
-
 if [ -f "$LOG_FILE" ]; then
     echo -e "\033[0;36m--- Usage History ---\033[0m"
     tail -n 3 "$LOG_FILE"
