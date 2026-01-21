@@ -18,8 +18,8 @@ TEST_MODE="none"
 URL_LOG="./output/curl_urls.log"
 
 curl() {
-    # Log URL
-    echo "$1" >> "$URL_LOG"
+    # Log all arguments to capture URL regardless of flag position
+    echo "$@" >> "$URL_LOG"
 
     # Read and increment counter atomically-ish
     if [ -f "$STATE_FILE" ]; then
@@ -63,6 +63,7 @@ test_create_video_success() {
     echo "Running test_create_video_success..."
     TEST_MODE="success"
     echo "0" > "$STATE_FILE"
+    : > "$URL_LOG"
     
     local PROMPT="A fast car"
     local ARGS=$(jq -n --arg p "$PROMPT" '{"args": {"prompt": $p}}')
@@ -95,6 +96,7 @@ test_create_video_duration() {
     echo "Running test_create_video_duration..."
     TEST_MODE="success_duration"
     echo "0" > "$STATE_FILE"
+    : > "$URL_LOG"
     
     local PROMPT="Short clip"
     # Pass integer 3
@@ -102,6 +104,17 @@ test_create_video_duration() {
     
     echo "[]" > "$RESP_FILE"
     
+    tool_create_video "$ARGS" "$RESP_FILE"
+    
+    local RES=$(jq -r '.[0].functionResponse.response.result' "$RESP_FILE")
+    if [[ "$RES" == *"Video generated successfully"* ]]; then
+         echo "PASS: Duration request completed"
+    else
+         echo "FAIL: Duration request failed: $RES"
+         return 1
+    fi
+}
+
 test_create_video_fast() {
     echo "------------------------------------------------"
     echo "Running test_create_video_fast..."
@@ -127,23 +140,8 @@ test_create_video_fast() {
              return 1
          fi
     else
-test_create_video_fast || FAILED=1
         echo "FAIL: Fast request failed: $RES"
         return 1
-    fi
-}
-
-    # We can't easily verify the curl payload internal to the function without more complex mocking,
-    # but we can verify it runs successfully and the log message (which we might see in stdout)
-    
-    tool_create_video "$ARGS" "$RESP_FILE"
-    
-    local RES=$(jq -r '.[0].functionResponse.response.result' "$RESP_FILE")
-    if [[ "$RES" == *"Video generated successfully"* ]]; then
-         echo "PASS: Duration request completed"
-    else
-         echo "FAIL: Duration request failed: $RES"
-         return 1
     fi
 }
 
@@ -152,6 +150,7 @@ test_create_video_error() {
     echo "Running test_create_video_error..."
     TEST_MODE="error_init"
     echo "0" > "$STATE_FILE"
+    : > "$URL_LOG"
     
     local ARGS='{"args":{"prompt":"Fail"}}'
     echo "[]" > "$RESP_FILE"
@@ -170,6 +169,7 @@ test_create_video_error() {
 FAILED=0
 test_create_video_success || FAILED=1
 test_create_video_duration || FAILED=1
+test_create_video_fast || FAILED=1
 test_create_video_error || FAILED=1
 
 rm -f "$RESP_FILE" "$STATE_FILE" "$URL_LOG"

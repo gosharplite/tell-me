@@ -85,3 +85,48 @@ get_log_duration() {
     printf "[%s]" "$DUR_MSG"
 }
 
+# Helper: Display Media File (Image/Video) in Terminal or External Viewer
+display_media_file() {
+    local FILEPATH="$1"
+    
+    if [ ! -f "$FILEPATH" ]; then
+        return
+    fi
+    
+    local MIMETYPE=""
+    if command -v file >/dev/null 2>&1; then
+        MIMETYPE=$(file --mime-type -b "$FILEPATH")
+    else
+        # Fallback extension check
+        if [[ "$FILEPATH" == *.png || "$FILEPATH" == *.jpg || "$FILEPATH" == *.jpeg ]]; then MIMETYPE="image/png"; fi
+        if [[ "$FILEPATH" == *.mp4 ]]; then MIMETYPE="video/mp4"; fi
+    fi
+    
+    if [[ "$MIMETYPE" == image/* ]]; then
+        # Try iTerm2 imgcat
+        if [ "$TERM_PROGRAM" == "iTerm.app" ] && command -v imgcat >/dev/null 2>&1; then
+             echo -e "\033[0;33m[Viewer] Displaying image inline (iTerm2)...\033[0m"
+             imgcat "$FILEPATH"
+             return
+        fi
+        
+        # Try Chafa (Sixel/Unicode)
+        if command -v chafa >/dev/null 2>&1; then
+             echo -e "\033[0;33m[Viewer] Displaying image inline (chafa)...\033[0m"
+             chafa "$FILEPATH"
+             return
+        fi
+    fi
+    
+    # Fallback to External Viewer (Open/XDG-Open) for both Image and Video
+    if command -v open >/dev/null 2>&1; then
+        echo -e "\033[0;33m[Viewer] Opening externally...\033[0m"
+        open "$FILEPATH"
+    elif command -v xdg-open >/dev/null 2>&1; then
+        echo -e "\033[0;33m[Viewer] Opening externally...\033[0m"
+        xdg-open "$FILEPATH" > /dev/null 2>&1
+    else
+        echo -e "\033[0;33m[Viewer] No suitable viewer found. Saved at $FILEPATH\033[0m"
+    fi
+}
+
