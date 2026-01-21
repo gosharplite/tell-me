@@ -146,10 +146,13 @@ tool_grep_definitions() {
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -e "$FC_PATH" ]; then
-            local REGEX="^[[:space:]]*(class|def|function|func|interface|type|struct|enum|const)[[:space:]]+"
+            # Regex includes standard keywords OR standard bash/c function syntax: name() {
+            local REGEX='^[[:space:]]*((class|def|function|func|interface|type|struct|enum|const)[[:space:]]+|[a-zA-Z0-9_]+[[:space:]]*\(\)[[:space:]]*\{?)'
             
-            local GREP_CMD=(grep -rnEI "$REGEX" "$FC_PATH")
+            # Construct array with options FIRST
+            local GREP_CMD=(grep -rnEI)
             GREP_CMD+=(--exclude-dir={.git,.idea,.vscode,__pycache__,node_modules,dist,build,coverage,vendor})
+            GREP_CMD+=("$REGEX" "$FC_PATH")
             
             RESULT_MSG=$("${GREP_CMD[@]}" 2>/dev/null)
             
