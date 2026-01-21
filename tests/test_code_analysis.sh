@@ -1,8 +1,12 @@
 #!/bin/bash
 
-# Setup
-TEST_DIR="tests/temp_analysis"
-mkdir -p "$TEST_DIR"
+# Setup isolated environment
+TEST_DIR=$(mktemp -d)
+
+cleanup() {
+    rm -rf "$TEST_DIR"
+}
+trap cleanup EXIT
 
 # Mock Environment
 export CURRENT_TURN=0
@@ -59,14 +63,13 @@ source ./lib/code_analysis.sh
 run_tool() {
     local FUNC=$1
     local JSON_INPUT=$2
-    local OUT_FILE=$(mktemp)
-    echo "[]" > "$OUT_FILE" # Initialize as array
+    local OUT_FILE="$TEST_DIR/response.json"
+    echo "[]" > "$OUT_FILE" 
     
     $FUNC "$JSON_INPUT" "$OUT_FILE"
     
     echo "Response:"
     cat "$OUT_FILE" | jq -r '.[0].functionResponse.response.result'
-    rm "$OUT_FILE"
 }
 
 echo "--- Test 1: Find Usages (Python) ---"
@@ -99,7 +102,4 @@ seq 30 > "$TEST_DIR/plain.txt"
 INPUT=$(jq -n --arg filepath "$TEST_DIR/plain.txt" '{args: {filepath: $filepath}}')
 run_tool "tool_get_file_skeleton" "$INPUT"
 echo ""
-
-# Cleanup
-rm -rf "$TEST_DIR"
 

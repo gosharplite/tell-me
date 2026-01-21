@@ -2,23 +2,23 @@
 
 # Test script for lib/scratchpad.sh
 
-# Setup environment
-mkdir -p output
-export CURRENT_TURN=0
-export MAX_TURNS=10
-RESP_FILE="./output/test_resp.json"
+# Setup isolated environment
+TEST_DIR=$(mktemp -d)
+RESP_FILE="$TEST_DIR/test_resp.json"
 echo "[]" > "$RESP_FILE"
 
+cleanup() {
+    rm -rf "$TEST_DIR"
+}
+trap cleanup EXIT
+
 # Mock the 'file' global variable which determines the scratchpad path
-export file="./output/session.yaml"
+export file="$TEST_DIR/session.yaml"
+SCRATCHPAD_PATH="$TEST_DIR/session.scratchpad.md"
+
+# Load source
 source lib/utils.sh
-SCRATCHPAD_PATH="./output/session.scratchpad.md"
-
-# Source the function under test
 source lib/scratchpad.sh
-
-# Cleanup before starting
-rm -f "$SCRATCHPAD_PATH"
 
 test_write() {
     echo "------------------------------------------------"
@@ -121,16 +121,12 @@ test_read_empty() {
     fi
 }
 
-# Run tests
 FAILED=0
 test_write || FAILED=1
 test_read || FAILED=1
 test_append || FAILED=1
 test_clear || FAILED=1
 test_read_empty || FAILED=1
-
-# Cleanup
-rm -f "$RESP_FILE" "$SCRATCHPAD_PATH"
 
 if [ $FAILED -eq 0 ]; then
     echo "------------------------------------------------"

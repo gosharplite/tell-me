@@ -1,14 +1,24 @@
 #!/bin/bash
 
 # Test script for lib/file_edit.sh
-# Covers: update_file, replace_text, insert_text, apply_patch
 
-mkdir -p output/test_files
+# Setup isolated environment
+TEST_DIR=$(mktemp -d)
+RESP_FILE="$TEST_DIR/test_edit_resp.json"
+mkdir -p "$TEST_DIR/output/test_files"
+
+cleanup() {
+    rm -rf "$TEST_DIR"
+}
+trap cleanup EXIT
+
+# Copy lib
+cp -r lib "$TEST_DIR/"
+cd "$TEST_DIR"
+
 export CURRENT_TURN=0
 export MAX_TURNS=10
-RESP_FILE="./output/test_edit_resp.json"
 
-# Source dependencies
 source lib/utils.sh
 source lib/file_edit.sh
 
@@ -153,12 +163,6 @@ test_apply_patch() {
     local TEST_FILE="./output/test_files/patch_test.txt"
     echo "Original Content" > "$TEST_FILE"
     
-    # Create a unified diff
-    # NOTE: The patch command usually expects relative paths or -p1 strips segments.
-    # The tool uses -p1. So we need the patch header to look like a/path b/path.
-    # But our TEST_FILE is ./output/...
-    # Let's try to construct a valid patch.
-    
     local PATCH_CONTENT="--- a/output/test_files/patch_test.txt
 +++ b/output/test_files/patch_test.txt
 @@ -1 +1 @@
@@ -222,16 +226,13 @@ Appended Content"
         return 1
     fi
 }
-# Run tests
+
 FAILED=0
 test_update_file || FAILED=1
 test_replace_text || FAILED=1
 test_insert_text || FAILED=1
 test_apply_patch || FAILED=1
 test_append_file || FAILED=1
-
-# Cleanup
-rm -rf output/test_files "$RESP_FILE"
 
 if [ $FAILED -eq 0 ]; then
     echo "------------------------------------------------"
