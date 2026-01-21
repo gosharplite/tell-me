@@ -9,7 +9,8 @@ tool_ask_user() {
     # Extract Arguments
     FC_QUESTION=$(echo "$FC_DATA" | jq -r '.args.question')
 
-    echo -e "\033[1;35m[AI Question] $FC_QUESTION\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[1;35m[AI Question] $FC_QUESTION\033[0m"
 
     # Read user input directly from TTY
     if [ -t 0 ]; then
@@ -19,7 +20,9 @@ tool_ask_user() {
     fi
     
     RESULT_MSG="$USER_ANSWER"
-    echo -e "\033[0;32m[User Answered]\033[0m"
+    
+    local DUR=$(get_log_duration)
+    echo -e "${DUR} \033[0;32m[User Answered]\033[0m"
 
     # Inject Warning if approaching Max Turns
     # Relies on global CURRENT_TURN and MAX_TURNS

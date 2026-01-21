@@ -5,7 +5,8 @@ tool_execute_command() {
     # Extract Arguments
     local FC_CMD=$(echo "$FC_DATA" | jq -r '.args.command')
 
-    echo -e "\033[0;36m[Tool Request] Execute Command: $FC_CMD\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Execute Command: $FC_CMD\033[0m"
 
     local CONFIRM="n"
     local SAFE_COMMANDS="grep|ls|find|pwd|cat|echo|head|tail|wc|stat|date|whoami"
@@ -29,6 +30,8 @@ tool_execute_command() {
     fi
 
     local RESULT_MSG
+    local DUR=""
+    
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
         # Execute and capture stdout + stderr
         local CMD_OUTPUT
@@ -43,14 +46,17 @@ tool_execute_command() {
 
         if [ $EXIT_CODE -eq 0 ]; then
             RESULT_MSG="Exit Code: 0\nOutput:\n$CMD_OUTPUT"
-            echo -e "\033[0;32m[Tool Success] Command executed.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] Command executed.\033[0m"
         else
             RESULT_MSG="Exit Code: $EXIT_CODE\nError/Output:\n$CMD_OUTPUT"
-            echo -e "\033[0;31m[Tool Failed] Command returned non-zero exit code.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Command returned non-zero exit code.\033[0m"
         fi
     else
         RESULT_MSG="User denied execution of command: $FC_CMD"
-        echo -e "\033[0;33m[Tool Skipped] Execution denied.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;33m[Tool Skipped] Execution denied.\033[0m"
     fi
 
     # Inject Warning if approaching Max Turns

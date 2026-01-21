@@ -5,11 +5,13 @@ tool_read_image() {
     # Extract Arguments
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
-    echo -e "\033[0;36m[Tool Request] Reading Image: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Reading Image: $FC_PATH\033[0m"
 
     local RESULT_MSG=""
     local IS_SAFE=false
     local REL_CHECK=""
+    local DUR=""
 
     # Security Check: Ensure path is within CWD
     if command -v python3 >/dev/null 2>&1; then
@@ -25,51 +27,63 @@ tool_read_image() {
         if [ -f "$FC_PATH" ]; then
             if ! command -v file >/dev/null 2>&1 || ! command -v base64 >/dev/null 2>&1; then
                 RESULT_MSG="Error: Missing 'file' or 'base64' command."
-                echo -e "\033[0;31m[Tool Failed] Missing dependencies.\033[0m"
+                DUR=$(get_log_duration)
+                echo -e "${DUR} \033[0;31m[Tool Failed] Missing dependencies.\033[0m"
             else
-                local MIME_TYPE=$(file -b --mime-type "$FC_PATH")
+                local MIME_TYPE=$(file --mime-type -b "$FC_PATH")
+                # Validate MIME type (must be image)
                 if [[ "$MIME_TYPE" == image/* ]]; then
-                    # Write base64 data to a temp file to avoid ARG_MAX limits with large strings
-                    base64 < "$FC_PATH" | tr -d '\n' > "${RESP_PARTS_FILE}.b64"
+                    local B64_DATA=$(base64 < "$FC_PATH" | tr -d '\n')
                     
-                    RESULT_MSG="Image loaded successfully into context."
-                    echo -e "\033[0;32m[Tool Success] Image read ($MIME_TYPE).\033[0m"
+                    # Create a special inline data object for Gemini
+                    # We don't put this in 'result' string, but structure it as a 'blob'
                     
-                    # Create inlineData part using --rawfile to safely handle large data
-                    jq -n --arg mime "$MIME_TYPE" --rawfile data "${RESP_PARTS_FILE}.b64" \
-                        '{inlineData: {mimeType: $mime, data: $data}}' > "${RESP_PARTS_FILE}.img"
-                        
-                    rm "${RESP_PARTS_FILE}.b64"
+                    # NOTE: 'a.sh' driver expects 'functionResponse' to usually contain 'result'.
+                    # But for images, we might need to conform to how the API expects inline data.
+                    # However, standard functionResponse in Gemini API is:
+                    # { name: "fn", response: { name: "fn", content: { ... } } }
+                    # We will return a text description in 'result' AND try to inject the blob if supported.
+                    # OR, we just return the base64 in the text and hope the driver handles it?
+                    # The driver 'a.sh' simply cat's the response parts.
+                    # If we want the Model to SEE the image, we can't just pass text.
+                    # We likely need to return a Blob in the tool output.
+                    # Current architecture might not fully support this without 'a.sh' modification.
+                    # Fallback: Return text saying "Image read successfully" and maybe a small description.
+                    
+                    RESULT_MSG="Image read successfully. MIME: $MIME_TYPE. Size: $(du -h "$FC_PATH" | cut -f1)."
+                    
+                    # Inject Inline Data Part
+                    jq -n --arg mime "$MIME_TYPE" --arg data "$B64_DATA" \
+                        '{inlineData: {mimeType: $mime, data: $data}}' > "${RESP_PARTS_FILE}.blob"
+                    
+                    jq --slurpfile new "${RESP_PARTS_FILE}.blob" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.blob"
 
-                    # Append inlineData part to parts file
-                    jq --slurpfile new "${RESP_PARTS_FILE}.img" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
-                    rm "${RESP_PARTS_FILE}.img"
+                    DUR=$(get_log_duration)
+                    echo -e "${DUR} \033[0;32m[Tool Success] Image processed.\033[0m"
                 else
-                    RESULT_MSG="Error: File is not a recognized image type ($MIME_TYPE)."
-                    echo -e "\033[0;31m[Tool Failed] Not an image.\033[0m"
+                    RESULT_MSG="Error: File is not a supported image. MIME: $MIME_TYPE"
+                    DUR=$(get_log_duration)
+                    echo -e "${DUR} \033[0;31m[Tool Failed] Invalid MIME type.\033[0m"
                 fi
             fi
         else
             RESULT_MSG="Error: File not found."
-            echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] File not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation. Path must be within current working directory."
-        echo -e "\033[0;31m[Tool Security Block] Read denied: $FC_PATH\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Read denied: $FC_PATH\033[0m"
     fi
 
-    # Inject Warning if approaching Max Turns
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        local WARN_MSG=" [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
-        RESULT_MSG="${RESULT_MSG}${WARN_MSG}"
-        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
     fi
 
-    # Construct Function Response Part
     jq -n --arg name "read_image" --rawfile content <(printf "%s" "$RESULT_MSG") \
         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
-    
-    # Append to Array
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }

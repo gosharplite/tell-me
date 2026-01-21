@@ -11,6 +11,7 @@ echo "[]" > "$RESP_FILE"
 
 # Mock the 'file' global variable which determines the scratchpad path
 export file="./output/session.yaml"
+source lib/utils.sh
 SCRATCHPAD_PATH="./output/session.scratchpad.md"
 
 # Source the function under test

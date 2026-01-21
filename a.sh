@@ -320,8 +320,4 @@ if [ -f "$LOG_FILE" ]; then
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "$LOG_FILE"
 fi
 
-# Backup History
-if [ -f "${file}" ]; then
-    TIMESTAMP=$(date -u "+%y%m%d-%H")$(printf "%02d" $(( (10#$(date -u "+%M") / 10) * 10 )) )
-    cp "$file" "${file%.*}-${TIMESTAMP}-trace.${file##*.}"
-fi
+

@@ -9,7 +9,8 @@ tool_manage_scratchpad() {
     # Depend on 'file' global variable for the history file path
     local SCRATCHPAD_FILE="${file%.*}.scratchpad.md"
 
-    echo -e "\033[0;36m[Tool Request] Scratchpad Action: $FC_ACTION\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Scratchpad Action: $FC_ACTION\033[0m"
 
     local RESULT_MSG
     case "$FC_ACTION" in
@@ -43,7 +44,8 @@ tool_manage_scratchpad() {
             ;;
     esac
 
-    echo -e "\033[0;32m[Tool Success] $RESULT_MSG\033[0m"
+    local DUR=$(get_log_duration)
+    echo -e "${DUR} \033[0;32m[Tool Success] $RESULT_MSG\033[0m"
 
     # Inject Warning if approaching Max Turns
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then

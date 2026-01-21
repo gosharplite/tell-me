@@ -5,13 +5,16 @@ tool_get_git_log() {
     local FC_LIMIT=$(echo "$FC_DATA" | jq -r '.args.limit // 10')
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath // empty')
     
+    local TS=$(get_log_timestamp)
     if [ -n "$FC_PATH" ]; then
-        echo -e "\033[0;36m[Tool Request] Git Log (Limit: $FC_LIMIT, File: $FC_PATH)\033[0m"
+        echo -e "${TS} \033[0;36m[Tool Request] Git Log (Limit: $FC_LIMIT, File: $FC_PATH)\033[0m"
     else
-        echo -e "\033[0;36m[Tool Request] Git Log (Limit: $FC_LIMIT)\033[0m"
+        echo -e "${TS} \033[0;36m[Tool Request] Git Log (Limit: $FC_LIMIT)\033[0m"
     fi
 
     local RESULT_MSG
+    local DUR=""
+
     if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         # Build command with optional file path
         local CMD="git log --oneline -n \"$FC_LIMIT\""
@@ -21,10 +24,12 @@ tool_get_git_log() {
         
         RESULT_MSG=$(eval "$CMD" 2>&1)
         if [ -z "$RESULT_MSG" ]; then RESULT_MSG="No commits found."; fi
-        echo -e "\033[0;32m[Tool Success] Git log retrieved.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;32m[Tool Success] Git log retrieved.\033[0m"
     else
         RESULT_MSG="Error: Not a git repo or git missing."
-        echo -e "\033[0;31m[Tool Failed] Git Error.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Failed] Git Error.\033[0m"
     fi
 
     # Check for max turns warning (inherited from parent scope)

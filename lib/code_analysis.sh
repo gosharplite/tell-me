@@ -6,10 +6,12 @@ tool_get_file_skeleton() {
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
-    echo -e "\033[0;36m[Tool Request] Analyzing Skeleton: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Analyzing Skeleton: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -f "$FC_PATH" ]; then
@@ -92,15 +94,18 @@ EOF
                 fi
             fi
             
-            echo -e "\033[0;32m[Tool Success] Skeleton generated.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] Skeleton generated.\033[0m"
 
         else
             RESULT_MSG="Error: File not found."
-            echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] File not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation."
-        echo -e "\033[0;31m[Tool Security Block] Skeleton denied.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Skeleton denied.\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -121,10 +126,12 @@ tool_find_usages() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.path // "."')
     local FC_FILE_TYPE=$(echo "$FC_DATA" | jq -r '.args.file_type // empty')
 
-    echo -e "\033[0;36m[Tool Request] Finding usages of '$FC_QUERY' in $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Finding usages of '$FC_QUERY' in $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -e "$FC_PATH" ]; then
@@ -173,14 +180,17 @@ tool_find_usages() {
                 fi
             fi
             
-            echo -e "\033[0;32m[Tool Success] Usages found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;32m[Tool Success] Usages found.\033[0m"
         else
             RESULT_MSG="Error: Path does not exist."
-            echo -e "\033[0;31m[Tool Failed] Path not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] Path not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation."
-        echo -e "\033[0;31m[Tool Security Block] Find usages denied.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Find usages denied.\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -199,10 +209,12 @@ tool_calculate_complexity() {
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
-    echo -e "\033[0;36m[Tool Request] Calculating Complexity: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Calculating Complexity: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -f "$FC_PATH" ]; then
@@ -273,14 +285,17 @@ EOF
                  RESULT_MSG="Complexity analysis not supported for this file type."
              fi
              
-             echo -e "\033[0;32m[Tool Success] Complexity calculated.\033[0m"
+             DUR=$(get_log_duration)
+             echo -e "${DUR} \033[0;32m[Tool Success] Complexity calculated.\033[0m"
         else
             RESULT_MSG="Error: File not found."
-            echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] File not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation."
-        echo -e "\033[0;31m[Tool Security Block] Complexity denied.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Complexity denied.\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
@@ -292,4 +307,3 @@ EOF
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }
-

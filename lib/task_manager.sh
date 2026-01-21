@@ -14,7 +14,8 @@ tool_manage_tasks() {
     local CONTENT=$(echo "$FC_DATA" | jq -r '.args.content // empty')
     local STATUS=$(echo "$FC_DATA" | jq -r '.args.status // empty')
 
-    echo -e "\033[0;36m[Tool Request] Manage Tasks: $ACTION\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Manage Tasks: $ACTION\033[0m"
 
     local RESULT_MSG=""
 
@@ -102,11 +103,11 @@ tool_manage_tasks() {
             ;;
     esac
 
-    echo -e "\033[0;32m[Tool Success] $RESULT_MSG\033[0m"
+    local DUR=$(get_log_duration)
+    echo -e "${DUR} \033[0;32m[Tool Success] $RESULT_MSG\033[0m"
 
     jq -n --arg name "manage_tasks" --rawfile content <(printf "%s" "$RESULT_MSG") \
         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }
-

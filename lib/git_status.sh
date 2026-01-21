@@ -2,15 +2,19 @@ tool_get_git_status() {
     local FC_DATA="$1"
     local RESP_PARTS_FILE="$2"
     local RESULT_MSG
+    local DUR=""
 
-    echo -e "\033[0;36m[Tool Request] Git Status\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Git Status\033[0m"
 
     if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         RESULT_MSG=$(git status --short --branch 2>&1)
-        echo -e "\033[0;32m[Tool Success] Git status retrieved.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;32m[Tool Success] Git status retrieved.\033[0m"
     else
         RESULT_MSG="Error: Not a git repo or git missing."
-        echo -e "\033[0;31m[Tool Failed] Git Error.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Failed] Git Error.\033[0m"
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then

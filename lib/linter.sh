@@ -6,11 +6,13 @@ tool_validate_syntax() {
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
-    echo -e "\033[0;36m[Tool Request] Validating Syntax: $FC_PATH\033[0m"
+    local TS=$(get_log_timestamp)
+    echo -e "${TS} \033[0;36m[Tool Request] Validating Syntax: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
     local EXIT_CODE=0
+    local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -f "$FC_PATH" ]; then
@@ -49,19 +51,23 @@ tool_validate_syntax() {
             if [ -z "$RESULT_MSG" ]; then
                 if [ $EXIT_CODE -eq 0 ]; then
                     RESULT_MSG="PASS: Syntax is valid."
-                    echo -e "\033[0;32m[Tool Success] Syntax Valid.\033[0m"
+                    DUR=$(get_log_duration)
+                    echo -e "${DUR} \033[0;32m[Tool Success] Syntax Valid.\033[0m"
                 else
                     RESULT_MSG="FAIL: Syntax errors found:\n$OUTPUT"
-                    echo -e "\033[0;31m[Tool Failed] Syntax Invalid.\033[0m"
+                    DUR=$(get_log_duration)
+                    echo -e "${DUR} \033[0;31m[Tool Failed] Syntax Invalid.\033[0m"
                 fi
             fi
         else
             RESULT_MSG="Error: File not found."
-            echo -e "\033[0;31m[Tool Failed] File not found.\033[0m"
+            DUR=$(get_log_duration)
+            echo -e "${DUR} \033[0;31m[Tool Failed] File not found.\033[0m"
         fi
     else
         RESULT_MSG="Error: Security violation."
-        echo -e "\033[0;31m[Tool Security Block] Access denied.\033[0m"
+        DUR=$(get_log_duration)
+        echo -e "${DUR} \033[0;31m[Tool Security Block] Access denied.\033[0m"
     fi
 
     jq -n --arg name "validate_syntax" --rawfile content <(printf "%s" "$RESULT_MSG") \
@@ -69,4 +75,3 @@ tool_validate_syntax() {
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }
-

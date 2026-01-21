@@ -184,12 +184,51 @@ test_apply_patch() {
     fi
 }
 
+# ---------------------------------------------------------
+# Test append_file
+# ---------------------------------------------------------
+test_append_file() {
+    echo "------------------------------------------------"
+    echo "Running test_append_file..."
+    local TEST_FILE="./output/test_files/append_test.txt"
+    echo "Initial Content" > "$TEST_FILE"
+    
+    local CONTENT="Appended Content"
+    local ARGS=$(jq -n --arg fp "$TEST_FILE" --arg c "$CONTENT" '{"args": {"filepath": $fp, "content": $c}}')
+    
+    echo "[]" > "$RESP_FILE"
+    BACKUP_CALLED=0
+    
+    tool_append_file "$ARGS" "$RESP_FILE"
+    
+    local EXPECTED="Initial Content
+Appended Content"
+    
+    if [ "$(cat "$TEST_FILE")" == "$EXPECTED" ]; then
+         echo "PASS: File appended correctly"
+    else
+         echo "FAIL: File append mismatch"
+         echo "--- Expected:"
+         echo "$EXPECTED"
+         echo "--- Got:"
+         cat "$TEST_FILE"
+         return 1
+    fi
+    
+    if [ $BACKUP_CALLED -gt 0 ]; then
+        echo "PASS: Backup function called"
+    else
+        echo "FAIL: Backup function not called"
+        return 1
+    fi
+}
 # Run tests
 FAILED=0
 test_update_file || FAILED=1
 test_replace_text || FAILED=1
 test_insert_text || FAILED=1
 test_apply_patch || FAILED=1
+test_append_file || FAILED=1
 
 # Cleanup
 rm -rf output/test_files "$RESP_FILE"

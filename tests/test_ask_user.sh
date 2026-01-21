@@ -21,6 +21,7 @@ read() {
     
     # Assign the value to the variable name in the caller's scope
     eval "$var_name='$prompt_val'"
+source lib/utils.sh
 }
 
 # Source the function under test
