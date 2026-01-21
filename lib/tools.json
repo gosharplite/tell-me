@@ -595,22 +595,6 @@
     }
   },
   {
-    "name": "calculate_complexity",
-    "description": "Calculates the cyclomatic complexity of code in a file. Useful for identifying refactoring candidates.",
-    "parameters": {
-      "type": "OBJECT",
-      "properties": {
-        "filepath": {
-          "type": "STRING",
-          "description": "The path to the file to analyze."
-        }
-      },
-      "required": [
-        "filepath"
-      ]
-    }
-  },
-  {
     "name": "create_image",
     "description": "Generates an image based on a text prompt using the Gemini 3 Pro Image model. Use this when the user asks to draw, create, or generate a picture.",
     "parameters": {
