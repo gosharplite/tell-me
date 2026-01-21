@@ -1,0 +1,128 @@
+#!/bin/bash
+# Test script for lib/create_video.sh
+# Covers: tool_create_video (Success, Error, Polling)
+
+export CURRENT_TURN=0
+export MAX_TURNS=10
+export AIURL="https://mock-api.com/models"
+export TOKEN="mock-token"
+RESP_FILE="./output/test_video_resp.json"
+STATE_FILE="./output/test_video_state"
+mkdir -p output
+
+source lib/utils.sh
+source lib/create_video.sh
+
+# Mock curl with state persistence
+TEST_MODE="none"
+
+curl() {
+    # Read and increment counter atomically-ish
+    if [ -f "$STATE_FILE" ]; then
+        local CNT=$(cat "$STATE_FILE")
+        CNT=$((CNT + 1))
+        echo "$CNT" > "$STATE_FILE"
+    else
+        echo "1" > "$STATE_FILE"
+        local CNT=1
+    fi
+    
+    if [ "$TEST_MODE" == "success" ]; then
+        if [ $CNT -eq 1 ]; then
+             # 1. Init Response
+             jq -n '{ name: "projects/123/locations/us-central1/publishers/google/models/veo-3.1-generate-preview/operations/999" }'
+        elif [ $CNT -eq 2 ]; then
+             # 2. Poll Response (Running)
+             jq -n '{ done: false, name: "projects/123/locations/us-central1/publishers/google/models/veo-3.1-generate-preview/operations/999" }'
+        else
+             # 3. Poll Response (Done with Base64)
+             jq -n '{ done: true, response: { generatedSamples: [{ video: { bytesBase64Encoded: "AAAA" } }] } }'
+        fi
+    elif [ "$TEST_MODE" == "error_init" ]; then
+        jq -n '{ error: { message: "Quota exceeded" } }'
+    elif [ "$TEST_MODE" == "error_poll" ]; then
+        if [ $CNT -eq 1 ]; then
+             jq -n '{ name: "op/123" }'
+        else
+             jq -n '{ error: { message: "Server error during poll" } }'
+        fi
+    fi
+}
+
+# Mock gcloud
+gcloud() {
+    echo "mock-project"
+    return 0
+}
+
+# Override sleep to be instant
+sleep() {
+    :
+}
+
+test_create_video_success() {
+    echo "------------------------------------------------"
+    echo "Running test_create_video_success..."
+    TEST_MODE="success"
+    echo "0" > "$STATE_FILE"
+    
+    local PROMPT="A fast car"
+    local ARGS=$(jq -n --arg p "$PROMPT" '{"args": {"prompt": $p}}')
+    
+    echo "[]" > "$RESP_FILE"
+    
+    tool_create_video "$ARGS" "$RESP_FILE"
+    
+    local RES=$(jq -r '.[0].functionResponse.response.result' "$RESP_FILE")
+    echo "Result: $RES"
+    
+    if [[ "$RES" == *"Video generated successfully"* ]]; then
+        echo "PASS: Tool reported success"
+    else
+        echo "FAIL: Tool did not report success. Got: $RES"
+        return 1
+    fi
+    
+    local GEN_FILE=$(ls -t assets/generated/*.mp4 2>/dev/null | head -n 1)
+    if [ -f "$GEN_FILE" ]; then
+         echo "PASS: Video file created: $GEN_FILE"
+         rm "$GEN_FILE"
+    else
+         echo "FAIL: No mp4 found."
+         return 1
+    fi
+}
+
+test_create_video_error() {
+    echo "------------------------------------------------"
+    echo "Running test_create_video_error..."
+    TEST_MODE="error_init"
+    echo "0" > "$STATE_FILE"
+    
+    local ARGS='{"args":{"prompt":"Fail"}}'
+    echo "[]" > "$RESP_FILE"
+    
+    tool_create_video "$ARGS" "$RESP_FILE"
+    local RES=$(jq -r '.[0].functionResponse.response.result' "$RESP_FILE")
+    
+    if [[ "$RES" == *"Error starting video generation: Quota exceeded"* ]]; then
+        echo "PASS: Handled init error"
+    else
+        echo "FAIL: Init error mismatch. Got: $RES"
+        return 1
+    fi
+}
+
+FAILED=0
+test_create_video_success || FAILED=1
+test_create_video_error || FAILED=1
+
+rm -f "$RESP_FILE" "$STATE_FILE"
+
+if [ $FAILED -eq 0 ]; then
+    echo "All create_video tests passed."
+    exit 0
+else
+    echo "Some create_video tests failed."
+    exit 1
+fi

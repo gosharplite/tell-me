@@ -615,5 +615,41 @@
         "prompt"
       ]
     }
-  }
+  },
+  [
+    {
+      "name": "create_video",
+      "description": "Generates a video based on a text prompt using the Veo 3.1 model. Returns a path to the generated MP4 file.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "prompt": {
+            "type": "STRING",
+            "description": "The detailed description of the video to generate."
+          },
+          "resolution": {
+            "type": "STRING",
+            "description": "Resolution of the video (e.g., '720p', '1080p'). Defaults to '720p'.",
+            "enum": [
+              "720p",
+              "1080p"
+            ]
+          },
+          "aspect_ratio": {
+            "type": "STRING",
+            "description": "The aspect ratio (e.g., '16:9', '1:1', '4:3'). Defaults to '16:9'.",
+            "enum": [
+              "16:9",
+              "1:1",
+              "4:3",
+              "9:16"
+            ]
+          }
+        },
+        "required": [
+          "prompt"
+        ]
+      }
+    }
+  ]
 ]

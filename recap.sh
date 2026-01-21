@@ -118,10 +118,12 @@ fi
 if [ -t 1 ]; then
     C_USER=$(printf "\033[1;32m")
     C_MODEL=$(printf "\033[1;34m")
+    C_TOOL=$(printf "\033[1;36m")
     C_RESET=$(printf "\033[0m")
 else
     C_USER=""
     C_MODEL=""
+    C_TOOL=""
     C_RESET=""
 fi
 
@@ -129,11 +131,13 @@ fi
 produce_output() {
     # Mode 0: Summary View
     if [ "$SUMMARY_MESSAGES" -gt 0 ]; then
-        jq -r --arg u "$C_USER" --arg m "$C_MODEL" --arg r "$C_RESET" "
+        jq -r --arg u "$C_USER" --arg m "$C_MODEL" --arg t "$C_TOOL" --arg r "$C_RESET" "
           $JQ_PREFIX |
           (
-            (if .role == \"user\" then \$u + \"[USER] \" else \$m + \"[MODEL]\" end) + \$r + \": \" +
-            ((.parts // []) | map(.text // \"\") | join(\"\") | gsub(\"\\n\"; \" \") | gsub(\"[ \t]+\"; \" \")) |
+            (if .role == \"user\" then \$u + \"[USER] \" 
+             elif .role == \"function\" then \$t + \"[TOOL] \"
+             else \$m + \"[MODEL] \" end) + \$r + \": \" +
+            ((.parts // []) | map(.text // (.functionCall | \"Call: \" + .name) // (.functionResponse | \"Result: \" + (.response.result | tostring)) // \"\") | join(\" \") | gsub(\"\\n\"; \" \") | gsub(\"[ \t]+\"; \" \")) |
             (if length > 120 then .[0:117] + \"...\" else . end)
           )
         " "$FILERECAP"
@@ -163,18 +167,32 @@ produce_output() {
     if [ "$RAW_MODE" = "false" ] && command -v glow >/dev/null 2>&1; then
       jq -r "
         $JQ_PREFIX |
-        (if .role == \"user\" then \"## 👤 USER\" else \"## 🤖 MODEL\" end) + \"\\n\" +
-        ((.parts // []) | map(.text // \"*[Non-text content]*\") | join(\"\")) +
+        (if .role == \"user\" then \"## 👤 USER\" 
+         elif .role == \"function\" then \"## ⚙️ TOOL RESPONSE\"
+         else \"## 🤖 MODEL\" end) + \"\\n\" +
+        ((.parts // []) | map(
+            .text // 
+            (.functionCall | \"> Calling: **\" + .name + \"**\\n> Args: `\" + (.args | tojson) + \"`\") // 
+            (.functionResponse | \"> Tool: **\" + .name + \"**\\n> Result: \" + (.response.result | tostring)) // 
+            \"*[Non-text content]*\"
+        ) | join(\"\")) +
         \"\\n\\n---\"
       " "$FILERECAP" | apply_filters | glow -
 
     # Mode 3: Raw/ANSI Fallback (Manual Coloring)
     else
-      jq -r --arg u "$C_USER" --arg m "$C_MODEL" --arg r "$C_RESET" "
+      jq -r --arg u "$C_USER" --arg m "$C_MODEL" --arg t "$C_TOOL" --arg r "$C_RESET" "
         $JQ_PREFIX |
-        (if .role == \"user\" then \$u + \"[USER]\" else \$m + \"[MODEL]\" end) +
+        (if .role == \"user\" then \$u + \"[USER]\" 
+         elif .role == \"function\" then \$t + \"[TOOL]\"
+         else \$m + \"[MODEL]\" end) +
         \$r + \": \" +
-        ((.parts // []) | map(.text // \"<Non-text content>\") | join(\"\")) + \"\\n\"
+        ((.parts // []) | map(
+            .text // 
+            (.functionCall | \"[Call: \" + .name + \"] \" + (.args | tojson)) // 
+            (.functionResponse | \"[Result: \" + .name + \"] \" + (.response.result | tostring)) //
+            \"<Non-text content>\"
+        ) | join(\"\")) + \"\\n\"
       " "$FILERECAP" | apply_filters
     fi
 }
@@ -187,3 +205,4 @@ elif [ "$TAIL_LINES" -gt 0 ]; then
 else
     produce_output
 fi
+
