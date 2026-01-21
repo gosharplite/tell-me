@@ -325,7 +325,7 @@
   },
   {
     "name": "grep_definitions",
-    "description": "Searches for code definitions (functions, classes, structs) within files. useful for mapping project structure.",
+    "description": "Searches for code definitions (functions, classes, structs) within files. Supports major languages and Bash scripts. Useful for mapping project structure.",
     "parameters": {
       "type": "OBJECT",
       "properties": {
@@ -421,7 +421,7 @@
     }
   },
   {
-    "name": "read_git_commit",
+    "name": "get_git_commit",
     "description": "Retrieves the full details (message and diff) of a specific git commit.",
     "parameters": {
       "type": "OBJECT",

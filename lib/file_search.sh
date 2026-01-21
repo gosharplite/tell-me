@@ -146,11 +146,15 @@ tool_grep_definitions() {
 
     if [ "$IS_SAFE" == "true" ]; then
         if [ -e "$FC_PATH" ]; then
-            local REGEX="^[[:space:]]*(class|def|function|func|interface|type|struct|enum|const)[[:space:]]+"
-            local CMD="grep -rnEI \"$REGEX\" \"$FC_PATH\""
-            CMD="$CMD --exclude-dir={.git,.idea,.vscode,__pycache__,node_modules,dist,build,coverage,vendor}"
+            # Regex includes standard keywords OR standard bash/c function syntax: name() {
+            local REGEX='^[[:space:]]*((class|def|function|func|interface|type|struct|enum|const)[[:space:]]+|[a-zA-Z0-9_]+[[:space:]]*\(\)[[:space:]]*\{?)'
             
-            RESULT_MSG=$(eval "$CMD" 2>/dev/null)
+            # Construct array with options FIRST
+            local GREP_CMD=(grep -rnEI)
+            GREP_CMD+=(--exclude-dir={.git,.idea,.vscode,__pycache__,node_modules,dist,build,coverage,vendor})
+            GREP_CMD+=("$REGEX" "$FC_PATH")
+            
+            RESULT_MSG=$("${GREP_CMD[@]}" 2>/dev/null)
             
             if [ -n "$FC_QUERY" ]; then
                 RESULT_MSG=$(echo "$RESULT_MSG" | grep -i "$FC_QUERY")
@@ -201,15 +205,18 @@ tool_find_file() {
     local DUR=""
 
     if [ "$IS_SAFE" == "true" ]; then
-        local IGNORES="node_modules|.git|.idea|.vscode|__pycache__|output|dist|build|coverage|target|vendor|.DS_Store"
-        local CMD="find \"$FC_PATH\" -name \"$FC_PATTERN\""
+        local FIND_CMD=(find "$FC_PATH" -name "$FC_PATTERN")
         
-        if [ "$FC_TYPE" == "f" ]; then CMD="$CMD -type f"; fi
-        if [ "$FC_TYPE" == "d" ]; then CMD="$CMD -type d"; fi
+        if [ "$FC_TYPE" == "f" ]; then FIND_CMD+=(-type f); fi
+        if [ "$FC_TYPE" == "d" ]; then FIND_CMD+=(-type d); fi
         
-        CMD="$CMD -not -path '*/.*' -not -path '*node_modules*' -not -path '*output*' -not -path '*dist*' -not -path '*build*'"
+        FIND_CMD+=(-not -path '*/.*')
+        FIND_CMD+=(-not -path '*node_modules*')
+        FIND_CMD+=(-not -path '*output*')
+        FIND_CMD+=(-not -path '*dist*')
+        FIND_CMD+=(-not -path '*build*')
         
-        RESULT_MSG=$(eval "$CMD" 2>/dev/null | head -n 50)
+        RESULT_MSG=$("${FIND_CMD[@]}" 2>/dev/null | head -n 50)
         
         if [ -z "$RESULT_MSG" ]; then
             RESULT_MSG="No files found matching pattern: $FC_PATTERN"

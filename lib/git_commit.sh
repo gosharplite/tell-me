@@ -1,4 +1,4 @@
-tool_read_git_commit() {
+tool_get_git_commit() {
     local FC_DATA="$1"
     local RESP_PARTS_FILE="$2"
 
@@ -32,7 +32,7 @@ tool_read_git_commit() {
         echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
     fi
 
-    jq -n --arg name "read_git_commit" --rawfile content <(printf "%s" "$RESULT_MSG") \
+    jq -n --arg name "get_git_commit" --rawfile content <(printf "%s" "$RESULT_MSG") \
         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"

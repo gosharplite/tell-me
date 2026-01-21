@@ -278,7 +278,7 @@ tool_apply_patch() {
         
         if [ $EXIT_CODE -ne 0 ]; then
             local OUTPUT_RETRY
-            OUTPUT_RETRY=$(patch $PATCH_ARGS < "$PATCH_FILE" 2>&1)
+            OUTPUT_RETRY=$(patch $PATCH_ARGS -p0 < "$PATCH_FILE" 2>&1)
             if [ $? -eq 0 ]; then
                 OUTPUT="$OUTPUT_RETRY"
                 EXIT_CODE=0

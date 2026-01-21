@@ -9,7 +9,7 @@ tool_execute_command() {
     echo -e "${TS} \033[0;36m[Tool Request] Execute Command: $FC_CMD\033[0m"
 
     local CONFIRM="n"
-    local SAFE_COMMANDS="grep|ls|find|pwd|cat|echo|head|tail|wc|stat|date|whoami|diff"
+    local SAFE_COMMANDS="grep|ls|pwd|cat|echo|head|tail|wc|stat|date|whoami|diff"
     
     # Extract the first word of the command to check against whitelist
     local CMD_BASE=$(echo "$FC_CMD" | awk '{print $1}')
@@ -35,7 +35,7 @@ tool_execute_command() {
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
         # Execute and capture stdout + stderr
         local CMD_OUTPUT
-        CMD_OUTPUT=$(eval "$FC_CMD" 2>&1)
+        CMD_OUTPUT=$(bash -c "$FC_CMD" 2>&1)
         local EXIT_CODE=$?
         
         # Truncate if too long (100 lines)
