@@ -35,7 +35,7 @@ tool_execute_command() {
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
         # Execute and capture stdout + stderr
         local CMD_OUTPUT
-        CMD_OUTPUT=$(eval "$FC_CMD" 2>&1)
+        CMD_OUTPUT=$(bash -c "$FC_CMD" 2>&1)
         local EXIT_CODE=$?
         
         # Truncate if too long (100 lines)
