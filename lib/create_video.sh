@@ -9,7 +9,7 @@ tool_create_video() {
     local PROMPT=$(echo "$FC_DATA" | jq -r '.args.prompt')
     local RESOLUTION=$(echo "$FC_DATA" | jq -r '.args.resolution // "720p"') # 720p, 1080p
     local ASPECT_RATIO=$(echo "$FC_DATA" | jq -r '.args.aspect_ratio // "16:9"')
-    local DURATION=$(echo "$FC_DATA" | jq -r '.args.duration_seconds // 8')
+    local DURATION=$(echo "$FC_DATA" | jq -r '.args.duration_seconds // 4')
     local FAST_GEN=$(echo "$FC_DATA" | jq -r '.args.fast_generation // false')
 
     # Validate Duration (Veo supports 4, 6, 8)
