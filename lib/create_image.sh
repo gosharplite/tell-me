@@ -55,6 +55,14 @@ tool_create_image() {
       -d @"$PAYLOAD_FILE")
       
     rm "$PAYLOAD_FILE"
+
+    local END_TIME=$(date +%s.%N)
+    local DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
+
+    # Log Usage if the function is available
+    if declare -f log_usage > /dev/null; then
+        log_usage "$RESPONSE_JSON" "$DURATION" 0 "${file}.log"
+    fi
     
     # Error Handling
     if echo "$RESPONSE_JSON" | jq -e '.error' > /dev/null 2>&1; then
