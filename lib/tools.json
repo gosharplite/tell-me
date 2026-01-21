@@ -124,6 +124,27 @@
     }
   },
   {
+    "name": "append_file",
+    "description": "Appends content to the end of a specific file. Use this for adding logs, notes, or appending code.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "filepath": {
+          "type": "STRING",
+          "description": "The path to the file to append to."
+        },
+        "content": {
+          "type": "STRING",
+          "description": "The text content to append."
+        }
+      },
+      "required": [
+        "filepath",
+        "content"
+      ]
+    }
+  },
+  {
     "name": "apply_patch",
     "description": "Applies a unified diff patch to files. Use this for complex edits or multiple changes in one go. The patch must have standard headers (--- a/file +++ b/file) and use context.",
     "parameters": {

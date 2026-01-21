@@ -13,6 +13,8 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 ## 🚀 Features
 
 *   **Dual API Support**: Seamlessly supports both the standard **Gemini API** (AI Studio) and **Vertex AI** (Google Cloud).
+*   **🎨 Multimodal Generation**: Native tools to generate high-fidelity images with **Gemini 3 Pro Image** and high-quality videos with **Veo 3.1**.
+*   **🖼️ Image Analysis**: Supports reading and analyzing local image files within the conversation.
 *   **🌍 Transparent Grounding**: Automatically connects the model to Google Search for real-time information. The tool **visualizes the exact search queries** used by the model (e.g., `> "current google stock price"`), giving you full visibility into external data access.
 *   **Flexible Authentication**: Support for standard User Credentials (`gcloud auth login`) or **Service Account Keys** (JSON) for automated/headless environments.
 *   **Run From Anywhere**: Set up a global alias to call the assistant from any directory on your system.
@@ -192,8 +194,9 @@ The `MODE` key acts as a unique session identifier. Its value is used to name th
 ### 3. Agent Tools (Function Calling)
 The AI is equipped with a suite of Bash-native tools it can invoke to assist you. You don't call these directly, but understanding them helps you know what to ask for:
 
-*   **File Manipulation**: `update_file`, `replace_text`, `insert_text`, `apply_patch`, `rollback_file`, `move_file`, `delete_file`.
+*   **File Manipulation**: `update_file`, `append_file`, `replace_text`, `insert_text`, `apply_patch`, `rollback_file`, `move_file`, `delete_file`.
 *   **File System & Navigation**: `list_files`, `get_file_info`, `read_file`, `find_file`, `get_tree`, `search_files`, `read_image`.
+*   **Media Generation**: `create_video` (Veo 3.1), `create_image` (Gemini 3 Pro Image).
 *   **Code Analysis**: `get_file_skeleton`, `grep_definitions`, `find_usages`, `calculate_complexity`, `validate_syntax`, `read_url`.
 *   **Git / Version Control**: `get_git_status`, `get_git_diff`, `get_git_log`, `read_git_commit`, `get_git_blame`.
 *   **System & Execution**: `execute_command`, `run_tests`.
