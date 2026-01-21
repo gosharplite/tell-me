@@ -1,4 +1,4 @@
-# Function to generate videos using Veo 3.0 model
+# Function to generate videos using Veo 3.1 model
 # Usage: tool_create_video '{ "args": { "prompt": "...", "resolution": "720p", "aspect_ratio": "16:9", "duration_seconds": 8 } }' "output_file"
 
 tool_create_video() {
@@ -54,10 +54,10 @@ tool_create_video() {
         }
       }' > "$PAYLOAD_FILE"
 
-    # API Endpoint - Use Veo 3.0 models
-    local VIDEO_MODEL="veo-3.0-generate-001"
+    # API Endpoint - Use Veo 3.1 models
+    local VIDEO_MODEL="veo-3.1-generate-preview"
     if [ "$FAST_GEN" == "true" ]; then
-        VIDEO_MODEL="veo-3.0-fast-generate-001"
+        VIDEO_MODEL="veo-3.1-fast-generate-preview"
     fi
     
     local REGIONAL_HOST="us-central1-aiplatform.googleapis.com"
