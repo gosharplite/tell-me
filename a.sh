@@ -86,6 +86,7 @@ source "$BASE_DIR/lib/auth.sh"
 # --- Load Tools ---
 source "$BASE_DIR/lib/read_file.sh"
 source "$BASE_DIR/lib/read_image.sh"
+source "$BASE_DIR/lib/create_image.sh"
 source "$BASE_DIR/lib/read_url.sh"
 source "$BASE_DIR/lib/code_analysis.sh"
 source "$BASE_DIR/lib/testing.sh"
