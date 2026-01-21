@@ -399,6 +399,10 @@
         "command": {
           "type": "STRING",
           "description": "The shell command to execute (e.g., 'ls -la', 'python3 main.py')."
+        },
+        "reason": {
+          "type": "STRING",
+          "description": "A short explanation of why this command needs to be executed."
         }
       },
       "required": [

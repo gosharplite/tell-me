@@ -4,6 +4,7 @@ tool_execute_command() {
 
     # Extract Arguments
     local FC_CMD=$(echo "$FC_DATA" | jq -r '.args.command')
+    local FC_REASON=$(echo "$FC_DATA" | jq -r '.args.reason // empty')
 
     local TS=$(get_log_timestamp)
     echo -e "${TS} \033[0;36m[Tool Request] Execute Command: $FC_CMD\033[0m"
@@ -22,6 +23,9 @@ tool_execute_command() {
          CONFIRM="y"
     elif [ -t 0 ]; then
         # Interactive mode: Ask user
+        if [ -n "$FC_REASON" ]; then
+            echo -e "\033[0;33mReason: $FC_REASON\033[0m"
+        fi
         # We use /dev/tty to ensure we read from keyboard even if stdin was piped initially
         read -p "⚠️  Execute this command? (y/N) " -n 1 -r CONFIRM < /dev/tty
         echo "" 
