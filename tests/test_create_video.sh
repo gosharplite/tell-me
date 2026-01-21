@@ -139,7 +139,7 @@ test_create_video_fast() {
     
     local RES=$(jq -r '.[0].functionResponse.response.result' "$RESP_FILE")
     if [[ "$RES" == *"Video generated successfully"* ]]; then
-         if grep -q "veo-3.0-fast-generate-001" "$URL_LOG"; then
+         if grep -q "veo-3.1-fast-generate-preview" "$URL_LOG"; then
              echo "PASS: Fast model requested"
          else
              echo "FAIL: Fast model NOT requested."
