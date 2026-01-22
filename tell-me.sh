@@ -2,7 +2,7 @@
 # Copyright (c) 2026  <gosharplite@gmail.com>
 # SPDX-License-Identifier: MIT
 
-# Usage: ./tell-me-new.sh CONFIG [new] [nobash] [message...]
+# Usage: ./tell-me.sh CONFIG [new] [nobash] [message...]
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
