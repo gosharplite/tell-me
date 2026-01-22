@@ -144,8 +144,12 @@ mkdir -p "$(dirname "$file")"
 # 3. Initialize/Handle Context
 if [[ "$ACTION_NEW" == "true" ]]; then
     # User explicitly requested a new session, so delete the old files.
-    [ -f "$file" ] && rm "$file"
-    [ -f "${file}.log" ] && rm "${file}.log"
+    # Archive existing session files with a timestamp
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    echo "Archiving existing session files with timestamp: $TIMESTAMP"
+    for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
+        [ -f "$f" ] && mv "$f" "${f}.${TIMESTAMP}"
+    done
 elif [[ -f "$file" ]]; then
     # History file exists and 'new' was not specified. Ask the user.
     echo "An existing session history was found for '$MODE'."
@@ -178,8 +182,12 @@ elif [[ -f "$file" ]]; then
     else
         # User chose to start a new session.
         echo "Starting a new session."
-        rm "$file"
-        [ -f "${file}.log" ] && rm "${file}.log"
+        # Archive existing session files with a timestamp
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        echo "Archiving previous session files with timestamp: $TIMESTAMP"
+        for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
+            [ -f "$f" ] && mv "$f" "${f}.${TIMESTAMP}"
+        done
     fi
 fi
 
