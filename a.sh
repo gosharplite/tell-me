@@ -312,7 +312,8 @@ if [ -z "$RECAP_OUT" ]; then
 fi
 
 if [ -f "$BASE_DIR/recap.sh" ] && [ -x "$BASE_DIR/recap.sh" ]; then
-    "$BASE_DIR/recap.sh" -l > "$RECAP_OUT"
+    # Get raw Markdown for snipping
+    "$BASE_DIR/recap.sh" -l --markdown > "$RECAP_OUT"
 else
     # Fallback: just cat the final response text if recap is missing
     echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].content.parts[].text // empty' > "$RECAP_OUT"
@@ -320,12 +321,31 @@ fi
 
 LINE_COUNT=$(wc -l < "$RECAP_OUT")
 
-if [ "$LINE_COUNT" -gt 20 ]; then
-    head -n 10 "$RECAP_OUT"
-    echo -e "\n\033[1;30m... (Content Snipped) ...\033[0m\n"
-    tail -n 5 "$RECAP_OUT"
+# --- Dynamic Smart Snipping ---
+# Get terminal height (default to 24 if detection fails)
+TERM_HEIGHT=$(tput lines 2>/dev/null || echo 24)
+
+# Reserve space for the footer (Grounding, Stats, Duration, and Next Prompt)
+# We reserve about 20 lines for these metrics.
+RESERVED_FOOTER=20
+MAX_VISIBLE_LINES=$(( TERM_HEIGHT - RESERVED_FOOTER ))
+
+# Ensure a sane minimum for the response (don't snip too aggressively)
+if [ "$MAX_VISIBLE_LINES" -lt 15 ]; then MAX_VISIBLE_LINES=15; fi
+
+if [ "$LINE_COUNT" -gt "$MAX_VISIBLE_LINES" ]; then
+    # Calculate how many lines to show at top/bottom
+    # We show 70% at the top and 30% at the bottom for better context
+    TOP_LINES=$(( (MAX_VISIBLE_LINES * 7) / 10 ))
+    BOTTOM_LINES=$(( MAX_VISIBLE_LINES - TOP_LINES - 2 )) # -2 for the snip message
+    
+    (
+        head -n "$TOP_LINES" "$RECAP_OUT"
+        echo -e "\n\n**... (Content Snipped to fit $TERM_HEIGHT lines) ...**\n\n"
+        tail -n "$BOTTOM_LINES" "$RECAP_OUT"
+    ) | glow -
 else
-    cat "$RECAP_OUT"
+    glow "$RECAP_OUT" 2>/dev/null || cat "$RECAP_OUT"
 fi
 # rm -f "$RECAP_OUT" # Handled by trap
 
@@ -348,7 +368,8 @@ printf "\033[0;35m[Total Duration] %.2f seconds\033[0m\n" "$DURATION"
 LOG_FILE="${file}.log"
 if [ -f "$LOG_FILE" ]; then
     echo -e "\033[0;36m--- Usage History ---\033[0m"
-    tail -n 3 "$LOG_FILE"
+    # Show only previous turns, not the current one (which was just logged above)
+    tail -n 4 "$LOG_FILE" | head -n 3
     echo ""
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "$LOG_FILE"
 fi
