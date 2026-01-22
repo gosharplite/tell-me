@@ -7,7 +7,7 @@ tool_get_file_skeleton() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Analyzing Skeleton: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Analyzing Skeleton: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -110,7 +110,7 @@ EOF
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
     fi
 
     jq -n --arg name "get_file_skeleton" --rawfile content <(printf "%s" "$RESULT_MSG") \
@@ -128,7 +128,7 @@ tool_find_usages() {
     local FC_FILE_TYPE=$(echo "$FC_DATA" | jq -r '.args.file_type // empty')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Finding usages of '$FC_QUERY' in $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Finding usages of '$FC_QUERY' in $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -195,7 +195,7 @@ tool_find_usages() {
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
     fi
 
     jq -n --arg name "find_usages" --rawfile content <(printf "%s" "$RESULT_MSG") \

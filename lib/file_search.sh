@@ -5,7 +5,7 @@ tool_list_files() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.path // "."')
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Listing: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Listing: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -29,7 +29,7 @@ tool_list_files() {
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
     fi
 
     jq -n --arg name "list_files" --rawfile content <(printf "%s" "$RESULT_MSG") \
@@ -45,7 +45,7 @@ tool_get_file_info() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Getting Info: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Getting Info: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -74,7 +74,7 @@ tool_get_file_info() {
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
     fi
 
     jq -n --arg name "get_file_info" --rawfile content <(printf "%s" "$RESULT_MSG") \
@@ -91,7 +91,7 @@ tool_search_files() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.path // "."')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Searching for \"$FC_QUERY\" in: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Searching for \"$FC_QUERY\" in: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -121,7 +121,7 @@ tool_search_files() {
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
     fi
 
     jq -n --arg name "search_files" --rawfile content <(printf "%s" "$RESULT_MSG") \
@@ -138,7 +138,7 @@ tool_grep_definitions() {
     local FC_QUERY=$(echo "$FC_DATA" | jq -r '.args.query // empty')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Grep Definitions in: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Grep Definitions in: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -180,7 +180,7 @@ tool_grep_definitions() {
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
     fi
 
     jq -n --arg name "grep_definitions" --rawfile content <(printf "%s" "$RESULT_MSG") \
@@ -198,7 +198,7 @@ tool_find_file() {
     local FC_TYPE=$(echo "$FC_DATA" | jq -r '.args.type // empty')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Find: $FC_PATTERN in $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Find: $FC_PATTERN in $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -232,7 +232,7 @@ tool_find_file() {
     fi
     
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
     fi
 
     jq -n --arg name "find_file" --rawfile content <(printf "%s" "$RESULT_MSG") \
@@ -249,7 +249,7 @@ tool_get_tree() {
     local FC_DEPTH=$(echo "$FC_DATA" | jq -r '.args.max_depth // 2')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Generating Tree: $FC_PATH (Depth: $FC_DEPTH)\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Generating Tree: $FC_PATH (Depth: $FC_DEPTH)\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -278,7 +278,7 @@ tool_get_tree() {
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
     fi
 
     jq -n --arg name "get_tree" --rawfile content <(printf "%s" "$RESULT_MSG") \

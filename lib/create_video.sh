@@ -24,7 +24,7 @@ tool_create_video() {
     if [ "$DURATION" -eq 7 ]; then DURATION=8; fi
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Generating Video: \"${PROMPT:0:50}...\" ($RESOLUTION, $ASPECT_RATIO, ${DURATION}s, Fast: $FAST_GEN)\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Generating Video: \"${PROMPT:0:50}...\" ($RESOLUTION, $ASPECT_RATIO, ${DURATION}s, Fast: $FAST_GEN)\033[0m"
 
     local RESULT_MSG=""
     local VIDEO_DIR="assets/generated"
@@ -189,6 +189,10 @@ tool_create_video() {
         fi
     fi
 
+    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
+        echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
+    fi
     jq -n --arg name "create_video" --arg content "$RESULT_MSG" \
         '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"

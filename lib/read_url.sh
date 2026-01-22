@@ -5,7 +5,7 @@ tool_read_url() {
     local FC_URL=$(echo "$FC_DATA" | jq -r '.args.url')
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Reading URL: $FC_URL\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Reading URL: $FC_URL\033[0m"
 
     local RESULT_MSG
     local DUR=""
@@ -45,7 +45,7 @@ tool_read_url() {
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
     fi
 
     jq -n --arg name "read_url" --rawfile content <(printf "%s" "$RESULT_MSG") \

@@ -10,7 +10,7 @@ tool_ask_user() {
     FC_QUESTION=$(echo "$FC_DATA" | jq -r '.args.question')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[1;35m[AI Question] $FC_QUESTION\033[0m"
+    echo -e "${TS} \033[1;35m[AI Question ($CURRENT_TURN/$MAX_TURNS)] $FC_QUESTION\033[0m"
 
     # Read user input directly from TTY
     if [ -t 0 ]; then
