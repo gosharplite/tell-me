@@ -33,3 +33,9 @@ USE_SEARCH: false
 # MAX_TURNS: Maximum turn count for multi-turn interactions (tool calls)
 MAX_TURNS: 10
 
+
+# MAX_HISTORY_TOKENS: Automatically prune oldest history turns if total tokens 
+# exceed this limit (Input + Output from last turn).
+# Set to 120000 to safely stay under the 128k 'cheaper' tier.
+MAX_HISTORY_TOKENS: 120000
+
