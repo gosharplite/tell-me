@@ -304,48 +304,11 @@ if [ -z "$FINAL_TEXT_RESPONSE" ]; then
 fi
 
 # 6. Render Output
-# Use the final JSON response for Recap and Stats
-# Note: Recap reads from the *file* history, but we want to render the last message.
-RECAP_OUT=$(mktemp)
-if [ -z "$RECAP_OUT" ]; then
-    RECAP_OUT="${TMPDIR:-/tmp}/tellme_recap_${RANDOM}.txt"
-fi
-
 if [ -f "$BASE_DIR/recap.sh" ] && [ -x "$BASE_DIR/recap.sh" ]; then
-    # Get raw Markdown for snipping
-    "$BASE_DIR/recap.sh" -l --markdown > "$RECAP_OUT"
+    "$BASE_DIR/recap.sh" -l -nc
 else
     # Fallback: just cat the final response text if recap is missing
-    echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].content.parts[].text // empty' > "$RECAP_OUT"
-fi
-
-LINE_COUNT=$(wc -l < "$RECAP_OUT")
-
-# --- Dynamic Smart Snipping ---
-# Get terminal height (default to 24 if detection fails)
-TERM_HEIGHT=$(tput lines 2>/dev/null || echo 24)
-
-# Reserve space for the footer (Grounding, Stats, Duration, and Next Prompt)
-# We reserve about 20 lines for these metrics.
-RESERVED_FOOTER=20
-MAX_VISIBLE_LINES=$(( TERM_HEIGHT - RESERVED_FOOTER ))
-
-# Ensure a sane minimum for the response (don't snip too aggressively)
-if [ "$MAX_VISIBLE_LINES" -lt 15 ]; then MAX_VISIBLE_LINES=15; fi
-
-if [ "$LINE_COUNT" -gt "$MAX_VISIBLE_LINES" ]; then
-    # Calculate how many lines to show at top/bottom
-    # We show 70% at the top and 30% at the bottom for better context
-    TOP_LINES=$(( (MAX_VISIBLE_LINES * 7) / 10 ))
-    BOTTOM_LINES=$(( MAX_VISIBLE_LINES - TOP_LINES - 2 )) # -2 for the snip message
-    
-    (
-        head -n "$TOP_LINES" "$RECAP_OUT"
-        echo -e "\n\n**... (Content Snipped to fit $TERM_HEIGHT lines) ...**\n\n"
-        tail -n "$BOTTOM_LINES" "$RECAP_OUT"
-    ) | glow -
-else
-    glow "$RECAP_OUT" 2>/dev/null || cat "$RECAP_OUT"
+    echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].content.parts[].text // empty'
 fi
 # rm -f "$RECAP_OUT" # Handled by trap
 
