@@ -22,10 +22,10 @@ trap cleanup EXIT
 for cmd in jq curl gcloud awk python3 patch; do
     if ! command -v "$cmd" &> /dev/null; then
         echo "Error: Required command '$cmd' is missing." >&2
-        exit 1
     fi
 done
 
+source "$BASE_DIR/lib/history_manager.sh"
 source "$BASE_DIR/lib/utils.sh"
 # Helper function to append messages to history safely
 update_history() {
@@ -141,6 +141,12 @@ log_usage() {
 MAX_TURNS=${MAX_TURNS:-10}
 CURRENT_TURN=0
 FINAL_TEXT_RESPONSE=""
+
+# --- Automatic History Pruning ---
+# Keeps the total context within the 'cheaper' tier limit (default 120k)
+if [ -n "$MAX_HISTORY_TOKENS" ]; then
+    prune_history_if_needed "$file" "$MAX_HISTORY_TOKENS"
+fi
 
 START_TIME=$(date +%s.%N)
 

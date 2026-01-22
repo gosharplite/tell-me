@@ -121,6 +121,14 @@ else
     export MAX_TURNS="$TURNS_VAL"
 fi
 
+# MAX_HISTORY_TOKENS: Threshold for automatic history pruning
+HISTORY_LIMIT_VAL=$(yq -r '.MAX_HISTORY_TOKENS' "$CONFIG")
+if [[ "$HISTORY_LIMIT_VAL" == "null" ]]; then
+    export MAX_HISTORY_TOKENS=120000
+else
+    export MAX_HISTORY_TOKENS="$HISTORY_LIMIT_VAL"
+fi
+
 export CONFIG
 
 # --- AIT_HOME Check (Fallback) ---
