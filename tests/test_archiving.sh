@@ -30,6 +30,7 @@ HIST_FILE="$TEST_DIR/output/last-${MODE}.json"
 LOG_FILE="${HIST_FILE}.log"
 SCRATCH_FILE="${HIST_FILE%.*}.scratchpad.md"
 TASK_FILE="${HIST_FILE%.*}.tasks.json"
+CONFIG_COPY="${HIST_FILE%.*}.config.yaml"
 BACKUP_DIR="$TEST_DIR/output/backups"
 
 mkdir -p "$TEST_DIR/output"
@@ -40,6 +41,7 @@ create_session_files() {
     echo "some logs" > "$LOG_FILE"
     echo "some scratchpad" > "$SCRATCH_FILE"
     echo "[]" > "$TASK_FILE"
+    echo "config content" > "$CONFIG_COPY"
 }
 
 echo "Running Session Archiving Tests..."
@@ -57,7 +59,7 @@ create_session_files
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     BACKUP_DIR="$(dirname "$file")/backups"
     mkdir -p "$BACKUP_DIR"
-    for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
+    for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
         [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
     done
 )
@@ -66,7 +68,7 @@ create_session_files
 STAMP=$(date +%Y%m%d) # Check at least the date part to be safe
 ARCHIVE_COUNT=$(ls "$BACKUP_DIR" 2>/dev/null | grep -c "$STAMP")
 
-if [ ! -f "$HIST_FILE" ] && [ "$ARCHIVE_COUNT" -eq 4 ]; then
+if [ ! -f "$HIST_FILE" ] && [ "$ARCHIVE_COUNT" -eq 5 ]; then
     echo "PASS"
 else
     echo "FAIL (Files not archived correctly. Archive count: $ARCHIVE_COUNT)"
@@ -86,7 +88,7 @@ create_session_files
         TIMESTAMP=$(date +%Y%m%d_%H%M%S)
         BACKUP_DIR="$(dirname "$file")/backups"
         mkdir -p "$BACKUP_DIR"
-        for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
+        for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
             [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
         done
     fi

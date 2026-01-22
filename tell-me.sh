@@ -149,7 +149,7 @@ if [[ "$ACTION_NEW" == "true" ]]; then
     BACKUP_DIR="$(dirname "$file")/backups"
     mkdir -p "$BACKUP_DIR"
     echo "Archiving existing session files with timestamp: $TIMESTAMP to $BACKUP_DIR"
-    for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
+    for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
         [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
     done
 elif [[ -f "$file" ]]; then
@@ -189,11 +189,15 @@ elif [[ -f "$file" ]]; then
         BACKUP_DIR="$(dirname "$file")/backups"
         mkdir -p "$BACKUP_DIR"
         echo "Archiving previous session files with timestamp: $TIMESTAMP to $BACKUP_DIR"
-        for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
+        for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
             [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
         done
     fi
 fi
+
+# Save current config to output folder (after potential archiving)
+cp "$CONFIG" "${file%.*}.config.yaml"
+chmod 600 "${file%.*}.config.yaml"
 
 if [[ -n "$MSG" ]]; then
     # If a message is provided on the command line, send it.
@@ -235,4 +239,3 @@ echo -e "Type \033[1;32ma \"your message\"\033[0m to chat."
 EOF
     )
 fi
-
