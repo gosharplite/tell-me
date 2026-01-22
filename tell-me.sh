@@ -113,6 +113,14 @@ else
     export USE_SEARCH="$SEARCH_VAL"
 fi
 
+# MAX_TURNS: Maximum turns per interaction (Tool calls)
+TURNS_VAL=$(yq -r '.MAX_TURNS' "$CONFIG")
+if [[ "$TURNS_VAL" == "null" ]]; then
+    export MAX_TURNS=10
+else
+    export MAX_TURNS="$TURNS_VAL"
+fi
+
 export CONFIG
 
 # --- AIT_HOME Check (Fallback) ---

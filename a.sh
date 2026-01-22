@@ -138,7 +138,7 @@ log_usage() {
 # Handles multi-turn interactions (Tool Call -> Execution -> Tool Response)
 # ==============================================================================
 
-MAX_TURNS=10
+MAX_TURNS=${MAX_TURNS:-10}
 CURRENT_TURN=0
 FINAL_TEXT_RESPONSE=""
 

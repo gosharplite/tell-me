@@ -29,3 +29,7 @@ KEY_FILE: ""
 # false = Disable search (faster, logic/code only).
 # WARNING: When enabled, auto-cache is disabled.
 USE_SEARCH: false
+
+# MAX_TURNS: Maximum turn count for multi-turn interactions (tool calls)
+MAX_TURNS: 10
+
