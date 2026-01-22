@@ -234,6 +234,7 @@ stats() {
 export PS1="\[\033[01;32m\]\u@tell-me\[\033[00m\]:\[\033[01;35m\]${FILENAME}\[\033[00m\]\$ "
 echo -e "\033[1;34mChat session started using $CONFIG\033[0m"
 echo -e "\033[0;36m[Auth] $AUTH_INFO\033[0m"
+echo -e "\033[0;36m[Model] $AIMODEL\033[0m"
 echo -e "\033[0;36m[Search] $USE_SEARCH\033[0m"
 echo -e "Type \033[1;32ma \"your message\"\033[0m to chat."
 EOF
