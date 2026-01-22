@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
+# Copyright (c) 2026  <gosharplite@gmail.com>
 # SPDX-License-Identifier: MIT
 
 MODE: "assist-gemini"
@@ -17,3 +17,13 @@ KEY_FILE: ""
 # false = Disable search (faster, logic/code only).
 # WARNING: When enabled, auto-cache is disabled.
 USE_SEARCH: false
+
+# MAX_TURNS: Maximum turn count for multi-turn interactions (tool calls)
+MAX_TURNS: 10
+
+
+# MAX_HISTORY_TOKENS: Automatically prune oldest history turns if total tokens 
+# exceed this limit (Input + Output from last turn).
+# Set to 120000 to safely stay under the 128k 'cheaper' tier.
+MAX_HISTORY_TOKENS: 120000
+

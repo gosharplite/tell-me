@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
+# Copyright (c) 2026  <gosharplite@gmail.com>
 # SPDX-License-Identifier: MIT
 
 # Enable pipefail to catch errors in jq | glow pipeline
@@ -8,6 +8,7 @@ set -o pipefail
 # 1. Initialize variables
 FILERECAP="$file"
 RAW_MODE="false"
+MARKDOWN_MODE="false"
 CODE_MODE="false"
 NO_CODE="false"
 LAST_MESSAGES=0
@@ -24,6 +25,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         -r|--raw)
             RAW_MODE="true"
+            shift
+            ;;
+        -m|--markdown)
+            MARKDOWN_MODE="true"
             shift
             ;;
         -l|--last)
@@ -164,8 +169,9 @@ produce_output() {
 
     # Mode 2: Markdown (Glow)
     # Note: Glow automatically handles TTY detection and usually strips styles when piped.
-    if [ "$RAW_MODE" = "false" ] && command -v glow >/dev/null 2>&1; then
-      jq -r "
+    if [ "$MARKDOWN_MODE" = "true" ] || ([ "$RAW_MODE" = "false" ] && command -v glow >/dev/null 2>&1); then
+      local out
+      out=$(jq -r "
         $JQ_PREFIX |
         (if .role == \"user\" then \"## 👤 USER\" 
          elif .role == \"function\" then \"## ⚙️ TOOL RESPONSE\"
@@ -177,7 +183,13 @@ produce_output() {
             \"*[Non-text content]*\"
         ) | join(\"\")) +
         \"\\n\\n---\"
-      " "$FILERECAP" | apply_filters | glow -
+      " "$FILERECAP" | apply_filters)
+
+      if [ "$MARKDOWN_MODE" = "true" ]; then
+          echo "$out"
+      else
+          echo "$out" | glow -
+      fi
 
     # Mode 3: Raw/ANSI Fallback (Manual Coloring)
     else

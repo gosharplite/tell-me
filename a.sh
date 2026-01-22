@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
+# Copyright (c) 2026  <gosharplite@gmail.com>
 # SPDX-License-Identifier: MIT
 
 # Resolve Script Directory
@@ -22,10 +22,10 @@ trap cleanup EXIT
 for cmd in jq curl gcloud awk python3 patch; do
     if ! command -v "$cmd" &> /dev/null; then
         echo "Error: Required command '$cmd' is missing." >&2
-        exit 1
     fi
 done
 
+source "$BASE_DIR/lib/history_manager.sh"
 source "$BASE_DIR/lib/utils.sh"
 # Helper function to append messages to history safely
 update_history() {
@@ -138,9 +138,15 @@ log_usage() {
 # Handles multi-turn interactions (Tool Call -> Execution -> Tool Response)
 # ==============================================================================
 
-MAX_TURNS=100
+MAX_TURNS=${MAX_TURNS:-10}
 CURRENT_TURN=0
 FINAL_TEXT_RESPONSE=""
+
+# --- Automatic History Pruning ---
+# Keeps the total context within the 'cheaper' tier limit (default 120k)
+if [ -n "$MAX_HISTORY_TOKENS" ]; then
+    prune_history_if_needed "$file" "$MAX_HISTORY_TOKENS"
+fi
 
 START_TIME=$(date +%s.%N)
 
@@ -153,7 +159,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
       --argjson tools "$TOOLS_JSON" \
       --slurpfile history "$file" \
       '{
-        contents: $history[0].messages,
+        contents: ([$history[0].messages[]? | select(.parts and (.parts | length > 0))]),
         tools: $tools,
         generationConfig: { 
             temperature: 1.0 
@@ -298,28 +304,11 @@ if [ -z "$FINAL_TEXT_RESPONSE" ]; then
 fi
 
 # 6. Render Output
-# Use the final JSON response for Recap and Stats
-# Note: Recap reads from the *file* history, but we want to render the last message.
-RECAP_OUT=$(mktemp)
-if [ -z "$RECAP_OUT" ]; then
-    RECAP_OUT="${TMPDIR:-/tmp}/tellme_recap_${RANDOM}.txt"
-fi
-
 if [ -f "$BASE_DIR/recap.sh" ] && [ -x "$BASE_DIR/recap.sh" ]; then
-    "$BASE_DIR/recap.sh" -l > "$RECAP_OUT"
+    "$BASE_DIR/recap.sh" -l -nc
 else
     # Fallback: just cat the final response text if recap is missing
-    echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].content.parts[].text // empty' > "$RECAP_OUT"
-fi
-
-LINE_COUNT=$(wc -l < "$RECAP_OUT")
-
-if [ "$LINE_COUNT" -gt 20 ]; then
-    head -n 10 "$RECAP_OUT"
-    echo -e "\n\033[1;30m... (Content Snipped) ...\033[0m\n"
-    tail -n 5 "$RECAP_OUT"
-else
-    cat "$RECAP_OUT"
+    echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].content.parts[].text // empty'
 fi
 # rm -f "$RECAP_OUT" # Handled by trap
 
@@ -342,7 +331,8 @@ printf "\033[0;35m[Total Duration] %.2f seconds\033[0m\n" "$DURATION"
 LOG_FILE="${file}.log"
 if [ -f "$LOG_FILE" ]; then
     echo -e "\033[0;36m--- Usage History ---\033[0m"
-    tail -n 3 "$LOG_FILE"
+    # Show only previous turns, not the current one (which was just logged above)
+    tail -n 4 "$LOG_FILE" | head -n 3
     echo ""
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "$LOG_FILE"
 fi

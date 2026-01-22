@@ -16,7 +16,7 @@ tool_get_git_blame() {
     FC_END=$(echo "$FC_DATA" | jq -r '.args.end_line // empty')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Git Blame: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Git Blame: $FC_PATH\033[0m"
 
     # Security Check: Ensure path is within CWD
     IS_SAFE=false

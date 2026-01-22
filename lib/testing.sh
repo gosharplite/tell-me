@@ -5,7 +5,7 @@ tool_run_tests() {
     local FC_CMD=$(echo "$FC_DATA" | jq -r '.args.command')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Running Tests: $FC_CMD\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Running Tests: $FC_CMD\033[0m"
 
     local RESULT_MSG
     local DUR=""
@@ -38,7 +38,7 @@ tool_run_tests() {
     fi
 
     if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
-        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: Last turn approaching."
+        RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
     fi
 
     jq -n --arg name "run_tests" --rawfile content <(printf "%s" "$RESULT_MSG") \

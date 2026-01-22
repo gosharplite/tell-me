@@ -22,7 +22,7 @@ tool_read_file() {
     fi
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request] Reading: $FC_PATH ($RANGE_DESC)\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Reading: $FC_PATH ($RANGE_DESC)\033[0m"
 
     # Security Check: Ensure path is within CWD
     IS_SAFE=false

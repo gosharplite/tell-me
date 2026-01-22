@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
+# Copyright (c) 2026  <gosharplite@gmail.com>
 # SPDX-License-Identifier: MIT
 
 # Usage: ./tell-me.sh CONFIG [new] [nobash] [message...]
@@ -111,6 +111,22 @@ if [[ "$SEARCH_VAL" == "null" ]]; then
     export USE_SEARCH="true"
 else
     export USE_SEARCH="$SEARCH_VAL"
+fi
+
+# MAX_TURNS: Maximum turns per interaction (Tool calls)
+TURNS_VAL=$(yq -r '.MAX_TURNS' "$CONFIG")
+if [[ "$TURNS_VAL" == "null" ]]; then
+    export MAX_TURNS=10
+else
+    export MAX_TURNS="$TURNS_VAL"
+fi
+
+# MAX_HISTORY_TOKENS: Threshold for automatic history pruning
+HISTORY_LIMIT_VAL=$(yq -r '.MAX_HISTORY_TOKENS' "$CONFIG")
+if [[ "$HISTORY_LIMIT_VAL" == "null" ]]; then
+    export MAX_HISTORY_TOKENS=120000
+else
+    export MAX_HISTORY_TOKENS="$HISTORY_LIMIT_VAL"
 fi
 
 export CONFIG
