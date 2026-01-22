@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2026 Tony Hsu <gosharplite@gmail.com>
+# Copyright (c) 2026  <gosharplite@gmail.com>
 # SPDX-License-Identifier: MIT
 
 # Usage: ./tell-me.sh CONFIG [new] [nobash] [message...]
