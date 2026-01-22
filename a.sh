@@ -1,6 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2026  <gosharplite@gmail.com>
-# SPDX-License-Identifier: MIT
+# a-new.sh: Version of a.sh with descriptive tool logging
 
 # Resolve Script Directory
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -101,6 +100,63 @@ source "$BASE_DIR/lib/file_edit.sh"
 source "$BASE_DIR/lib/linter.sh"
 source "$BASE_DIR/lib/task_manager.sh"
 
+# --- Improved Tool Logger ---
+# Maps tool names to descriptive messages, optionally including arguments like filepath.
+log_tool_call() {
+    local fc_json="$1"
+    local turn_info="$2"
+    local f_name=$(echo "$fc_json" | jq -r '.name')
+    local f_args=$(echo "$fc_json" | jq -c '.args')
+    local ts=$(get_log_timestamp)
+    
+    local msg=""
+    case "$f_name" in
+        # File Edit tools
+        "update_file"|"replace_text"|"insert_text"|"append_file"|"delete_file"|"rollback_file"|"move_file"|"apply_patch")
+            local target=$(echo "$f_args" | jq -r '.filepath // .source_path // empty')
+            if [ "$f_name" == "apply_patch" ]; then
+                # Extract filename from patch header (--- a/filename)
+                target=$(echo "$f_args" | jq -r '.patch_content' | grep -m 1 "^--- " | sed -E 's/^--- ([ab]\/)?//')
+                msg="Applying patch to ${target:-patch}"
+            else
+                msg="Updating ${target:-file} ($f_name)"
+            fi
+            ;;
+        # File Read tools
+        "read_file"|"get_file_skeleton"|"get_file_info")
+            local target=$(echo "$f_args" | jq -r '.filepath')
+            msg="Reading $target ($f_name)"
+            ;;
+        # Search/Listing tools
+        "list_files"|"get_tree"|"find_file"|"search_files"|"grep_definitions"|"find_usages")
+            local target=$(echo "$f_args" | jq -r '.path // .query // .name_pattern // "."')
+            msg="Searching $target ($f_name)"
+            ;;
+        # Git tools
+        "get_git_status"|"get_git_diff"|"get_git_log"|"get_git_commit"|"get_git_blame")
+            msg="Git operation: $f_name"
+            ;;
+        # Execution
+        "execute_command"|"run_tests")
+            local cmd=$(echo "$f_args" | jq -r '.command' | head -c 30)
+            msg="Executing: $cmd..."
+            ;;
+        # Communication/State
+        "ask_user")
+            msg="Waiting for user input..."
+            ;;
+        "manage_scratchpad"|"manage_tasks")
+            local action=$(echo "$f_args" | jq -r '.action')
+            msg="Updating session state ($f_name: $action)"
+            ;;
+        *)
+            msg="Calling $f_name"
+            ;;
+    esac
+
+    echo -e "${ts} ${turn_info} \033[0;32m${msg}\033[0m"
+}
+
 # --- Mapping Budget to Thinking Level (Gemini 3+) ---
 THINKING_LEVEL="HIGH"
 BUDGET_VAL=${THINKING_BUDGET:-4000}
@@ -140,7 +196,7 @@ log_usage() {
 # MAIN INTERACTION LOOP
 # ==============================================================================
 
-MAX_TURNS=${MAX_TURNS:-10}
+MAX_TURNS=${MAX_TURNS:-15}
 CURRENT_TURN=0
 FINAL_TEXT_RESPONSE=""
 
@@ -232,7 +288,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
 
     CANDIDATE=$(echo "$RESPONSE_JSON" | jq -c '.candidates[0].content')
 
-    # Extract Thinking Process (includeThoughts=true / thought=true)
+    # Extract Thinking Process
     THOUGHTS=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].content.parts[] | select(.thought == true) | .text' 2>/dev/null)
     if [ -n "$THOUGHTS" ] && [ "$THOUGHTS" != "null" ]; then
         echo -e "\033[0;90m[Thinking]\033[0m"
@@ -258,6 +314,10 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
             FC_DATA=$(echo "$CANDIDATE" | jq -c ".parts[$i].functionCall // empty")
             if [ -n "$FC_DATA" ]; then
                 F_NAME=$(echo "$FC_DATA" | jq -r '.name')
+                
+                # Descriptive Logging
+                log_tool_call "$FC_DATA" "[Tool Request ($((i+1))/$PART_COUNT)]"
+                
                 CMD_NAME="tool_${F_NAME}"
                 if declare -f "$CMD_NAME" > /dev/null; then
                     "$CMD_NAME" "$FC_DATA" "$RESP_PARTS_FILE"
@@ -323,4 +383,3 @@ if [ -f "$LOG_FILE" ]; then
     echo ""
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "$LOG_FILE"
 fi
-
