@@ -23,6 +23,13 @@ check_path_safety() {
 update_history_file() {
   local json_content="$1"
   local target_file="$2"
+
+  # Safety check: Ensure the message has at least one part
+  if ! echo "$json_content" | jq -e '.parts | length > 0' > /dev/null 2>&1; then
+      echo "Warning: Attempted to append message with empty parts. Skipping." >&2
+      return 0
+  fi
+
   local item_file=$(mktemp)
   printf "%s" "$json_content" > "$item_file"
   

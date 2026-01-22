@@ -153,7 +153,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
       --argjson tools "$TOOLS_JSON" \
       --slurpfile history "$file" \
       '{
-        contents: $history[0].messages,
+        contents: ([$history[0].messages[]? | select(.parts and (.parts | length > 0))]),
         tools: $tools,
         generationConfig: { 
             temperature: 1.0 
