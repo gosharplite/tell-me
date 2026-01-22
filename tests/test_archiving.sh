@@ -30,6 +30,7 @@ HIST_FILE="$TEST_DIR/output/last-${MODE}.json"
 LOG_FILE="${HIST_FILE}.log"
 SCRATCH_FILE="${HIST_FILE%.*}.scratchpad.md"
 TASK_FILE="${HIST_FILE%.*}.tasks.json"
+BACKUP_DIR="$TEST_DIR/output/backups"
 
 mkdir -p "$TEST_DIR/output"
 
@@ -54,14 +55,16 @@ create_session_files
     ACTION_NEW="true"
     # Execute the actual logic we added to tell-me.sh
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_DIR="$(dirname "$file")/backups"
+    mkdir -p "$BACKUP_DIR"
     for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
-        [ -f "$f" ] && mv "$f" "${f}.${TIMESTAMP}"
+        [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
     done
 )
 
-# Verify original files are gone and archives exist
+# Verify original files are gone and archives exist in the backups folder
 STAMP=$(date +%Y%m%d) # Check at least the date part to be safe
-ARCHIVE_COUNT=$(ls "$TEST_DIR/output" | grep -c "$STAMP")
+ARCHIVE_COUNT=$(ls "$BACKUP_DIR" 2>/dev/null | grep -c "$STAMP")
 
 if [ ! -f "$HIST_FILE" ] && [ "$ARCHIVE_COUNT" -eq 4 ]; then
     echo "PASS"
@@ -81,14 +84,16 @@ create_session_files
     # Simulate the "else" block logic when user declines resume
     if [[ $REPLY =~ ^[Nn]$ ]]; then
         TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        BACKUP_DIR="$(dirname "$file")/backups"
+        mkdir -p "$BACKUP_DIR"
         for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
-            [ -f "$f" ] && mv "$f" "${f}.${TIMESTAMP}"
+            [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
         done
     fi
 )
 
-ARCHIVE_COUNT=$(ls "$TEST_DIR/output" | grep -c "$STAMP")
-# Expecting 8 now (4 from previous test, 4 from this one if we didn't clear)
+ARCHIVE_COUNT=$(ls "$BACKUP_DIR" 2>/dev/null | grep -c "$STAMP")
+# Expecting 8 now (4 from previous test, 4 from this one)
 if [ ! -f "$HIST_FILE" ] && [ "$ARCHIVE_COUNT" -ge 4 ]; then
     echo "PASS"
 else
