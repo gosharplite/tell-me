@@ -10,7 +10,7 @@ tool_create_image() {
     local ASPECT_RATIO=$(echo "$FC_DATA" | jq -r '.args.aspect_ratio // "1:1"')
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Generating Image: \"${PROMPT:0:50}...\" ($ASPECT_RATIO)\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Generating Image: \"${PROMPT:0:50}...\" ($ASPECT_RATIO)\033[0m"
 
     local RESULT_MSG=""
     local IMG_DIR="assets/generated"

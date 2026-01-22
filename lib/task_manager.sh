@@ -15,7 +15,7 @@ tool_manage_tasks() {
     local STATUS=$(echo "$FC_DATA" | jq -r '.args.status // empty')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Manage Tasks: $ACTION\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Manage Tasks: $ACTION\033[0m"
 
     local RESULT_MSG=""
 

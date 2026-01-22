@@ -9,7 +9,7 @@ tool_get_git_diff() {
     FC_STAGED=$(echo "$FC_DATA" | jq -r '.args.staged // false')
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Git Diff (Staged: $FC_STAGED)\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Git Diff (Staged: $FC_STAGED)\033[0m"
 
     if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         [ "$FC_STAGED" == "true" ] && RESULT_MSG=$(git diff --cached 2>&1) || RESULT_MSG=$(git diff 2>&1)

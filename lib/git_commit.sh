@@ -5,7 +5,7 @@ tool_get_git_commit() {
     local FC_HASH=$(echo "$FC_DATA" | jq -r '.args.hash')
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Git Show: $FC_HASH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Git Show: $FC_HASH\033[0m"
 
     local RESULT_MSG
     local DUR=""

@@ -7,7 +7,7 @@ tool_execute_command() {
     local FC_REASON=$(echo "$FC_DATA" | jq -r '.args.reason // empty')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Execute Command: $FC_CMD\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Execute Command: $FC_CMD\033[0m"
 
     local CONFIRM="n"
     local SAFE_COMMANDS="grep|ls|pwd|cat|echo|head|tail|wc|stat|date|whoami|diff"

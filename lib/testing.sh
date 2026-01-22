@@ -5,7 +5,7 @@ tool_run_tests() {
     local FC_CMD=$(echo "$FC_DATA" | jq -r '.args.command')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Running Tests: $FC_CMD\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Running Tests: $FC_CMD\033[0m"
 
     local RESULT_MSG
     local DUR=""

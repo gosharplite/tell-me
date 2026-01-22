@@ -10,7 +10,7 @@ tool_manage_scratchpad() {
     local SCRATCHPAD_FILE="${file%.*}.scratchpad.md"
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Scratchpad Action: $FC_ACTION\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Scratchpad Action: $FC_ACTION\033[0m"
 
     local RESULT_MSG
     case "$FC_ACTION" in
