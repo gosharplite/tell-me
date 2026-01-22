@@ -7,7 +7,7 @@ tool_update_file() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Writing to file: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Writing to file: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -58,7 +58,7 @@ tool_replace_text() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Replacing text in: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Replacing text in: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -146,7 +146,7 @@ tool_insert_text() {
     # FC_TEXT and others are extracted inside Python via JSON file to preserve newlines
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Inserting text in: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Inserting text in: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -246,7 +246,7 @@ tool_apply_patch() {
     local RESP_PARTS_FILE="$2"
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Applying Patch\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Applying Patch\033[0m"
     
     local RESULT_MSG
     local DUR=""
@@ -316,7 +316,7 @@ tool_rollback_file() {
 
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Rolling back: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Rolling back: $FC_PATH\033[0m"
 
     local RESULT_MSG
     local DUR=""
@@ -345,7 +345,7 @@ tool_move_file() {
     local FC_DEST=$(echo "$FC_DATA" | jq -r '.args.dest_path')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Moving: $FC_SRC -> $FC_DEST\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Moving: $FC_SRC -> $FC_DEST\033[0m"
 
     local SAFE_SRC=$(check_path_safety "$FC_SRC")
     local SAFE_DEST=$(check_path_safety "$FC_DEST")
@@ -397,7 +397,7 @@ tool_delete_file() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Deleting: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Deleting: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG
@@ -449,7 +449,7 @@ tool_append_file() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Appending to file: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Appending to file: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG

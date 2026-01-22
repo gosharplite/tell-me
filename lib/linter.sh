@@ -7,7 +7,7 @@ tool_validate_syntax() {
     local FC_PATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Validating Syntax: $FC_PATH\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Validating Syntax: $FC_PATH\033[0m"
 
     local IS_SAFE=$(check_path_safety "$FC_PATH")
     local RESULT_MSG

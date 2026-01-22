@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2026  <gosharplite@gmail.com>
+Copyright (c) 2026 gosharplite@gmail.com
 SPDX-License-Identifier: MIT
 -->
 <p align="center">
@@ -18,7 +18,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **🌍 Transparent Grounding**: Automatically connects the model to Google Search for real-time information. The tool **visualizes the exact search queries** used by the model (e.g., `> "current google stock price"`), giving you full visibility into external data access.
 *   **Flexible Authentication**: Support for standard User Credentials (`gcloud auth login`) or **Service Account Keys** (JSON) for automated/headless environments.
 *   **Run From Anywhere**: Set up a global alias to call the assistant from any directory on your system.
-*   **Context-Aware**: Maintains conversation history automatically in a centralized JSON file.
+*   **Context-Aware**: Maintains conversation history, scratchpad notes, and task lists automatically in a centralized JSON file.
 *   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last 3 conversation turns.
 *   **System Prompts**: Customizable persona and instructions via YAML configuration.
 *   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors).
@@ -156,12 +156,19 @@ AIURL: "https://generativelanguage.googleapis.com/v1beta/models"
 USE_SEARCH: false
 # WARNING: When enabled (true), API caching is disabled, increasing latency and cost.
 
+# Thinking Configuration (Gemini 3+)
+# maps to levels: <2000: MINIMAL, <4001: LOW, <8001: MEDIUM, else HIGH.
+THINKING_BUDGET: 4000
+
+# Maximum turn count for multi-turn interactions (tool calls)
+MAX_TURNS: 10
+
 # Optional: Path to Service Account JSON. Leave empty for User Auth.
 KEY_FILE: "" 
 ```
 
 ### 2. Google Vertex AI (Enterprise)
-Use `yaml/vertex.yaml` to connect to Vertex AI on Google Cloud. 
+Use `yaml/vertex.yaml` to connect to Vertex AI on Google Cloud.
 **Note:** You must edit this file to include your specific Google Cloud **Project ID** and **Region**.
 
 The `AIURL` structure depends on the model type:
@@ -232,7 +239,7 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 *   **`a "Your message"`**: Sends a single-line message.
     *   **Note**: To prevent terminal flooding, responses longer than 20 lines are automatically snipped (showing only the top 10 and bottom 5 lines). Run `recap` (or `recap -l`) to view the full output.
 *   **`aa`**: Starts **Multi-line Input Mode**. Type or paste text, then press `Ctrl+D` to send.
-*   **`stats`**: Displays the aggregated token usage (Hit/Miss/Completion/Total) and **Search Count** for the current session.
+*   **`stats`**: Displays the aggregated token usage (Hit/Miss/Completion/Total/Thinking) and **Search Count** for the current session.
 *   **`recap`**: Re-renders the full chat history.
     *   `recap -s [N]`: Show a one-line **summary** of the last `N` messages (default: 10).
     *   `recap -l [N]`: Show the last `N` messages (default: 1, the model's last response).
@@ -246,22 +253,19 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 *   **`h`**: Opens an `fzf`-powered menu with shortcuts like:
     *   `analyze-project`: Bundles the current project with `dump` and asks for a general analysis.
     *   `code-review`: Asks the AI to perform a code review.
-    *   `ext-dependency`: Asks the AI to list external dependencies and their auth methods.
-    *   `code-only`: Prompts the AI to provide only code in its next response.
-    *   `list-models`: Fetches and displays available Gemini models from the API.
-    *   `cheat-sheet`: Shows examples of different ways to pipe input.
     *   ... and more.
 
 ### 3. Understanding Metrics
 The tool logs usage in a compact format to help you track costs and latency:
-`[HH:MM:SS] H: 0 M: 45201 C: 217 T: 46102 N: 45418(98%) S: 1 [13.5s]`
+`[HH:MM:SS] H: 0 M: 45201 C: 217 T: 46102 N: 45418(98%) S: 1 Th: 1540 [13.5s]`
 
 *   **H**: **Hit** (Cached tokens - cheaper). If Grounding (`USE_SEARCH: true`) is enabled, this will likely be 0.
 *   **M**: **Miss** (Prompt/Context tokens - standard cost).
 *   **C**: **Completion** (Output tokens - standard cost).
 *   **T**: **Total** tokens.
 *   **N**: **New** (Billable) tokens this turn.
-*   **S**: **Search Count** (Number of specific Google Search queries performed).
+*   **S**: **Search Count** (Google Search queries performed).
+*   **Th**: **Thinking Tokens** (Internal reasoning tokens used by Gemini 3+ models).
     *   `S: 0`: No external search used (internal knowledge).
     *   `S: >0`: Grounding used. The tool will list the specific queries below the response.
 
@@ -302,8 +306,9 @@ Type `exit` or press `Ctrl+D` to leave the chat session.
 
 *   **Session Resumption**: When you restart `ait` and an old session file is found, you will be shown the recent usage logs and a summary of the last 3 conversation turns (e.g., "Last 3 Conversation Turns (3/99)") before you choose to continue.
 *   **Token Caching**: Access tokens are cached in a temporary directory (`$TMPDIR` or `/tmp`) to speed up sequential requests. The tool maintains separate caches for Vertex and Gemini scopes.
-*   **Backups**: Every response triggers a versioned backup of the history file.
-*   **Metrics**: Token usage is logged in `<filename>.log` alongside the JSON history.
+*   **Automatic Archiving**: When starting a new session, existing history, logs, scratchpads, and task files are automatically moved to an `output/backups/` directory with a timestamp.
+*   **Task Management**: Tasks and scratchpads are session-persistent and managed via the tool's agentic capabilities.
+*   **Metrics**: Detailed token usage and thinking counts are logged in `<filename>.log`.
 
 ## 📜 License
 [MIT](LICENSE)

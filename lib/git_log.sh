@@ -7,9 +7,9 @@ tool_get_git_log() {
     
     local TS=$(get_log_timestamp)
     if [ -n "$FC_PATH" ]; then
-        echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Git Log (Limit: $FC_LIMIT, File: $FC_PATH)\033[0m"
+        echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Git Log (Limit: $FC_LIMIT, File: $FC_PATH)\033[0m"
     else
-        echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Git Log (Limit: $FC_LIMIT)\033[0m"
+        echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Git Log (Limit: $FC_LIMIT)\033[0m"
     fi
 
     local RESULT_MSG

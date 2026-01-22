@@ -5,7 +5,7 @@ tool_read_url() {
     local FC_URL=$(echo "$FC_DATA" | jq -r '.args.url')
     
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Request ($CURRENT_TURN/$MAX_TURNS)] Reading URL: $FC_URL\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Reading URL: $FC_URL\033[0m"
 
     local RESULT_MSG
     local DUR=""

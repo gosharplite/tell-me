@@ -144,8 +144,14 @@ mkdir -p "$(dirname "$file")"
 # 3. Initialize/Handle Context
 if [[ "$ACTION_NEW" == "true" ]]; then
     # User explicitly requested a new session, so delete the old files.
-    [ -f "$file" ] && rm "$file"
-    [ -f "${file}.log" ] && rm "${file}.log"
+    # Archive existing session files with a timestamp in the backups folder
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_DIR="$(dirname "$file")/backups"
+    mkdir -p "$BACKUP_DIR"
+    echo "Archiving existing session files with timestamp: $TIMESTAMP to $BACKUP_DIR"
+    for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
+        [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
+    done
 elif [[ -f "$file" ]]; then
     # History file exists and 'new' was not specified. Ask the user.
     echo "An existing session history was found for '$MODE'."
@@ -178,8 +184,14 @@ elif [[ -f "$file" ]]; then
     else
         # User chose to start a new session.
         echo "Starting a new session."
-        rm "$file"
-        [ -f "${file}.log" ] && rm "${file}.log"
+        # Archive existing session files with a timestamp in the backups folder
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        BACKUP_DIR="$(dirname "$file")/backups"
+        mkdir -p "$BACKUP_DIR"
+        echo "Archiving previous session files with timestamp: $TIMESTAMP to $BACKUP_DIR"
+        for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
+            [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
+        done
     fi
 fi
 
@@ -223,3 +235,4 @@ echo -e "Type \033[1;32ma \"your message\"\033[0m to chat."
 EOF
     )
 fi
+
