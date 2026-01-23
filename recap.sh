@@ -153,7 +153,7 @@ produce_output() {
     if [ "$CODE_MODE" = "true" ]; then
       jq -r "
         $JQ_PREFIX |
-        ((.parts // []) | map(.text // \"\") | join(\"\"))
+        ((.parts // [] | map(select(.thought != true))) | map(.text // \"\") | join(\"\"))
       " "$FILERECAP" | sed -e '1{/^```/d;}' -e '${/^```/d;}'
       return
     fi
@@ -176,7 +176,7 @@ produce_output() {
         (if .role == \"user\" then \"## 👤 USER\" 
          elif .role == \"function\" then \"## ⚙️ TOOL RESPONSE\"
          else \"## 🤖 MODEL\" end) + \"\\n\" +
-        ((.parts // []) | map(
+        ((.parts // [] | map(select(.thought != true))) | map(
             .text // 
             (.functionCall | \"> Calling: **\" + .name + \"**\\n> Args: \`\" + (.args | tojson) + \"\`\") // 
             (.functionResponse | \"> Tool: **\" + .name + \"**\\n> Result: \" + (.response.result | tostring)) // 
@@ -199,7 +199,7 @@ produce_output() {
          elif .role == \"function\" then \$t + \"[TOOL]\"
          else \$m + \"[MODEL]\" end) +
         \$r + \": \" +
-        ((.parts // []) | map(
+        ((.parts // [] | map(select(.thought != true))) | map(
             .text // 
             (.functionCall | \"[Call: \" + .name + \"] \" + (.args | tojson)) // 
             (.functionResponse | \"[Result: \" + .name + \"] \" + (.response.result | tostring)) //
