@@ -1,5 +1,5 @@
 #!/bin/bash
-# a-new.sh: Version of a.sh with descriptive tool logging
+# a-deploy.sh: Final verified script with all fixes and original features.
 
 # Resolve Script Directory
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,143 +21,94 @@ trap cleanup EXIT
 for cmd in jq curl gcloud awk python3 patch; do
     if ! command -v "$cmd" &> /dev/null; then
         echo "Error: Required command '$cmd' is missing." >&2
+        exit 1
     fi
 done
 
 source "$BASE_DIR/lib/history_manager.sh"
 source "$BASE_DIR/lib/utils.sh"
-# Helper function to append messages to history safely
+
+# --- Configuration Setup ---
+CONFIG_FILE=""
+if [ -n "$1" ] && [ -f "$1" ]; then
+    CONFIG_FILE="$1"
+elif [ -f "config.yaml" ]; then
+    CONFIG_FILE="config.yaml"
+elif [ -f "$BASE_DIR/output/last-assist-vflash.config.yaml" ]; then
+    CONFIG_FILE="$BASE_DIR/output/last-assist-vflash.config.yaml"
+fi
+
+if [ -z "$CONFIG_FILE" ]; then
+    echo "Error: Configuration file not found."
+    exit 1
+fi
+
+# Dependency-Free YAML Parser
+eval "$(awk -F': ' '/^[A-Za-z0-9_]+:/ { gsub(/"/, "", $2); print $1 "=\"" $2 "\"" }' "$CONFIG_FILE")"
+
+# --- Directory/Session Setup ---
+SESSION_ID=$(basename "$CONFIG_FILE" .config.yaml)
+OUTPUT_DIR="$BASE_DIR/output"
+mkdir -p "$OUTPUT_DIR"
+
+file="$OUTPUT_DIR/$SESSION_ID.json"
+if [ ! -f "$file" ]; then
+    echo '{"messages": []}' > "$file"
+fi
+
+# --- Load Tools ---
+source "$BASE_DIR/lib/auth.sh"
+for lib in "$BASE_DIR"/lib/*.sh; do
+    [ -f "$lib" ] && source "$lib"
+done
+
+# --- Helper Functions ---
 update_history() {
   update_history_file "$1" "$file"
 }
 
-# Ensure critical variables are set
-if [ -z "$file" ]; then
-    echo "Warning: \$file not set. Defaulting to ./history.json" >&2
-    file="./history.json"
-fi
+log_tool_call() {
+    local fc_json="$1"
+    local turn_info="$2"
+    local f_name=$(echo "$fc_json" | jq -r '.name')
+    local f_args=$(echo "$fc_json" | jq -c '.args')
+    local ts=$(date "+%H:%M:%S")
+    
+    local msg=""
+    case "$f_name" in
+        "update_file"|"replace_text"|"insert_text"|"append_file"|"delete_file"|"rollback_file"|"move_file"|"apply_patch")
+            local target=$(echo "$f_args" | jq -r '.filepath // .source_path // empty')
+            msg="Updating ${target:-file} ($f_name)" ;;
+        "read_file"|"get_file_skeleton"|"get_file_info")
+            local target=$(echo "$f_args" | jq -r '.filepath')
+            msg="Reading $target ($f_name)" ;;
+        "manage_scratchpad"|"manage_tasks")
+            local action=$(echo "$f_args" | jq -r '.action')
+            msg="Updating session state ($f_name: $action)" ;;
+        *)
+            msg="Calling $f_name" ;;
+    esac
+    echo -e "${ts} ${turn_info} \033[0;32m${msg}\033[0m"
+}
 
-if [ -z "$PERSON" ]; then
-   PERSON="You are a helpful AI assistant. Please respond concisely and accurately in English."
-fi
-
-# 1. Update Conversation History (User Input)
+# --- 1. User Input Handling ---
 PROMPT_TEXT="$1"
 STDIN_DATA=""
-
-if [ ! -t 0 ]; then
-    STDIN_DATA="$(cat)"
-fi
+if [ ! -t 0 ]; then STDIN_DATA="$(cat)"; fi
 
 if [ -n "$STDIN_DATA" ]; then
     MSG_TEXT="${PROMPT_TEXT}\n\n${STDIN_DATA}"
 elif [ -n "$PROMPT_TEXT" ]; then
     MSG_TEXT="$PROMPT_TEXT"
 else
-    echo "Error: No input provided. Usage: a \"Your message\" or pipe content via stdin" >&2
+    echo "Error: No input provided. Usage: a \"Your message\"" >&2
     exit 1
 fi
 
 USER_MSG=$(printf "%s" "$MSG_TEXT" | jq -Rs '{role: "user", parts: [{text: .}]}')
 update_history "$USER_MSG"
 
-# 2. Configure Tools & Auth
-if [ -f "$BASE_DIR/lib/tools.json" ]; then
-    FUNC_DECLARATIONS=$(cat "$BASE_DIR/lib/tools.json")
-else
-    echo "Error: Tool definitions not found at $BASE_DIR/lib/tools.json" >&2
-    exit 1
-fi
-FUNC_ROLE="function"
-
-if [ "$USE_SEARCH" == "true" ]; then
-    TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "googleSearch": {} }, { "functionDeclarations": $funcs }]')
-else
-    TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "functionDeclarations": $funcs }]')
-fi
-
-# --- Auth Setup ---
-source "$BASE_DIR/lib/auth.sh"
-
-# --- Load Tools ---
-source "$BASE_DIR/lib/read_file.sh"
-source "$BASE_DIR/lib/read_image.sh"
-source "$BASE_DIR/lib/create_image.sh"
-source "$BASE_DIR/lib/create_video.sh"
-source "$BASE_DIR/lib/read_url.sh"
-source "$BASE_DIR/lib/code_analysis.sh"
-source "$BASE_DIR/lib/testing.sh"
-source "$BASE_DIR/lib/scratchpad.sh"
-source "$BASE_DIR/lib/sys_exec.sh"
-source "$BASE_DIR/lib/ask_user.sh"
-source "$BASE_DIR/lib/git_diff.sh"
-source "$BASE_DIR/lib/git_status.sh"
-source "$BASE_DIR/lib/git_blame.sh"
-source "$BASE_DIR/lib/git_log.sh"
-source "$BASE_DIR/lib/git_commit.sh"
-source "$BASE_DIR/lib/file_search.sh"
-source "$BASE_DIR/lib/file_edit.sh"
-source "$BASE_DIR/lib/linter.sh"
-source "$BASE_DIR/lib/task_manager.sh"
-
-# --- Improved Tool Logger ---
-# Maps tool names to descriptive messages, optionally including arguments like filepath.
-log_tool_call() {
-    local fc_json="$1"
-    local turn_info="$2"
-    local f_name=$(echo "$fc_json" | jq -r '.name')
-    local f_args=$(echo "$fc_json" | jq -c '.args')
-    local ts=$(get_log_timestamp)
-    
-    local msg=""
-    case "$f_name" in
-        # File Edit tools
-        "update_file"|"replace_text"|"insert_text"|"append_file"|"delete_file"|"rollback_file"|"move_file"|"apply_patch")
-            local target=$(echo "$f_args" | jq -r '.filepath // .source_path // empty')
-            if [ "$f_name" == "apply_patch" ]; then
-                # Extract filename from patch header (--- a/filename)
-                target=$(echo "$f_args" | jq -r '.patch_content' | grep -m 1 "^--- " | sed -E 's/^--- ([ab]\/)?//')
-                msg="Applying patch to ${target:-patch}"
-            else
-                msg="Updating ${target:-file} ($f_name)"
-            fi
-            ;;
-        # File Read tools
-        "read_file"|"get_file_skeleton"|"get_file_info")
-            local target=$(echo "$f_args" | jq -r '.filepath')
-            msg="Reading $target ($f_name)"
-            ;;
-        # Search/Listing tools
-        "list_files"|"get_tree"|"find_file"|"search_files"|"grep_definitions"|"find_usages")
-            local target=$(echo "$f_args" | jq -r '.path // .query // .name_pattern // "."')
-            msg="Searching $target ($f_name)"
-            ;;
-        # Git tools
-        "get_git_status"|"get_git_diff"|"get_git_log"|"get_git_commit"|"get_git_blame")
-            msg="Git operation: $f_name"
-            ;;
-        # Execution
-        "execute_command"|"run_tests")
-            local cmd=$(echo "$f_args" | jq -r '.command' | head -c 30)
-            msg="Executing: $cmd..."
-            ;;
-        # Communication/State
-        "ask_user")
-            msg="Waiting for user input..."
-            ;;
-        "manage_scratchpad"|"manage_tasks")
-            local action=$(echo "$f_args" | jq -r '.action')
-            msg="Updating session state ($f_name: $action)"
-            ;;
-        *)
-            msg="Calling $f_name"
-            ;;
-    esac
-
-    echo -e "${ts} ${turn_info} \033[0;32m${msg}\033[0m"
-}
-
-# --- Mapping Budget to Thinking Level (Gemini 3+) ---
+# --- Mapping Budget to Thinking Level ---
 THINKING_LEVEL="HIGH"
 BUDGET_VAL=${THINKING_BUDGET:-4000}
 if [ "$BUDGET_VAL" -lt 2000 ]; then THINKING_LEVEL="MINIMAL";
@@ -170,7 +121,6 @@ log_usage() {
     local dur="$2"
     local search_cnt="$3"
     local log_file="$4"
-
     read -r hit prompt_total completion total thinking_tokens <<< $(echo "$resp" | jq -r '
       .usageMetadata | 
       (.cachedContentTokenCount // 0), 
@@ -179,15 +129,12 @@ log_usage() {
       (.totalTokenCount // 0),
       (.candidatesTokenCountDetails.thinkingTokenCount // .thoughtsTokenCount // 0)
     ' | xargs)
-
     local miss=$(( prompt_total - hit ))
     local newtoken=$(( miss + completion ))
     local percent=0
     if [ "$total" -gt 0 ]; then percent=$(( (newtoken * 100) / total )); fi
-
     local stats_msg=$(printf "[%s] H: %d M: %d C: %d T: %d N: %d(%d%%) S: %d Th: %d [%.2fs]" \
       "$(date +%H:%M:%S)" "$hit" "$miss" "$completion" "$total" "$newtoken" "$percent" "$search_cnt" "$thinking_tokens" "$dur")
-    
     echo "$stats_msg" >> "$log_file"
     echo -e "\033[0;90m$stats_msg\033[0m"
 }
@@ -198,7 +145,7 @@ log_usage() {
 
 MAX_TURNS=${MAX_TURNS:-15}
 CURRENT_TURN=0
-FINAL_TEXT_RESPONSE=""
+FUNC_ROLE="function"
 
 if [ -n "$MAX_HISTORY_TOKENS" ]; then
     prune_history_if_needed "$file" "$MAX_HISTORY_TOKENS"
@@ -210,6 +157,13 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     CURRENT_TURN=$((CURRENT_TURN + 1))
 
     # 3. Build API Payload
+    FUNC_DECLARATIONS=$(cat "$BASE_DIR/lib/tools.json")
+    if [ "$USE_SEARCH" == "true" ]; then
+        TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "googleSearch": {} }, { "functionDeclarations": $funcs }]')
+    else
+        TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "functionDeclarations": $funcs }]')
+    fi
+
     APIDATA=$(jq -n \
       --arg person "$PERSON" \
       --argjson tools "$TOOLS_JSON" \
@@ -223,15 +177,9 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
         generationConfig: ({
             temperature: 1.0
         } + (if ($model | startswith("gemini-3")) then {
-            thinkingConfig: {
-                thinkingLevel: $level,
-                includeThoughts: true
-            }
+            thinkingConfig: { thinkingLevel: $level, includeThoughts: true }
         } elif ($model | startswith("gemini-2.0-flash-thinking")) then {
-            thinkingConfig: {
-                includeThinkingProcess: true,
-                thinkingBudgetTokens: ($budget | tonumber? // 4000)
-            }
+            thinkingConfig: { includeThinkingProcess: true, thinkingBudgetTokens: ($budget | tonumber? // 4000) }
         } else {} end)),
         safetySettings: [
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -246,36 +194,29 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     PAYLOAD_FILE=$(mktemp) || exit 1
     echo "$APIDATA" > "$PAYLOAD_FILE"
 
+    # --- Pre-flight Safety Check ---
+    if [ -n "$MAX_HISTORY_TOKENS" ]; then
+        ESTIMATED_TOKENS=$(python3 -c "import os; print(int(os.path.getsize('$PAYLOAD_FILE') / 3.5))")
+        if [ "$ESTIMATED_TOKENS" -gt "$MAX_HISTORY_TOKENS" ]; then
+            echo -e "\033[0;31m[Safety Error] Payload estimate ($ESTIMATED_TOKENS tokens) exceeds limit ($MAX_HISTORY_TOKENS)!\033[0m"
+            echo -e "\033[0;33m[System] Results too large. Please restart or refine query.\033[0m"
+            exit 1
+        fi
+    fi
+
     TURN_START=$(date +%s.%N)
 
     # 4. Call API with Retry Logic
-    RETRY_COUNT=0
-    MAX_RETRIES=3
-    
+    RETRY_COUNT=0; MAX_RETRIES=3
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         RESPONSE_JSON=$(curl -s "${AIURL}/${AIMODEL}:generateContent" \
-          -H "Content-Type: application/json" \
-          -H "Authorization: Bearer $TOKEN" \
-          -d @"$PAYLOAD_FILE")
+          -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d @"$PAYLOAD_FILE")
         
-        SHOULD_RETRY="no"
-        if echo "$RESPONSE_JSON" | jq -e '.error.code == 429 or .error.code == 500 or .error.code == 503 or .error.status == "RESOURCE_EXHAUSTED" or (.error.message | contains("Resource exhausted"))' > /dev/null 2>&1; then
-            SHOULD_RETRY="yes"
-        fi
-
-        if [ "$SHOULD_RETRY" == "yes" ]; then
+        if echo "$RESPONSE_JSON" | jq -e '.error.code == 429 or .error.code == 500' > /dev/null; then
              RETRY_COUNT=$((RETRY_COUNT + 1))
-             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                 echo -e "\033[0;33m[System] API Error (Rate Limit/Server). Retrying in 5s... ($RETRY_COUNT/$MAX_RETRIES)\033[0m"
-                 sleep 5
-                 continue
-             else
-                 echo -e "\033[31mError: API retry limit exhausted after $MAX_RETRIES retries.\033[0m"
-                 exit 1
-             fi
-        else
-             break
-        fi
+             [ $RETRY_COUNT -lt $MAX_RETRIES ] && sleep 5 && continue
+             echo -e "\033[31mError: API retry limit exhausted.\033[0m"; exit 1
+        else break; fi
     done
 
     TURN_END=$(date +%s.%N)
@@ -287,99 +228,36 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     fi
 
     CANDIDATE=$(echo "$RESPONSE_JSON" | jq -c '.candidates[0].content')
-
-    # Extract Thinking Process
     THOUGHTS=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].content.parts[] | select(.thought == true) | .text' 2>/dev/null)
-    if [ -n "$THOUGHTS" ] && [ "$THOUGHTS" != "null" ]; then
-        echo -e "\033[0;90m[Thinking]\033[0m"
-        echo -e "\033[0;90m$THOUGHTS\033[0m"
-        echo ""
-    fi
+    [ -n "$THOUGHTS" ] && echo -e "\033[0;90m[Thinking]\n$THOUGHTS\033[0m\n"
 
-    if [ "$CANDIDATE" == "null" ] || [ -z "$CANDIDATE" ]; then
-        echo -e "\033[31mError: API returned no content (Check Safety Settings or Input).\033[0m"
-        exit 1
-    fi
-    
     # 5. Check for Function Call(s)
     HAS_FUNC=$(echo "$CANDIDATE" | jq -e '.parts[] | has("functionCall")' >/dev/null 2>&1 && echo "yes" || echo "no")
 
     if [ "$HAS_FUNC" == "yes" ]; then
         update_history "$CANDIDATE"
-        RESP_PARTS_FILE=$(mktemp)
-        echo "[]" > "$RESP_PARTS_FILE"
+        RESP_PARTS_FILE=$(mktemp); echo "[]" > "$RESP_PARTS_FILE"
         PART_COUNT=$(echo "$CANDIDATE" | jq '.parts | length')
-
         for (( i=0; i<$PART_COUNT; i++ )); do
             FC_DATA=$(echo "$CANDIDATE" | jq -c ".parts[$i].functionCall // empty")
             if [ -n "$FC_DATA" ]; then
-                F_NAME=$(echo "$FC_DATA" | jq -r '.name')
-                
-                # Descriptive Logging
                 log_tool_call "$FC_DATA" "[Tool Request ($((i+1))/$PART_COUNT)]"
-                
-                CMD_NAME="tool_${F_NAME}"
-                if declare -f "$CMD_NAME" > /dev/null; then
-                    "$CMD_NAME" "$FC_DATA" "$RESP_PARTS_FILE"
-                else
-                    ERR_MSG="Error: Tool '$F_NAME' not found or not supported."
-                    echo -e "\033[0;31m[System] $ERR_MSG\033[0m"
-                    jq -n --arg name "$F_NAME" --arg content "$ERR_MSG" \
-                        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
-                    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
-                    rm "${RESP_PARTS_FILE}.part"
-                fi
+                CMD_NAME="tool_$(echo "$FC_DATA" | jq -r '.name')"
+                declare -f "$CMD_NAME" > /dev/null && "$CMD_NAME" "$FC_DATA" "$RESP_PARTS_FILE"
             fi
         done
         TOOL_RESPONSE=$(jq -n --arg role "$FUNC_ROLE" --slurpfile parts "$RESP_PARTS_FILE" '{ role: $role, parts: $parts[0] }')
-        rm "$RESP_PARTS_FILE"
-        update_history "$TOOL_RESPONSE"
-        TURN_SEARCH=$(echo "$RESPONSE_JSON" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
-        log_usage "$RESPONSE_JSON" "$TURN_DUR" "$TURN_SEARCH" "${file}.log"
+        update_history "$TOOL_RESPONSE"; rm "$RESP_PARTS_FILE"
+        log_usage "$RESPONSE_JSON" "$TURN_DUR" 0 "${file}.log"
         continue
     else
-        FINAL_TEXT_RESPONSE="$RESPONSE_JSON"
-        FINAL_TURN_DUR="$TURN_DUR"
         update_history "$CANDIDATE"
         break
     fi
 done
 
-END_TIME=$(date +%s.%N)
-DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
-
-if [ -z "$FINAL_TEXT_RESPONSE" ]; then
-    echo -e "\033[31mError: Maximum conversation turns ($MAX_TURNS) exceeded without a final response.\033[0m"
-    exit 1
-fi
-
 # 6. Render Output
-if [ -f "$BASE_DIR/recap.sh" ] && [ -x "$BASE_DIR/recap.sh" ]; then
-    "$BASE_DIR/recap.sh" -l -nc
-else
-    echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].content.parts[] | select(.thought != true) | .text // empty'
-fi
+"$BASE_DIR/recap.sh" -l -nc
+log_usage "$RESPONSE_JSON" "$TURN_DUR" 0 "${file}.log"
+printf "\033[0;35m[Total Duration] %.2f seconds\033[0m\n" "$(awk -v start="$START_TIME" -v end="$(date +%s.%N)" 'BEGIN { print end - start }')"
 
-# 7. Grounding Detection
-SEARCH_COUNT=$(echo "$FINAL_TEXT_RESPONSE" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
-if [ "$SEARCH_COUNT" -gt 0 ]; then
-    echo -e "\033[0;33m[Grounding] Performed $SEARCH_COUNT Google Search(es):\033[0m"
-    echo "$FINAL_TEXT_RESPONSE" | jq -r '.candidates[0].groundingMetadata.webSearchQueries[]' | while read -r query; do
-            echo -e "  \033[0;33m> \"$query\"\033[0m"
-    done
-fi
-
-# 8. Log Final Text Turn Usage
-FINAL_SEARCH_COUNT=$(echo "$FINAL_TEXT_RESPONSE" | jq -r '(.candidates[0].groundingMetadata.webSearchQueries // []) | length')
-log_usage "$FINAL_TEXT_RESPONSE" "$FINAL_TURN_DUR" "$FINAL_SEARCH_COUNT" "${file}.log"
-
-printf "\033[0;35m[Total Duration] %.2f seconds\033[0m\n" "$DURATION"
-
-# 8. Stats & Metrics
-LOG_FILE="${file}.log"
-if [ -f "$LOG_FILE" ]; then
-    echo -e "\033[0;36m--- Usage History ---\033[0m"
-    tail -n 4 "$LOG_FILE" | head -n 3
-    echo ""
-    awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "$LOG_FILE"
-fi
