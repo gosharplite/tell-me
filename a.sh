@@ -220,11 +220,9 @@ while true; do
 
     PAYLOAD_FILE=$(mktemp) || exit 1
     echo "$APIDATA" > "$PAYLOAD_FILE"
-    PAYLOAD_END=$(date +%s.%N)
-    PAYLOAD_DUR=$(awk -v start="$PAYLOAD_START" -v end="$PAYLOAD_END" 'BEGIN { print end - start }')
-    echo -e "$(get_log_timestamp) \033[0;90m[System] Payload generated in ${PAYLOAD_DUR}s\033[0m"
 
-    # --- Pre-flight Safety Check ---
+    # --- Pre-flight Safety Check & Logging ---
+    ESTIMATED_TOKENS=0
     if [ -n "$MAX_HISTORY_TOKENS" ]; then
         ESTIMATED_TOKENS=$(python3 -c "import os; print(int(os.path.getsize('$PAYLOAD_FILE') / 3.5))")
         if [ "$ESTIMATED_TOKENS" -gt "$MAX_HISTORY_TOKENS" ]; then
@@ -234,9 +232,12 @@ while true; do
             echo -e "\033[0;33m[System] History restored. You may need to refine your query or reduce the output size.\033[0m"
             exit 1
         fi
-        # Current state is safe for the next iteration's potential rollback
         backup_file "$file"
     fi
+
+    PAYLOAD_END=$(date +%s.%N)
+    PAYLOAD_DUR=$(awk -v start="$PAYLOAD_START" -v end="$PAYLOAD_END" 'BEGIN { print end - start }')
+    echo -e "$(get_log_timestamp) \033[0;90m[System] Payload: ~$ESTIMATED_TOKENS tokens | Generated in ${PAYLOAD_DUR}s\033[0m"
 
     TURN_START=$(date +%s.%N)
     echo -e "$(get_log_timestamp) \033[0;90m[API] Calling Gemini... (${AIMODEL})\033[0m"
