@@ -161,7 +161,7 @@ produce_output() {
     # Helper: Apply No-Code Filter if requested
     apply_filters() {
         if [ "$NO_CODE" = "true" ]; then
-            sed '/^```/,/^```/d'
+            sed '/^```/,/^```/c\> *[Code Block Hidden]*'
         else
             cat
         fi
