@@ -257,8 +257,22 @@ while true; do
         exit 1
     fi
 
-    CANDIDATE=$(echo "$RESPONSE_JSON" | jq -c '.candidates[0].content')
-    THOUGHTS=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].content.parts[] | select(.thought == true) | .text' 2>/dev/null)
+    CANDIDATE=$(echo "$RESPONSE_JSON" | jq -c '.candidates[0].content // empty')
+    
+    if [ -z "$CANDIDATE" ] || [ "$CANDIDATE" == "null" ]; then
+        FINISH_REASON=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].finishReason // "UNKNOWN"')
+        echo -e "\033[33m[Warning] Model returned no content. Finish Reason: $FINISH_REASON\033[0m"
+        # If blocked by safety, explain why
+        if [ "$FINISH_REASON" == "SAFETY" ]; then
+             echo -e "\033[33m[System] Response was blocked by safety filters.\033[0m"
+        fi
+        # Log usage anyway
+        SEARCH_COUNT=0
+        log_usage "$RESPONSE_JSON" "$TURN_DUR" "0" "${file}.log"
+        break
+    fi
+
+    THOUGHTS=$(echo "$CANDIDATE" | jq -r '.parts[] | select(.thought == true) | .text' 2>/dev/null)
     [ -n "$THOUGHTS" ] && echo -e "\033[0;90m[Thinking]\n$THOUGHTS\033[0m\n"
 
     # 4.5 Log Usage immediately for this turn

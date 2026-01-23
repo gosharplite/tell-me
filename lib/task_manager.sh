@@ -52,17 +52,21 @@ tool_manage_tasks() {
             else
                 # Check if ID exists
                 if jq -e ".[] | select(.id == ($TASK_ID|tonumber))" "$TASKS_FILE" >/dev/null; then
-                    # Build update logic
-                    local JQ_CMD="map(if .id == ($TASK_ID|tonumber) then ."
+                    # Build update logic using arg-safe jq
+                    local JQ_CMD="map(if .id == (\$id|tonumber) then ."
+                    local ARGS=("--arg" "id" "$TASK_ID")
+                    
                     if [ -n "$CONTENT" ]; then
-                        JQ_CMD="${JQ_CMD} + {content: \"$CONTENT\"}"
+                        JQ_CMD="${JQ_CMD} + {content: \$content}"
+                        ARGS+=("--arg" "content" "$CONTENT")
                     fi
                     if [ -n "$STATUS" ]; then
-                        JQ_CMD="${JQ_CMD} + {status: \"$STATUS\"}"
+                        JQ_CMD="${JQ_CMD} + {status: \$status}"
+                        ARGS+=("--arg" "status" "$STATUS")
                     fi
                     JQ_CMD="${JQ_CMD} else . end)"
 
-                    jq "$JQ_CMD" "$TASKS_FILE" > "${TASKS_FILE}.tmp" && mv "${TASKS_FILE}.tmp" "$TASKS_FILE"
+                    jq "${ARGS[@]}" "$JQ_CMD" "$TASKS_FILE" > "${TASKS_FILE}.tmp" && mv "${TASKS_FILE}.tmp" "$TASKS_FILE"
                     RESULT_MSG="Task $TASK_ID updated."
                 else
                     RESULT_MSG="Error: Task ID $TASK_ID not found."
