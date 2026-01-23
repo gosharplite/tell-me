@@ -18,19 +18,23 @@ prune_history_if_needed() {
 
     if [[ -z "$last_total" ]]; then return; fi
 
+    # --- PRUNING TRIGGER ---
+    # We prune at 90% of the limit to provide a safety buffer for the next user message and tool definitions.
+    local prune_threshold=$(( (limit * 90) / 100 ))
+
     # --- ADVANCE WARNING ---
-    # If we are at 85% of the limit, warn the model in its system context (via a hidden user message)
-    if [[ "$last_total" -gt $(( (limit * 85) / 100 )) && "$last_total" -le "$limit" ]]; then
+    # If we are between 80% and 90% of the limit, warn the model.
+    if [[ "$last_total" -gt $(( (limit * 80) / 100 )) && "$last_total" -le "$prune_threshold" ]]; then
         # Check if we already warned it recently to avoid spam
         if ! jq -e '.messages[-1].parts[0].text | contains("Context is reaching the limit")' "$hist_file" >/dev/null 2>&1; then
              local warn_msg=$(jq -n --arg T "$last_total" '{role: "user", parts: [{text: "[SYSTEM NOTICE] Context is reaching the limit (\($T) tokens). Please ensure the scratchpad and tasks are up to date before history is pruned."}]}')
              update_history_file "$warn_msg" "$hist_file"
-             echo -e "\033[0;33m[System] Sent advance warning to AI (Context at 85% capacity).\033[0m"
+             echo -e "\033[0;33m[System] Sent advance warning to AI (Context at 80% capacity).\033[0m"
         fi
         return
     fi
 
-    if [[ "$last_total" -le "$limit" ]]; then
+    if [[ "$last_total" -le "$prune_threshold" ]]; then
         return
     fi
 
