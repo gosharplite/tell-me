@@ -155,7 +155,7 @@ log_usage() {
       (.candidatesTokenCountDetails.thinkingTokenCount // .thoughtsTokenCount // 0)
     ' | xargs)
     local miss=$(( prompt_total - hit ))
-    local newtoken=$(( miss + completion ))
+    local newtoken=$(( miss + completion + thinking_tokens ))
     local percent=0
     if [ "$total" -gt 0 ]; then percent=$(( (newtoken * 100) / total )); fi
     local stats_msg=$(printf "[%s] H: %d M: %d C: %d T: %d N: %d(%d%%) S: %d Th: %d [%.2fs]" \
