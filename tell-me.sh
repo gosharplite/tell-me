@@ -129,6 +129,30 @@ else
     export MAX_HISTORY_TOKENS="$HISTORY_LIMIT_VAL"
 fi
 
+# THINKING_BUDGET: Configures reasoning budget
+THINKING_VAL=$(yq -r '.THINKING_BUDGET' "$CONFIG")
+if [[ "$THINKING_VAL" == "null" ]]; then
+    export THINKING_BUDGET=4000
+else
+    export THINKING_BUDGET="$THINKING_VAL"
+fi
+
+# SHOW_THOUGHTS: Toggle display of internal reasoning
+THOUGHTS_VAL=$(yq -r '.SHOW_THOUGHTS' "$CONFIG")
+if [[ "$THOUGHTS_VAL" == "null" ]]; then
+    export SHOW_THOUGHTS="false"
+else
+    export SHOW_THOUGHTS="$THOUGHTS_VAL"
+fi
+
+# SHOW_TOOLS: Toggle display of tool calls in recap
+TOOLS_VAL=$(yq -r '.SHOW_TOOLS' "$CONFIG")
+if [[ "$TOOLS_VAL" == "null" ]]; then
+    export SHOW_TOOLS="false"
+else
+    export SHOW_TOOLS="$TOOLS_VAL"
+fi
+
 export CONFIG
 
 # --- AIT_HOME Check (Fallback) ---

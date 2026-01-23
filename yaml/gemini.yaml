@@ -32,3 +32,9 @@ MAX_HISTORY_TOKENS: 120000
 # Values map to levels: <2000: MINIMAL, <4001: LOW, <8001: MEDIUM, else HIGH.
 THINKING_BUDGET: 32000
 
+# SHOW_THOUGHTS: If true, displays the model's internal reasoning process in the terminal.
+SHOW_THOUGHTS: false
+
+# SHOW_TOOLS: If true, displays tool calls and responses in the terminal.
+SHOW_TOOLS: false
+

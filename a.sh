@@ -282,8 +282,11 @@ while true; do
         break
     fi
 
-    THOUGHTS=$(echo "$CANDIDATE" | jq -r '.parts[] | select(.thought == true) | .text' 2>/dev/null)
-    [ -n "$THOUGHTS" ] && echo -e "\033[0;90m$(get_log_timestamp) [Thinking]\n$(echo "$THOUGHTS" | awk 'NF')\033[0m"
+    # Display thoughts if enabled
+    if [ "$SHOW_THOUGHTS" == "true" ]; then
+        THOUGHTS=$(echo "$CANDIDATE" | jq -r '.parts[] | select(.thought == true and .text != null) | .text' 2>/dev/null)
+        [ -n "$THOUGHTS" ] && echo -e "\033[0;90m$(get_log_timestamp) [Thinking]\n$(echo "$THOUGHTS" | awk 'NF')\033[0m"
+    fi
 
     # 4.5 Log Usage immediately for this turn
     SEARCH_COUNT=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries | length // 0' 2>/dev/null)

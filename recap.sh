@@ -179,12 +179,14 @@ produce_output() {
         (if ((.parts // []) | map(select(.thought != true)) | length > 0) then
             ((.parts // []) | map(select(.thought != true)) | map(
                 .text // 
-                (.functionCall | \"> Calling: **\" + .name + \"**\\n> Args: \`\" + (.args | tojson) + \"\`\") // 
-                (.functionResponse | \"> Tool: **\" + .name + \"**\\n> Result: \" + (.response.result | tostring)) // 
+                (if \"$SHOW_TOOLS\" == \"true\" then 
+                    (.functionCall | \"> Calling: **\" + .name + \"**\\n> Args: \`\" + (.args | tojson) + \"\`\") // 
+                    (.functionResponse | \"> Tool: **\" + .name + \"**\\n> Result: \" + (.response.result | tostring))
+                 else empty end) // 
                 \"*[Non-text content]*\"
             ) | join(\"\"))
          elif ((.parts // []) | map(select(.thought == true)) | length > 0) then
-            \"*[Thought Only]*\"
+            (if \"$SHOW_THOUGHTS\" == \"true\" then \"*[Thought Only]*\" else \"\" end)
          else \"*[Empty Message]*\" end) +
         \"\\n\\n---\"
       " "$FILERECAP" | apply_filters)
@@ -206,8 +208,10 @@ produce_output() {
         (if .parts then
             ((.parts | map(select(.thought != true))) | map(
                 .text // 
-                (.functionCall | \"[Call: \" + .name + \"] \" + (.args | tojson)) // 
-                (.functionResponse | \"[Result: \" + .name + \"] \" + (.response.result | tostring)) //
+                (if \"$SHOW_TOOLS\" == \"true\" then
+                    (.functionCall | \"[Call: \" + .name + \"] \" + (.args | tojson)) // 
+                    (.functionResponse | \"[Result: \" + .name + \"] \" + (.response.result | tostring))
+                 else empty end) //
                 \"<Non-text content>\"
             ) | join(\"\"))
          else \"<Empty Message>\" end) + \"\\n\"
