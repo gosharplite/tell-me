@@ -168,7 +168,7 @@ log_usage() {
 # MAIN INTERACTION LOOP
 # ==============================================================================
 
-MAX_TURNS=${MAX_TURNS:-15}
+MAX_TURNS=${MAX_TURNS:-30}
 CURRENT_TURN=0
 FUNC_ROLE="function"
 
@@ -186,7 +186,7 @@ else
     TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "functionDeclarations": $funcs }]')
 fi
 
-while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
+while true; do
     CURRENT_TURN=$((CURRENT_TURN + 1))
 
     # 3. Build API Payload
@@ -220,7 +220,6 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     PAYLOAD_FILE=$(mktemp) || exit 1
     echo "$APIDATA" > "$PAYLOAD_FILE"
 
-    # --- Pre-flight Safety Check ---
     # --- Pre-flight Safety Check ---
     if [ -n "$MAX_HISTORY_TOKENS" ]; then
         ESTIMATED_TOKENS=$(python3 -c "import os; print(int(os.path.getsize('$PAYLOAD_FILE') / 3.5))")
@@ -297,6 +296,14 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
             echo -e "\033[0;32m> Grounding Search Queries:\033[0m"
             echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries[]' | sed 's/^/> /'
         fi
+
+        # --- Final Turn Protection ---
+        if [ $CURRENT_TURN -ge $MAX_TURNS ]; then
+            echo -e "\n\033[0;33m[Warning] MAX_TURNS ($MAX_TURNS) reached after tool execution.\033[0m"
+            echo -e "\033[0;33m[System] The model will not see the results of the last tool call.\033[0m"
+            break
+        fi
+
         continue
     else
         update_history "$CANDIDATE"
