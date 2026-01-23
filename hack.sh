@@ -84,6 +84,7 @@ options=(
     "read-scratchpad-tasks"
     "restart-session"
     "combine-tasks"
+    "estimate-cost"
     "cheat-sheet"
 )
 
@@ -198,6 +199,10 @@ case "$ACTION" in
         else
             echo "Analysis aborted."
         fi
+        ;;
+
+    "estimate-cost")
+        send_prompt "Read the current config file in output folder. Read output/estimate-cost.md. Read the current log file in output folder. Estimate cost of current session."
         ;;
 
     "code-review")

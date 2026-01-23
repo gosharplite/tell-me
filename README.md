@@ -22,6 +22,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last 3 conversation turns.
 *   **System Prompts**: Customizable persona and instructions via YAML configuration.
 *   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors).
+*   **Safety & Reliability**: Automatically checkpoints history and **rolls back** to a last known good state if a payload exceeds model limits, preventing session "poisoning."
 *   **Smart Auth**: Uses `gcloud` for authentication with intelligent token caching to minimize latency.
 *   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `stats`, `dump`, `h`).
 *   **Continuous Workflow**: Navigate your filesystem with `cd` and analyze multiple projects back-to-back within a single, persistent chat session.
@@ -237,7 +238,7 @@ ait nobash "Translate 'hello world' to French"
 Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 
 *   **`a "Your message"`**: Sends a single-line message.
-    *   **Note**: To prevent terminal flooding, responses longer than 20 lines are automatically snipped (showing only the top 10 and bottom 5 lines). Run `recap` (or `recap -l`) to view the full output.
+    *   **Note**: By default, code blocks are hidden in the immediate response to keep the terminal clean. Run `recap` to view the full output including code.
 *   **`aa`**: Starts **Multi-line Input Mode**. Type or paste text, then press `Ctrl+D` to send.
 *   **`stats`**: Displays the aggregated token usage (Hit/Miss/Completion/Total/Thinking) and **Search Count** for the current session.
 *   **`recap`**: Re-renders the full chat history.
@@ -253,6 +254,7 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
 *   **`h`**: Opens an `fzf`-powered menu with shortcuts like:
     *   `analyze-project`: Bundles the current project with `dump` and asks for a general analysis.
     *   `code-review`: Asks the AI to perform a code review.
+    *   `estimate-cost`: Generates a detailed USD cost report for the current session.
     *   ... and more.
 
 ### 3. Understanding Metrics
@@ -268,6 +270,9 @@ The tool logs usage in a compact format to help you track costs and latency:
 *   **Th**: **Thinking Tokens** (Internal reasoning tokens used by Gemini 3+ models).
     *   `S: 0`: No external search used (internal knowledge).
     *   `S: >0`: Grounding used. The tool will list the specific queries below the response.
+
+### 4. Automatic History Management
+To keep sessions performant, the tool monitors token counts against `MAX_HISTORY_TOKENS`. It injects a system warning at **85% capacity** and automatically prunes the oldest 20% of history at a conversation boundary once the limit is reached. If a single turn is too large, the system **rolls back** the history file to preserve its integrity.
 
 ### Example: Analyzing Multiple Projects in One Session
 The true power of the global alias is analyzing projects on the fly. Because `ait` starts an interactive sub-shell, you can navigate your filesystem and analyze multiple projects without restarting.

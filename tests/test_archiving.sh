@@ -4,8 +4,6 @@
 # Setup Environment
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEST_DIR=$(mktemp -d)
-# We don't trap EXIT here because we might want to inspect failures, 
-# but for a clean test we should.
 trap 'rm -rf "$TEST_DIR"' EXIT
 
 # Mock CONFIG
@@ -30,7 +28,8 @@ HIST_FILE="$TEST_DIR/output/last-${MODE}.json"
 LOG_FILE="${HIST_FILE}.log"
 SCRATCH_FILE="${HIST_FILE%.*}.scratchpad.md"
 TASK_FILE="${HIST_FILE%.*}.tasks.json"
-BACKUP_DIR="$TEST_DIR/output/backups"
+CONFIG_COPY="${HIST_FILE%.*}.config.yaml"
+BACKUP_ROOT="$TEST_DIR/output/backups"
 
 mkdir -p "$TEST_DIR/output"
 
@@ -40,6 +39,7 @@ create_session_files() {
     echo "some logs" > "$LOG_FILE"
     echo "some scratchpad" > "$SCRATCH_FILE"
     echo "[]" > "$TASK_FILE"
+    echo "config content" > "$CONFIG_COPY"
 }
 
 echo "Running Session Archiving Tests..."
@@ -48,29 +48,28 @@ echo "Running Session Archiving Tests..."
 echo -n "Test 1: Archiving with ACTION_NEW=true... "
 create_session_files
 
-# Run the snippet from tell-me.sh using a subshell to avoid exiting the test
-# We mock the parts needed for the archiving logic
 (
     file="$HIST_FILE"
     ACTION_NEW="true"
-    # Execute the actual logic we added to tell-me.sh
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    BACKUP_DIR="$(dirname "$file")/backups"
-    mkdir -p "$BACKUP_DIR"
-    for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
-        [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
+    SESSION_BACKUP_DIR="$(dirname "$file")/backups/$TIMESTAMP"
+    mkdir -p "$SESSION_BACKUP_DIR"
+    [ -f "$file" ] && rm "$file"
+    for f in "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
+        [ -f "$f" ] && mv "$f" "$SESSION_BACKUP_DIR/"
     done
 )
 
-# Verify original files are gone and archives exist in the backups folder
-STAMP=$(date +%Y%m%d) # Check at least the date part to be safe
-ARCHIVE_COUNT=$(ls "$BACKUP_DIR" 2>/dev/null | grep -c "$STAMP")
+# Verify original files are gone and archives exist in a subfolder
+STAMP=$(date +%Y%m%d)
+BACKUP_SUBDIR=$(ls "$BACKUP_ROOT" 2>/dev/null | grep "$STAMP")
+ARCHIVE_COUNT=$(ls "$BACKUP_ROOT/$BACKUP_SUBDIR" 2>/dev/null | wc -l)
 
 if [ ! -f "$HIST_FILE" ] && [ "$ARCHIVE_COUNT" -eq 4 ]; then
     echo "PASS"
 else
-    echo "FAIL (Files not archived correctly. Archive count: $ARCHIVE_COUNT)"
-    ls -la "$TEST_DIR/output"
+    echo "FAIL (Files not archived correctly to subdirectory. Archive count: $ARCHIVE_COUNT)"
+    ls -la "$BACKUP_ROOT/$BACKUP_SUBDIR"
     exit 1
 fi
 
@@ -81,23 +80,22 @@ create_session_files
 (
     file="$HIST_FILE"
     REPLY="n"
-    # Simulate the "else" block logic when user declines resume
     if [[ $REPLY =~ ^[Nn]$ ]]; then
-        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-        BACKUP_DIR="$(dirname "$file")/backups"
-        mkdir -p "$BACKUP_DIR"
-        for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
-            [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)_2
+        SESSION_BACKUP_DIR="$(dirname "$file")/backups/$TIMESTAMP"
+        mkdir -p "$SESSION_BACKUP_DIR"
+        [ -f "$file" ] && rm "$file"
+        for f in "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
+            [ -f "$f" ] && mv "$f" "$SESSION_BACKUP_DIR/"
         done
     fi
 )
 
-ARCHIVE_COUNT=$(ls "$BACKUP_DIR" 2>/dev/null | grep -c "$STAMP")
-# Expecting 8 now (4 from previous test, 4 from this one)
-if [ ! -f "$HIST_FILE" ] && [ "$ARCHIVE_COUNT" -ge 4 ]; then
+DIR_COUNT=$(ls "$BACKUP_ROOT" 2>/dev/null | wc -l)
+if [ ! -f "$HIST_FILE" ] && [ "$DIR_COUNT" -ge 2 ]; then
     echo "PASS"
 else
-    echo "FAIL (Files not archived on decline)"
+    echo "FAIL (Files not archived to new subdirectory on decline)"
     exit 1
 fi
 

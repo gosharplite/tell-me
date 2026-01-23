@@ -146,11 +146,12 @@ if [[ "$ACTION_NEW" == "true" ]]; then
     # User explicitly requested a new session, so delete the old files.
     # Archive existing session files with a timestamp in the backups folder
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    BACKUP_DIR="$(dirname "$file")/backups"
-    mkdir -p "$BACKUP_DIR"
-    echo "Archiving existing session files with timestamp: $TIMESTAMP to $BACKUP_DIR"
-    for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
-        [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
+    SESSION_BACKUP_DIR="$(dirname "$file")/backups/$TIMESTAMP"
+    mkdir -p "$SESSION_BACKUP_DIR"
+    echo "Archiving existing session files to $SESSION_BACKUP_DIR"
+    [ -f "$file" ] && rm "$file"
+    for f in "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
+        [ -f "$f" ] && mv "$f" "$SESSION_BACKUP_DIR/"
     done
 elif [[ -f "$file" ]]; then
     # History file exists and 'new' was not specified. Ask the user.
@@ -186,14 +187,19 @@ elif [[ -f "$file" ]]; then
         echo "Starting a new session."
         # Archive existing session files with a timestamp in the backups folder
         TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-        BACKUP_DIR="$(dirname "$file")/backups"
-        mkdir -p "$BACKUP_DIR"
-        echo "Archiving previous session files with timestamp: $TIMESTAMP to $BACKUP_DIR"
-        for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json"; do
-            [ -f "$f" ] && mv "$f" "$BACKUP_DIR/$(basename "$f").${TIMESTAMP}"
+        SESSION_BACKUP_DIR="$(dirname "$file")/backups/$TIMESTAMP"
+        mkdir -p "$SESSION_BACKUP_DIR"
+        echo "Archiving previous session files to $SESSION_BACKUP_DIR"
+        [ -f "$file" ] && rm "$file"
+        for f in "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
+            [ -f "$f" ] && mv "$f" "$SESSION_BACKUP_DIR/"
         done
     fi
 fi
+
+# Save current config to output folder (after potential archiving)
+cp "$CONFIG" "${file%.*}.config.yaml"
+chmod 600 "${file%.*}.config.yaml"
 
 if [[ -n "$MSG" ]]; then
     # If a message is provided on the command line, send it.
@@ -230,9 +236,9 @@ stats() {
 export PS1="\[\033[01;32m\]\u@tell-me\[\033[00m\]:\[\033[01;35m\]${FILENAME}\[\033[00m\]\$ "
 echo -e "\033[1;34mChat session started using $CONFIG\033[0m"
 echo -e "\033[0;36m[Auth] $AUTH_INFO\033[0m"
+echo -e "\033[0;36m[Model] $AIMODEL\033[0m"
 echo -e "\033[0;36m[Search] $USE_SEARCH\033[0m"
 echo -e "Type \033[1;32ma \"your message\"\033[0m to chat."
 EOF
     )
 fi
-

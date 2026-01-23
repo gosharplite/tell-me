@@ -267,7 +267,7 @@ tool_apply_patch() {
              fi
         fi
 
-        local PATCH_ARGS="--batch --forward"
+        local PATCH_ARGS="--batch --forward --reject-file=-"
         if patch --help 2>&1 | grep -q "\--no-backup-if-mismatch"; then
             PATCH_ARGS="$PATCH_ARGS --no-backup-if-mismatch"
         fi
