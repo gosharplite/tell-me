@@ -1,5 +1,5 @@
 #!/bin/bash
-# a-deploy.sh: Final verified script with all fixes and original features.
+# a.sh: Final verified script with all fixes and original features.
 
 # Resolve Script Directory
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -43,8 +43,23 @@ if [ -z "$CONFIG_FILE" ]; then
     exit 1
 fi
 
-# Dependency-Free YAML Parser
-eval "$(awk -F': ' '/^[A-Za-z0-9_]+:/ { gsub(/"/, "", $2); print $1 "=\"" $2 "\"" }' "$CONFIG_FILE")"
+# Safe YAML Parser using Python3 (handles simple key-value YAML)
+eval "$(python3 -c "
+import sys, shlex
+try:
+    with open('$CONFIG_FILE', 'r') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#') or ':' not in line:
+                continue
+            k, v = line.split(':', 1)
+            k = k.strip()
+            v = v.strip().strip('\"').strip(\"'\")
+            if k.isidentifier():
+                print(f'{k}={shlex.quote(v)}')
+except Exception as e:
+    print(f'echo \"Error parsing config: {e}\" >&2; exit 1')
+")"
 
 # --- Directory/Session Setup ---
 SESSION_ID=$(basename "$CONFIG_FILE" .config.yaml)
@@ -92,6 +107,11 @@ log_tool_call() {
 }
 
 # --- 1. User Input Handling ---
+# If $1 was used as CONFIG_FILE, shift it away so $1 becomes the message
+if [ "$1" == "$CONFIG_FILE" ]; then
+    shift
+fi
+
 PROMPT_TEXT="$1"
 STDIN_DATA=""
 if [ ! -t 0 ]; then STDIN_DATA="$(cat)"; fi
@@ -243,7 +263,17 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
             if [ -n "$FC_DATA" ]; then
                 log_tool_call "$FC_DATA" "[Tool Request ($((i+1))/$PART_COUNT)]"
                 CMD_NAME="tool_$(echo "$FC_DATA" | jq -r '.name')"
-                declare -f "$CMD_NAME" > /dev/null && "$CMD_NAME" "$FC_DATA" "$RESP_PARTS_FILE"
+                if declare -f "$CMD_NAME" > /dev/null; then
+                    "$CMD_NAME" "$FC_DATA" "$RESP_PARTS_FILE"
+                else
+                    echo -e "\033[0;31m[System Error] Tool $CMD_NAME not found.\033[0m"
+                    jq -n --arg name "$(echo "$FC_DATA" | jq -r '.name')" \
+                        '{functionResponse: {name: $name, response: {result: "Error: Tool not found"}}}' \
+                        > "${RESP_PARTS_FILE}.err"
+                    jq --slurpfile new "${RESP_PARTS_FILE}.err" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" \
+                        && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
+                    rm "${RESP_PARTS_FILE}.err"
+                fi
             fi
         done
         TOOL_RESPONSE=$(jq -n --arg role "$FUNC_ROLE" --slurpfile parts "$RESP_PARTS_FILE" '{ role: $role, parts: $parts[0] }')
