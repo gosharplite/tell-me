@@ -202,7 +202,7 @@ case "$ACTION" in
         ;;
 
     "estimate-cost")
-        send_prompt "Read the current config file in output folder. Read output/estimate-cost.md. Read the current log file in output folder. Estimate cost of current session."
+        send_prompt "Read the current config file and log file in the output folder. Read the 'Gemini Cost Estimation Procedures' from your global scratchpad. Estimate the cost of the current session."
         ;;
 
     "code-review")
