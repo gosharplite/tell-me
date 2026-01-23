@@ -103,3 +103,27 @@ else
     echo "FAIL: Global tasks file check failed"
 fi
 
+
+# Test 7: Special Characters in Content (Regression for commit a19f3ba)
+echo -e "\n--- Test 7: Special Characters in Content ---"
+TRICKY_CONTENT='Finish the "Project" & '\''fix'\'' it; (maybe) $100%!'
+ARGS=$(jq -n --arg content "$TRICKY_CONTENT" '{args: {action: "add", content: $content}}')
+OUTPUT=$(run_tool "$ARGS")
+TASK_ID=$(echo "$OUTPUT" | grep -o "ID: [0-9]*" | head -n 1 | cut -d' ' -f2)
+
+# Now update it with another tricky string
+NEW_TRICKY_CONTENT='Updated "Task" with `backticks` and \backslashes\'
+ARGS=$(jq -n --arg id "$TASK_ID" --arg content "$NEW_TRICKY_CONTENT" '{args: {action: "update", task_id: ($id|tonumber), content: $content}}')
+OUTPUT=$(run_tool "$ARGS")
+
+# Verify the content is stored correctly without shell mangling
+ACTUAL_CONTENT=$(jq -r --arg id "$TASK_ID" ".[] | select(.id == (\$id|tonumber)) | .content" "$TASKS_FILE")
+if [ "$ACTUAL_CONTENT" == "$NEW_TRICKY_CONTENT" ]; then
+    echo "PASS: Special characters preserved"
+else
+    echo "FAIL: Content mismatch!"
+    echo "Expected: $NEW_TRICKY_CONTENT"
+    echo "Actual:   $ACTUAL_CONTENT"
+    exit 1
+fi
+

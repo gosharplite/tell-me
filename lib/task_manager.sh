@@ -116,7 +116,7 @@ tool_manage_tasks() {
     local DUR=$(get_log_duration)
     echo -e "${DUR} \033[0;32m[Tool Success] $RESULT_MSG\033[0m"
 
-    if [ "$CURRENT_TURN" -eq $((MAX_TURNS - 1)) ]; then
+    if [ "${CURRENT_TURN:-0}" -eq $(( ${MAX_TURNS:-30} - 1 )) ]; then
         RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
         echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
     fi
