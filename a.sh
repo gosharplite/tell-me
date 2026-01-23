@@ -189,6 +189,7 @@ fi
 while true; do
     CURRENT_TURN=$((CURRENT_TURN + 1))
 
+    PAYLOAD_START=$(date +%s.%N)
     # 3. Build API Payload
     APIDATA=$(jq -c -n \
       --arg person "$PERSON" \
@@ -219,6 +220,9 @@ while true; do
 
     PAYLOAD_FILE=$(mktemp) || exit 1
     echo "$APIDATA" > "$PAYLOAD_FILE"
+    PAYLOAD_END=$(date +%s.%N)
+    PAYLOAD_DUR=$(awk -v start="$PAYLOAD_START" -v end="$PAYLOAD_END" 'BEGIN { print end - start }')
+    echo -e "$(get_log_timestamp) \033[0;90m[System] Payload generated in ${PAYLOAD_DUR}s\033[0m"
 
     # --- Pre-flight Safety Check ---
     if [ -n "$MAX_HISTORY_TOKENS" ]; then
@@ -244,8 +248,13 @@ while true; do
           -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d @"$PAYLOAD_FILE")
         
         if echo "$RESPONSE_JSON" | jq -e '.error.code == 429 or .error.code == 500' > /dev/null; then
+             ERR_CODE=$(echo "$RESPONSE_JSON" | jq -r '.error.code')
              RETRY_COUNT=$((RETRY_COUNT + 1))
-             [ $RETRY_COUNT -lt $MAX_RETRIES ] && sleep 5 && continue
+             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                 echo -e "\033[33m[Warning] API error $ERR_CODE. Retrying in 5s... ($RETRY_COUNT/$MAX_RETRIES)\033[0m"
+                 sleep 5
+                 continue
+             fi
              echo -e "\033[31mError: API retry limit exhausted.\033[0m"; exit 1
         else break; fi
     done
@@ -286,11 +295,14 @@ while true; do
     if [ "$HAS_FUNC" == "yes" ]; then
         update_history "$CANDIDATE"
         RESP_PARTS_FILE=$(mktemp); echo "[]" > "$RESP_PARTS_FILE"
-        PART_COUNT=$(echo "$CANDIDATE" | jq '.parts | length')
-        for (( i=0; i<$PART_COUNT; i++ )); do
+        TOTAL_PARTS=$(echo "$CANDIDATE" | jq '.parts | length')
+        FC_COUNT=$(echo "$CANDIDATE" | jq '[.parts[] | has("functionCall")] | map(select(. == true)) | length')
+        current_fc=0
+        for (( i=0; i<$TOTAL_PARTS; i++ )); do
             FC_DATA=$(echo "$CANDIDATE" | jq -c ".parts[$i].functionCall // empty")
             if [ -n "$FC_DATA" ]; then
-                log_tool_call "$FC_DATA" "[Tool Request ($((i+1))/$PART_COUNT)]"
+                current_fc=$((current_fc + 1))
+                log_tool_call "$FC_DATA" "[Tool Request ($current_fc/$FC_COUNT)]"
                 CMD_NAME="tool_$(echo "$FC_DATA" | jq -r '.name')"
                 if declare -f "$CMD_NAME" > /dev/null; then
                     "$CMD_NAME" "$FC_DATA" "$RESP_PARTS_FILE"
