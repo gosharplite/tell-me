@@ -285,8 +285,8 @@ while true; do
     # Display thoughts if enabled
     if [ "$SHOW_THOUGHTS" == "true" ]; then
         THOUGHTS=$(echo "$CANDIDATE" | jq -r '.parts[] | select(.thought == true and .text != null) | .text' 2>/dev/null)
-        CLEAN_THOUGHTS=$(printf "%s" "$THOUGHTS" | tr -d '\r' | python3 -c "import sys; print('\n'.join(line.strip() for line in sys.stdin.read().splitlines() if line.strip()))")
-        [ -n "$CLEAN_THOUGHTS" ] && echo -e "\033[0;90m$(get_log_timestamp) [Thinking]\n$CLEAN_THOUGHTS\033[0m"
+        CLEAN_THOUGHTS=$(printf "%s" "$THOUGHTS" | tr -d '\r' | python3 -c "import sys; print('\n'.join(line.strip() for line in sys.stdin.read().splitlines() if any(c.isprintable() and not c.isspace() for c in line)))")
+        [ -n "$CLEAN_THOUGHTS" ] && printf "\033[0;90m%s [Thinking]\n%s\033[0m\n" "$(get_log_timestamp)" "$CLEAN_THOUGHTS"
     fi
 
     # 4.5 Log Usage immediately for this turn
