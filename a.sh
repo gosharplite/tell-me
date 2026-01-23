@@ -280,7 +280,12 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
         done
         TOOL_RESPONSE=$(jq -n --arg role "$FUNC_ROLE" --slurpfile parts "$RESP_PARTS_FILE" '{ role: $role, parts: $parts[0] }')
         update_history "$TOOL_RESPONSE"; rm "$RESP_PARTS_FILE"
-        log_usage "$RESPONSE_JSON" "$TURN_DUR" 0 "${file}.log"
+        SEARCH_COUNT=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries | length // 0' 2>/dev/null)
+        log_usage "$RESPONSE_JSON" "$TURN_DUR" "$SEARCH_COUNT" "${file}.log"
+        if [ "$SEARCH_COUNT" -gt 0 ]; then
+            echo -e "\033[0;32m> Grounding Search Queries:\033[0m"
+            echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries[]' | sed 's/^/> /'
+        fi
         continue
     else
         update_history "$CANDIDATE"
@@ -290,6 +295,19 @@ done
 
 # 6. Render Output
 "$BASE_DIR/recap.sh" -l -nc
-log_usage "$RESPONSE_JSON" "$TURN_DUR" 0 "${file}.log"
+SEARCH_COUNT=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries | length // 0' 2>/dev/null)
+log_usage "$RESPONSE_JSON" "$TURN_DUR" "$SEARCH_COUNT" "${file}.log"
+if [ "$SEARCH_COUNT" -gt 0 ]; then
+    echo -e "\033[0;32m> Grounding Search Queries:\033[0m"
+    echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries[]' | sed 's/^/> /'
+fi
+
+# Display Session Totals (Usage History)
+if [ -f "${file}.log" ]; then
+    echo -e "\n\033[0;36m--- Usage History ---\033[0m"
+    tail -n 3 "${file}.log"
+    echo ""
+    awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "${file}.log"
+fi
 printf "\033[0;35m[Total Duration] %.2f seconds\033[0m\n" "$(awk -v start="$START_TIME" -v end="$(date +%s.%N)" 'BEGIN { print end - start }')"
 
