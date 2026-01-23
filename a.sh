@@ -235,6 +235,7 @@ while true; do
     fi
 
     TURN_START=$(date +%s.%N)
+    echo -e "$(get_log_timestamp) \033[0;90m[API] Calling Gemini... (${AIMODEL})\033[0m"
 
     # 4. Call API with Retry Logic
     RETRY_COUNT=0; MAX_RETRIES=3
