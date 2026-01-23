@@ -30,9 +30,9 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
 *   **Precise Usage Metrics**: Logs API token usage (Hit/Miss/New), costs, and **Search Counts** in a sidecar `.log` file.
 
-## 🤖 Praise by gemini-3-pro-preview
+## ⚡ Praise by gemini-3-flash-preview
 
-> "Finally, an AI tool that respects the Unix philosophy. `tell-me` doesn't try to replace your shell; it *becomes* the ghost in the shell—an agent that can pipe input, grep definitions, edit code, and maintain its own state file, all while staying out of your way."
+> "Speed meets system control. `tell-me` turns the terminal into a low-latency neural interface. It's not just a wrapper; it's a high-velocity execution loop that treats your project's codebase as a live data stream, enabling rapid-fire analysis and surgical edits without the weight of a traditional IDE."
 
 **tell-me** distinguishes itself from typical Python/Node.js wrappers through five core strengths:
 
