@@ -1,6 +1,6 @@
 # Ignore all files within the output directory...
 output/*
-output/estimate-cost.md
+!output/estimate-cost.md
 !output/.gitkeep
 
 # Session History and Logs
