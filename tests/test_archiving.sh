@@ -54,7 +54,8 @@ create_session_files
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     SESSION_BACKUP_DIR="$(dirname "$file")/backups/$TIMESTAMP"
     mkdir -p "$SESSION_BACKUP_DIR"
-    for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
+    [ -f "$file" ] && rm "$file"
+    for f in "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
         [ -f "$f" ] && mv "$f" "$SESSION_BACKUP_DIR/"
     done
 )
@@ -64,7 +65,7 @@ STAMP=$(date +%Y%m%d)
 BACKUP_SUBDIR=$(ls "$BACKUP_ROOT" 2>/dev/null | grep "$STAMP")
 ARCHIVE_COUNT=$(ls "$BACKUP_ROOT/$BACKUP_SUBDIR" 2>/dev/null | wc -l)
 
-if [ ! -f "$HIST_FILE" ] && [ "$ARCHIVE_COUNT" -eq 5 ]; then
+if [ ! -f "$HIST_FILE" ] && [ "$ARCHIVE_COUNT" -eq 4 ]; then
     echo "PASS"
 else
     echo "FAIL (Files not archived correctly to subdirectory. Archive count: $ARCHIVE_COUNT)"
@@ -83,7 +84,8 @@ create_session_files
         TIMESTAMP=$(date +%Y%m%d_%H%M%S)_2
         SESSION_BACKUP_DIR="$(dirname "$file")/backups/$TIMESTAMP"
         mkdir -p "$SESSION_BACKUP_DIR"
-        for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
+        [ -f "$file" ] && rm "$file"
+        for f in "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
             [ -f "$f" ] && mv "$f" "$SESSION_BACKUP_DIR/"
         done
     fi

@@ -149,7 +149,8 @@ if [[ "$ACTION_NEW" == "true" ]]; then
     SESSION_BACKUP_DIR="$(dirname "$file")/backups/$TIMESTAMP"
     mkdir -p "$SESSION_BACKUP_DIR"
     echo "Archiving existing session files to $SESSION_BACKUP_DIR"
-    for f in "$file" "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
+    [ -f "$file" ] && rm "$file"
+    for f in "${file}.log" "${file%.*}.scratchpad.md" "${file%.*}.tasks.json" "${file%.*}.config.yaml"; do
         [ -f "$f" ] && mv "$f" "$SESSION_BACKUP_DIR/"
     done
 elif [[ -f "$file" ]]; then
