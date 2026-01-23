@@ -285,7 +285,8 @@ while true; do
     # Display thoughts if enabled
     if [ "$SHOW_THOUGHTS" == "true" ]; then
         THOUGHTS=$(echo "$CANDIDATE" | jq -r '.parts[] | select(.thought == true and .text != null) | .text' 2>/dev/null)
-        [ -n "$THOUGHTS" ] && echo -e "\033[0;90m$(get_log_timestamp) [Thinking]\n$(echo "$THOUGHTS" | awk 'NF')\033[0m"
+        CLEAN_THOUGHTS=$(echo "$THOUGHTS" | tr -d '\r' | sed -E '/^[[:space:]]*$/d')
+        [ -n "$CLEAN_THOUGHTS" ] && echo -e "\033[0;90m$(get_log_timestamp) [Thinking]\n$CLEAN_THOUGHTS\033[0m"
     fi
 
     # 4.5 Log Usage immediately for this turn

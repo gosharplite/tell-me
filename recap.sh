@@ -153,7 +153,7 @@ produce_output() {
     if [ "$CODE_MODE" = "true" ]; then
       jq -r "
         $JQ_PREFIX |
-        ((.parts // [] | map(select(.thought != true))) | map(.text // \"\") | join(\"\"))
+        ((.parts // [] | map(select(.thought != true))) | map(.text // \"\"\)) | join(\"\"\))
       " "$FILERECAP" | sed -e '1{/^```/d;}' -e '${/^```/d;}'
       return
     fi
@@ -184,9 +184,16 @@ produce_output() {
                     (.functionResponse | \"> Tool: **\" + .name + \"**\\n> Result: \" + (.response.result | tostring))
                  else empty end) // 
                 \"*[Non-text content]*\"
-            ) | join(\"\"))
+            ) | join(\"\")) +
+            (if (\"$SHOW_THOUGHTS\" == \"true\") then
+                ((.parts // []) | map(select(.thought == true)) | map(.text // \"\") | join(\"\\n\") | 
+                 split(\"\\n\") | map(select(test(\"^\\\\s*$\") | not)) | join(\"\\n\") | if length > 0 then \"\\n\\n> *[Thought]*\\n\" + . else \"\" end)
+             else \"\" end)
          elif ((.parts // []) | map(select(.thought == true)) | length > 0) then
-            (if \"$SHOW_THOUGHTS\" == \"true\" then \"*[Thought Only]*\" else \"\" end)
+            (if (\"$SHOW_THOUGHTS\" == \"true\") then
+                ((.parts // []) | map(select(.thought == true)) | map(.text // \"\") | join(\"\\n\") | 
+                 split(\"\\n\") | map(select(test(\"^\\\\s*$\") | not)) | join(\"\\n\") | if length > 0 then \"## 🧠 THOUGHT\\n\" + . else \"\" end)
+             else \"*[Thought Only]*\" end)
          else \"*[Empty Message]*\" end) +
         \"\\n\\n---\"
       " "$FILERECAP" | apply_filters)
@@ -213,7 +220,11 @@ produce_output() {
                     (.functionResponse | \"[Result: \" + .name + \"] \" + (.response.result | tostring))
                  else empty end) //
                 \"<Non-text content>\"
-            ) | join(\"\"))
+            ) | join(\"\")) +
+            (if (\"$SHOW_THOUGHTS\" == \"true\") then
+                ((.parts // []) | map(select(.thought == true)) | map(.text // \"\") | join(\"\\n\") | 
+                 split(\"\\n\") | map(select(test(\"^\\\\s*$\") | not)) | join(\"\\n\") | if length > 0 then \"\\n\\n[Thought]\\n\" + . else \"\" end)
+             else \"\" end)
          else \"<Empty Message>\" end) + \"\\n\"
       " "$FILERECAP" | apply_filters
     fi
@@ -227,3 +238,4 @@ elif [ "$TAIL_LINES" -gt 0 ]; then
 else
     produce_output
 fi
+
