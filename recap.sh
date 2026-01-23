@@ -176,13 +176,15 @@ produce_output() {
         (if .role == \"user\" then \"## 👤 USER\" 
          elif .role == \"function\" then \"## ⚙️ TOOL RESPONSE\"
          else \"## 🤖 MODEL\" end) + \"\\n\" +
-        (if .parts then
-            ((.parts | map(select(.thought != true))) | map(
+        (if ((.parts // []) | map(select(.thought != true)) | length > 0) then
+            ((.parts // []) | map(select(.thought != true)) | map(
                 .text // 
                 (.functionCall | \"> Calling: **\" + .name + \"**\\n> Args: \`\" + (.args | tojson) + \"\`\") // 
                 (.functionResponse | \"> Tool: **\" + .name + \"**\\n> Result: \" + (.response.result | tostring)) // 
                 \"*[Non-text content]*\"
             ) | join(\"\"))
+         elif ((.parts // []) | map(select(.thought == true)) | length > 0) then
+            \"*[Thought Only]*\"
          else \"*[Empty Message]*\" end) +
         \"\\n\\n---\"
       " "$FILERECAP" | apply_filters)

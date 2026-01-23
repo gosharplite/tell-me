@@ -10,7 +10,7 @@ tool_execute_command() {
     echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Execute Command: $FC_CMD\033[0m"
 
     local CONFIRM="n"
-    local SAFE_COMMANDS="grep|ls|pwd|cat|echo|head|tail|wc|stat|date|whoami|diff"
+    local SAFE_COMMANDS="grep|ls|pwd|cat|echo|head|tail|wc|stat|date|whoami|diff|awk|sed"
     
     # Extract the first word of the command to check against whitelist
     local CMD_BASE=$(echo "$FC_CMD" | awk '{print $1}')
