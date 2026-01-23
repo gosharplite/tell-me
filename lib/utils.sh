@@ -55,9 +55,9 @@ find "$BACKUP_DIR" -type f -mtime +1 -delete 2>/dev/null
 backup_file() {
     local target="$1"
     if [ -f "$target" ]; then
-        # Create a flat filename (e.g. ./src/main.py -> _src_main.py)
         local flat_name=$(echo "$target" | sed 's/[\/\.]/_/g')
-        cp "$target" "$BACKUP_DIR/$flat_name"
+        local dest="$BACKUP_DIR/$flat_name"
+        cp "$target" "$dest"
     fi
 }
 
@@ -69,9 +69,8 @@ restore_backup() {
     if [ -f "$backup_path" ]; then
         cp "$backup_path" "$target"
         return 0
-    else
-        return 1
     fi
+    return 1
 }
 
 # Helper: Get Timestamp for Logging

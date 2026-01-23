@@ -72,6 +72,10 @@ if [ ! -f "$file" ]; then
     echo '{"messages": []}' > "$file"
 fi
 
+if [ -n "$MAX_HISTORY_TOKENS" ]; then
+    backup_file "$file"
+fi
+
 # --- Load Tools ---
 source "$BASE_DIR/lib/auth.sh"
 for lib in "$BASE_DIR"/lib/*.sh; do
@@ -217,13 +221,18 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     echo "$APIDATA" > "$PAYLOAD_FILE"
 
     # --- Pre-flight Safety Check ---
+    # --- Pre-flight Safety Check ---
     if [ -n "$MAX_HISTORY_TOKENS" ]; then
         ESTIMATED_TOKENS=$(python3 -c "import os; print(int(os.path.getsize('$PAYLOAD_FILE') / 3.5))")
         if [ "$ESTIMATED_TOKENS" -gt "$MAX_HISTORY_TOKENS" ]; then
             echo -e "\033[0;31m[Safety Error] Payload estimate ($ESTIMATED_TOKENS tokens) exceeds limit ($MAX_HISTORY_TOKENS)!\033[0m"
-            echo -e "\033[0;33m[System] Results too large. Please restart or refine query.\033[0m"
+            echo -e "\033[0;33m[System] Rolling back history to last known good state...\033[0m"
+            restore_backup "$file"
+            echo -e "\033[0;33m[System] History restored. You may need to refine your query or reduce the output size.\033[0m"
             exit 1
         fi
+        # Current state is safe for the next iteration's potential rollback
+        backup_file "$file"
     fi
 
     TURN_START=$(date +%s.%N)
