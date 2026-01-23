@@ -39,3 +39,8 @@ MAX_TURNS: 10
 # Set to 120000 to safely stay under the 128k 'cheaper' tier.
 MAX_HISTORY_TOKENS: 120000
 
+
+# THINKING_BUDGET: Configures the internal reasoning budget for Gemini 3+ models.
+# Values map to levels: <2000: MINIMAL, <4001: LOW, <8001: MEDIUM, else HIGH.
+THINKING_BUDGET: 32000
+
