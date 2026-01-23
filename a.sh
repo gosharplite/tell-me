@@ -190,7 +190,7 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     CURRENT_TURN=$((CURRENT_TURN + 1))
 
     # 3. Build API Payload
-    APIDATA=$(jq -n \
+    APIDATA=$(jq -c -n \
       --arg person "$PERSON" \
       --argjson tools "$TOOLS_JSON" \
       --arg model "$AIMODEL" \
@@ -262,6 +262,10 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     THOUGHTS=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].content.parts[] | select(.thought == true) | .text' 2>/dev/null)
     [ -n "$THOUGHTS" ] && echo -e "\033[0;90m[Thinking]\n$THOUGHTS\033[0m\n"
 
+    # 4.5 Log Usage immediately for this turn
+    SEARCH_COUNT=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries | length // 0' 2>/dev/null)
+    log_usage "$RESPONSE_JSON" "$TURN_DUR" "$SEARCH_COUNT" "${file}.log"
+
     # 5. Check for Function Call(s)
     HAS_FUNC=$(echo "$CANDIDATE" | jq -e '.parts[] | has("functionCall")' >/dev/null 2>&1 && echo "yes" || echo "no")
 
@@ -289,8 +293,6 @@ while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
         done
         TOOL_RESPONSE=$(jq -n --arg role "$FUNC_ROLE" --slurpfile parts "$RESP_PARTS_FILE" '{ role: $role, parts: $parts[0] }')
         update_history "$TOOL_RESPONSE"; rm "$RESP_PARTS_FILE"
-        SEARCH_COUNT=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries | length // 0' 2>/dev/null)
-        log_usage "$RESPONSE_JSON" "$TURN_DUR" "$SEARCH_COUNT" "${file}.log"
         if [ "$SEARCH_COUNT" -gt 0 ]; then
             echo -e "\033[0;32m> Grounding Search Queries:\033[0m"
             echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries[]' | sed 's/^/> /'
@@ -304,8 +306,6 @@ done
 
 # 6. Render Output
 "$BASE_DIR/recap.sh" -l -nc
-SEARCH_COUNT=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries | length // 0' 2>/dev/null)
-log_usage "$RESPONSE_JSON" "$TURN_DUR" "$SEARCH_COUNT" "${file}.log"
 if [ "$SEARCH_COUNT" -gt 0 ]; then
     echo -e "\033[0;32m> Grounding Search Queries:\033[0m"
     echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries[]' | sed 's/^/> /'
