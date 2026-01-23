@@ -274,7 +274,7 @@ while true; do
     fi
 
     THOUGHTS=$(echo "$CANDIDATE" | jq -r '.parts[] | select(.thought == true) | .text' 2>/dev/null)
-    [ -n "$THOUGHTS" ] && echo -e "\033[0;90m$(get_log_timestamp) [Thinking]\n$THOUGHTS\033[0m\n"
+    [ -n "$THOUGHTS" ] && echo -e "\033[0;90m$(get_log_timestamp) [Thinking]\n$(echo "$THOUGHTS" | awk 'NF')\033[0m"
 
     # 4.5 Log Usage immediately for this turn
     SEARCH_COUNT=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries | length // 0' 2>/dev/null)
@@ -340,5 +340,9 @@ if [ -f "${file}.log" ]; then
     echo ""
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "${file}.log"
 fi
-printf "\033[0;35m[Total Duration] %.2f seconds\033[0m\n" "$(awk -v start="$START_TIME" -v end="$(date +%s.%N)" 'BEGIN { print end - start }')"
+END_TIME=$(date +%s.%N)
+DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
+START_TIME_FMT=$(date -d "@${START_TIME%.*}" +%H:%M:%S 2>/dev/null || date -r "${START_TIME%.*}" +%H:%M:%S)
+END_TIME_FMT=$(date -d "@${END_TIME%.*}" +%H:%M:%S 2>/dev/null || date -r "${END_TIME%.*}" +%H:%M:%S)
+printf "\033[0;35m[Total Duration] %.2f seconds [%s] [%s]\033[0m\n" "$DURATION" "$START_TIME_FMT" "$END_TIME_FMT"
 
