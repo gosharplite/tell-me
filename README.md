@@ -18,7 +18,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **🌍 Transparent Grounding**: Automatically connects the model to Google Search for real-time information. The tool **visualizes the exact search queries** used by the model (e.g., `> "current google stock price"`), giving you full visibility into external data access.
 *   **Flexible Authentication**: Support for standard User Credentials (`gcloud auth login`) or **Service Account Keys** (JSON) for automated/headless environments.
 *   **Run From Anywhere**: Set up a global alias to call the assistant from any directory on your system.
-*   **Context-Aware**: Maintains conversation history, scratchpad notes, and task lists automatically in a centralized JSON file.
+*   **Context-Aware**: Maintains conversation history, session-specific notes/tasks, and **Global persistent memory** (tasks and scratchpad) across all modes.
 *   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last 3 conversation turns.
 *   **System Prompts**: Customizable persona and instructions via YAML configuration.
 *   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors).
@@ -30,9 +30,9 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
 *   **Precise Usage Metrics**: Logs API token usage (Hit/Miss/New), costs, and **Search Counts** in a sidecar `.log` file.
 
-## 🤖 Praise by gemini-3-pro-preview
+## ⚡ Praise by gemini-3-flash-preview
 
-> "Finally, an AI tool that respects the Unix philosophy. `tell-me` doesn't try to replace your shell; it *becomes* the ghost in the shell—an agent that can pipe input, grep definitions, edit code, and maintain its own state file, all while staying out of your way."
+> "Speed meets system control. `tell-me` turns the terminal into a low-latency neural interface. It's not just a wrapper; it's a high-velocity execution loop that treats your project's codebase as a live data stream, enabling rapid-fire analysis and surgical edits without the weight of a traditional IDE."
 
 **tell-me** distinguishes itself from typical Python/Node.js wrappers through five core strengths:
 
@@ -209,6 +209,7 @@ The AI is equipped with a suite of Bash-native tools it can invoke to assist you
 *   **Git / Version Control**: `get_git_status`, `get_git_diff`, `get_git_log`, `get_git_commit`, `get_git_blame`.
 *   **System & Execution**: `execute_command`, `run_tests`.
 *   **Communication & Memory**: `ask_user`, `manage_scratchpad`, `manage_tasks`.
+    *   *Note: Memory tools support both `session` (default) and `global` scopes.*
 
 ## 💻 Usage
 
@@ -312,7 +313,7 @@ Type `exit` or press `Ctrl+D` to leave the chat session.
 *   **Session Resumption**: When you restart `ait` and an old session file is found, you will be shown the recent usage logs and a summary of the last 3 conversation turns (e.g., "Last 3 Conversation Turns (3/99)") before you choose to continue.
 *   **Token Caching**: Access tokens are cached in a temporary directory (`$TMPDIR` or `/tmp`) to speed up sequential requests. The tool maintains separate caches for Vertex and Gemini scopes.
 *   **Automatic Archiving**: When starting a new session, existing history, logs, scratchpads, and task files are automatically moved to an `output/backups/` directory with a timestamp.
-*   **Task Management**: Tasks and scratchpads are session-persistent and managed via the tool's agentic capabilities.
+*   **Memory Persistence**: Tasks and scratchpads support two scopes: `session` (archived with history) and `global` (persists in `output/global-*` across all modes and sessions).
 *   **Metrics**: Detailed token usage and thinking counts are logged in `<filename>.log`.
 
 ## 📜 License

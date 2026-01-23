@@ -87,3 +87,19 @@ OUTPUT=$(run_tool "$ARGS")
 echo "$OUTPUT" | grep -q "All tasks cleared" && echo "PASS" || echo "FAIL"
 
 echo -e "\n=== Tests Complete ==="
+
+# Test 6: Global Scope
+echo -e "\n--- Test 6: Global Scope ---"
+export AIT_HOME="$TEST_DIR"
+GLOBAL_TASKS_FILE="$TEST_DIR/output/global-tasks.json"
+mkdir -p "$TEST_DIR/output"
+
+ARGS=$(jq -n '{args: {action: "add", content: "Global task", scope: "global"}}')
+OUTPUT=$(run_tool "$ARGS")
+
+if [ -f "$GLOBAL_TASKS_FILE" ] && grep -q "Global task" "$GLOBAL_TASKS_FILE"; then
+    echo "PASS: Global tasks file created and task added"
+else
+    echo "FAIL: Global tasks file check failed"
+fi
+

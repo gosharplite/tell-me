@@ -5,12 +5,19 @@ tool_manage_scratchpad() {
     # Extract Arguments
     local FC_ACTION=$(echo "$FC_DATA" | jq -r '.args.action')
     local FC_CONTENT=$(echo "$FC_DATA" | jq -r '.args.content // empty')
+    local FC_SCOPE=$(echo "$FC_DATA" | jq -r '.args.scope // "session"')
     
-    # Depend on 'file' global variable for the history file path
-    local SCRATCHPAD_FILE="${file%.*}.scratchpad.md"
+    # Define File Path based on Scope
+    local SCRATCHPAD_FILE
+    if [ "$FC_SCOPE" == "global" ]; then
+        SCRATCHPAD_FILE="$AIT_HOME/output/global-scratchpad.md"
+    else
+        # Default session scratchpad
+        SCRATCHPAD_FILE="${file%.*}.scratchpad.md"
+    fi
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Scratchpad Action: $FC_ACTION\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Scratchpad Action: $FC_ACTION ($FC_SCOPE)\033[0m"
 
     local RESULT_MSG
     case "$FC_ACTION" in

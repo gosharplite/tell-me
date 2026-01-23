@@ -4,10 +4,16 @@ tool_manage_tasks() {
     local FC_DATA="$1"
     local RESP_PARTS_FILE="$2"
     
-    # Derive tasks filename from global 'file' variable, similar to scratchpad
-    # Default to ./tasks.json if $file is unset
-    local BASE_NAME="${file:-./history.json}"
-    local TASKS_FILE="${BASE_NAME%.*}.tasks.json"
+    # Derive tasks filename based on Scope
+    local SCOPE=$(echo "$FC_DATA" | jq -r '.args.scope // "session"')
+    local TASKS_FILE
+    if [ "$SCOPE" == "global" ]; then
+        TASKS_FILE="$AIT_HOME/output/global-tasks.json"
+    else
+        # Default session tasks
+        local BASE_NAME="${file:-./history.json}"
+        TASKS_FILE="${BASE_NAME%.*}.tasks.json"
+    fi
 
     local ACTION=$(echo "$FC_DATA" | jq -r '.args.action')
     local TASK_ID=$(echo "$FC_DATA" | jq -r '.args.task_id // empty')
@@ -15,7 +21,7 @@ tool_manage_tasks() {
     local STATUS=$(echo "$FC_DATA" | jq -r '.args.status // empty')
 
     local TS=$(get_log_timestamp)
-    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Manage Tasks: $ACTION\033[0m"
+    echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Manage Tasks: $ACTION ($SCOPE)\033[0m"
 
     local RESULT_MSG=""
 
