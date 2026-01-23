@@ -92,7 +92,7 @@ log_tool_call() {
     local turn_info="$2"
     local f_name=$(echo "$fc_json" | jq -r '.name')
     local f_args=$(echo "$fc_json" | jq -c '.args')
-    local ts=$(date "+%H:%M:%S")
+    local ts=$(get_log_timestamp)
     
     local msg=""
     case "$f_name" in
@@ -273,7 +273,7 @@ while true; do
     fi
 
     THOUGHTS=$(echo "$CANDIDATE" | jq -r '.parts[] | select(.thought == true) | .text' 2>/dev/null)
-    [ -n "$THOUGHTS" ] && echo -e "\033[0;90m[Thinking]\n$THOUGHTS\033[0m\n"
+    [ -n "$THOUGHTS" ] && echo -e "\033[0;90m$(get_log_timestamp) [Thinking]\n$THOUGHTS\033[0m\n"
 
     # 4.5 Log Usage immediately for this turn
     SEARCH_COUNT=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries | length // 0' 2>/dev/null)
