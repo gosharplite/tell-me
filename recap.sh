@@ -187,12 +187,12 @@ produce_output() {
             ) | join(\"\")) +
             (if (\"$SHOW_THOUGHTS\" == \"true\") then
                 ((.parts // []) | map(select(.thought == true)) | map(.text // \"\") | join(\"\\n\") | 
-                 split(\"\\n\") | map(select(test(\"^\\\\s*$\") | not)) | join(\"\\n\") | if length > 0 then \"\\n\\n> **Thought**\\n\" + . else \"\" end)
+                 split(\"\\n\") | map(select(test(\"\\\\S\"))) | join(\"\\n\") | if length > 0 then \"\\n\\n> **Thought**\\n\" + . else \"\" end)
              else \"\" end)
          elif ((.parts // []) | map(select(.thought == true)) | length > 0) then
             (if (\"$SHOW_THOUGHTS\" == \"true\") then
                 ((.parts // []) | map(select(.thought == true)) | map(.text // \"\") | join(\"\\n\") | 
-                 split(\"\\n\") | map(select(test(\"^\\\\s*$\") | not)) | join(\"\\n\") | if length > 0 then \"## 🧠 THOUGHT\\n\" + . else \"\" end)
+                 split(\"\\n\") | map(select(test(\"\\\\S\"))) | join(\"\\n\") | if length > 0 then \"## 🧠 THOUGHT\\n\" + . else \"\" end)
              else \"*[Thought Only]*\" end)
          else \"*[Empty Message]*\" end) +
         \"\\n\\n---\"
@@ -223,7 +223,7 @@ produce_output() {
             ) | join(\"\")) +
             (if (\"$SHOW_THOUGHTS\" == \"true\") then
                 ((.parts // []) | map(select(.thought == true)) | map(.text // \"\") | join(\"\\n\") | 
-                 split(\"\\n\") | map(select(test(\"^\\\\s*$\") | not)) | join(\"\\n\") | if length > 0 then \"\\n[Thought]\\n\" + . else \"\" end)
+                 split(\"\\n\") | map(select(test(\"\\\\S\"))) | join(\"\\n\") | if length > 0 then \"\\n[Thought]\\n\" + . else \"\" end)
              else \"\" end)
          else \"<Empty Message>\" end) + \"\\n\"
       " "$FILERECAP" | apply_filters
