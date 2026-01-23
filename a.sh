@@ -173,17 +173,18 @@ fi
 
 START_TIME=$(date +%s.%N)
 
+# --- Prepare Tool Definitions (Once per session) ---
+FUNC_DECLARATIONS=$(cat "$BASE_DIR/lib/tools.json")
+if [ "$USE_SEARCH" == "true" ]; then
+    TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "googleSearch": {} }, { "functionDeclarations": $funcs }]')
+else
+    TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "functionDeclarations": $funcs }]')
+fi
+
 while [ $CURRENT_TURN -lt $MAX_TURNS ]; do
     CURRENT_TURN=$((CURRENT_TURN + 1))
 
     # 3. Build API Payload
-    FUNC_DECLARATIONS=$(cat "$BASE_DIR/lib/tools.json")
-    if [ "$USE_SEARCH" == "true" ]; then
-        TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "googleSearch": {} }, { "functionDeclarations": $funcs }]')
-    else
-        TOOLS_JSON=$(jq -n --argjson funcs "$FUNC_DECLARATIONS" '[{ "functionDeclarations": $funcs }]')
-    fi
-
     APIDATA=$(jq -n \
       --arg person "$PERSON" \
       --argjson tools "$TOOLS_JSON" \
