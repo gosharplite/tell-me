@@ -29,13 +29,14 @@ source "$BASE_DIR/lib/history_manager.sh"
 source "$BASE_DIR/lib/utils.sh"
 
 # --- Configuration Setup ---
-CONFIG_FILE=""
 if [ -n "$1" ] && [ -f "$1" ]; then
     CONFIG_FILE="$1"
+elif [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
+    : # Use provided env var
 elif [ -f "config.yaml" ]; then
     CONFIG_FILE="config.yaml"
-elif [ -f "$BASE_DIR/output/last-assist-vflash.config.yaml" ]; then
-    CONFIG_FILE="$BASE_DIR/output/last-assist-vflash.config.yaml"
+elif ls "$BASE_DIR/output/last-assist-"*".config.yaml" 1> /dev/null 2>&1; then
+    CONFIG_FILE="$(ls -t "$BASE_DIR/output/last-assist-"*".config.yaml" | head -n 1)"
 fi
 
 if [ -z "$CONFIG_FILE" ]; then
