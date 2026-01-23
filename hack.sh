@@ -223,15 +223,11 @@ case "$ACTION" in
         ;;
 
     "read-scratchpad-tasks")
-        send_prompt "Read scratchpad and tasks"
+        send_prompt "Read global and session scratchpad and tasks"
         ;;
 
     "restart-session")
-        send_prompt "I need to restart session. Please update scratchpad and tasks so you will remember what is going on. List all your tasks."
-        ;;
-
-    "combine-tasks")
-        send_prompt "Read all task and scratchpad files in output folder. Merge all contents and save for yourself. List all your tasks."
+        send_prompt "I need to restart session. Please update global and session scratchpad and tasks so you will remember what is going on. List all your tasks."
         ;;
 
     "cheat-sheet")

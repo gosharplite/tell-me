@@ -102,6 +102,28 @@ test_clear() {
         cat "$SCRATCHPAD_PATH"
         return 1
     fi
+test_global_scope() {
+    echo "------------------------------------------------"
+    echo "Running test_global_scope..."
+    
+    # Mock AIT_HOME to redirect global files to our test directory
+    export AIT_HOME="$TEST_DIR"
+    local GLOBAL_SCRATCHPAD_PATH="$TEST_DIR/output/global-scratchpad.md"
+    mkdir -p "$TEST_DIR/output"
+
+    local ARGS='{"args": {"action": "write", "content": "Global Content", "scope": "global"}}'
+    
+    echo "[]" > "$RESP_FILE"
+    tool_manage_scratchpad "$ARGS" "$RESP_FILE"
+    
+    if [ -f "$GLOBAL_SCRATCHPAD_PATH" ] && [ "$(cat "$GLOBAL_SCRATCHPAD_PATH")" == "Global Content" ]; then
+        echo "PASS: Global scratchpad created and written correctly"
+    else
+        echo "FAIL: Global scratchpad check failed"
+        [ -f "$GLOBAL_SCRATCHPAD_PATH" ] || echo "File missing"
+        return 1
+    fi
+}
 }
 
 test_read_empty() {
@@ -127,6 +149,7 @@ test_read || FAILED=1
 test_append || FAILED=1
 test_clear || FAILED=1
 test_read_empty || FAILED=1
+test_global_scope || FAILED=1
 
 if [ $FAILED -eq 0 ]; then
     echo "------------------------------------------------"

@@ -34,6 +34,14 @@
         "content": {
           "type": "STRING",
           "description": "The text content to write or append. Required for 'write' and 'append' actions."
+        },
+        "scope": {
+          "type": "STRING",
+          "description": "The scope of the scratchpad: 'session' (default, per mode/session) or 'global' (persistent across all modes/sessions).",
+          "enum": [
+            "session",
+            "global"
+          ]
         }
       },
       "required": [
@@ -566,11 +574,17 @@
         "status": {
           "type": "STRING",
           "description": "The new status (e.g., 'completed', 'pending') for 'update' or filter for 'list'."
+        },
+        "scope": {
+          "type": "STRING",
+          "description": "The scope of the task list: 'session' (default, per mode/session) or 'global' (persistent across all modes/sessions).",
+          "enum": [
+            "session",
+            "global"
+          ]
         }
       },
-      "required": [
-        "action"
-      ]
+      "required": ["action"]
     }
   },
   {
