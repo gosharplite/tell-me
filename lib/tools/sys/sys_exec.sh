@@ -37,21 +37,29 @@ tool_execute_command() {
     local DUR=""
     
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-        # Execute and capture stdout + stderr
-        local CMD_OUTPUT
-        CMD_OUTPUT=$(bash -c "$FC_CMD" 2>&1)
-        local EXIT_CODE=$?
+        echo -e "\033[0;33mExecuting... (Output shown below)\033[0m"
+        echo "------------------------------------------------------------"
         
-        # Truncate if too long (100 lines)
+        # Execute and capture stdout + stderr while streaming to the user's terminal
+        local TEMP_OUT=$(mktemp)
+        # Use PIPESTATUS to get the exit code of the command, not tee
+        bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT"
+        local EXIT_CODE=${PIPESTATUS[0]}
+        
+        echo "------------------------------------------------------------"
+        local CMD_OUTPUT=$(cat "$TEMP_OUT")
+        rm "$TEMP_OUT"
+        
+        # Truncate if too long (100 lines) for the model's benefit
         local LINE_COUNT=$(echo "$CMD_OUTPUT" | wc -l)
         if [ "$LINE_COUNT" -gt 100 ]; then
-            CMD_OUTPUT="$(echo "$CMD_OUTPUT" | head -n 100)\n... (Output truncated at 100 lines) ..."
+            CMD_OUTPUT="$(echo "$CMD_OUTPUT" | head -n 100)\n... (Output truncated for AI context at 100 lines) ..."
         fi
 
         if [ $EXIT_CODE -eq 0 ]; then
             RESULT_MSG="Exit Code: 0\nOutput:\n$CMD_OUTPUT"
             DUR=$(get_log_duration)
-            echo -e "${DUR} \033[0;32m[Tool Success] Command executed.\033[0m"
+            echo -e "${DUR} \033[0;32m[Tool Success] Command completed.\033[0m"
         else
             RESULT_MSG="Exit Code: $EXIT_CODE\nError/Output:\n$CMD_OUTPUT"
             DUR=$(get_log_duration)
@@ -78,3 +86,4 @@ tool_execute_command() {
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }
+
