@@ -85,6 +85,7 @@ options=(
     "restart-session"
     "validate-code"
     "estimate-cost"
+    "understand-tell-me"
     "cheat-sheet"
 )
 
@@ -234,6 +235,10 @@ case "$ACTION" in
         send_prompt "Please validate the syntax of all code files in the project using the validate_syntax tool."
         ;;
 
+    "understand-tell-me")
+        send_prompt "Please list the project files, read the README.md, and all SOP files to understand the 'tell-me' project's architecture, safety protocols, and operational procedures."
+        ;;
+
     "cheat-sheet")
         cat <<'EOF'
 -------------------------------------
@@ -254,3 +259,4 @@ case "$ACTION" in
 EOF
         ;;
 esac
+

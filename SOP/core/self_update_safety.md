@@ -1,7 +1,7 @@
 # Standard Operating Procedure (SOP): Self-Updating Core Scripts
 
 ### Objective
-To safely modify the core execution scripts (`a.sh`, `tell-me.sh`, `recap.sh`) while they are actively running the assistant session, preventing execution errors or script corruption.
+To safely modify the core execution scripts (`a.sh`, `tell-me.sh`, `recap.sh`, `aa.sh`, `hack.sh`, `dump.sh`) while they are actively running the assistant session, preventing execution errors or script corruption.
 
 ---
 
@@ -18,9 +18,10 @@ Before making any changes to a core script:
 - Create a backup of the current script: `cp a.sh a.sh.bak`.
 - Write the intended changes to a temporary file (e.g., `a.sh.tmp`) instead of overwriting the original.
 
-#### 2. Syntax Validation
+#### 2. Syntax Validation and Permissions
 Never swap a core script without verification:
 - Run `bash -n <script_name>.tmp`.
+- **Restore Permissions**: Ensure the temporary file has execute permissions: `chmod +x <script_name>.tmp`.
 - If the command returns an error, fix the temporary file and re-validate. Do NOT proceed to the swap phase.
 
 #### 3. Atomic Replacement
@@ -45,9 +46,9 @@ When an AI assistant (like Gemini) is performing the update, it **MUST NOT** use
     cat <<'EOF' > <script>.tmp
     [FULL CONTENT HERE]
     EOF
-    bash -n <script>.tmp && mv <script>.tmp <script>
+    bash -n <script>.tmp && chmod +x <script>.tmp && mv <script>.tmp <script>
     ```
-4.  **Verification**: Confirm the file was updated and remains valid.
+4.  **Verification**: Confirm the file was updated, is valid, and has execute permissions.
 
 ---
 
@@ -60,6 +61,7 @@ cp a.sh a.sh.bak
 # ... logic to generate new_content ...
 echo "$new_content" > a.sh.tmp
 if bash -n a.sh.tmp; then
+    chmod +x a.sh.tmp
     mv a.sh.tmp a.sh
     echo "Update successful."
 else
@@ -75,3 +77,4 @@ fi
 - **Rollback Readiness**: Keep the `.bak` file until the user confirms the system is still functional.
 - **Minimalism**: Keep the core loop in `a.sh` as slim as possible to reduce the frequency of needed updates to the execution heart.
 - **Atomic Tool Choice**: Prefer `update_file` over partial edits for core files, as it ensures the entire file state is known and controlled.
+- **Permission Preservation**: Always verify that the final file is executable (`[ -x <file> ]`) after a swap.
