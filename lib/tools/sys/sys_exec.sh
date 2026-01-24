@@ -48,29 +48,45 @@ tool_execute_command() {
         local TEMP_OUT=$(mktemp)
         local EXIT_CODE=0
 
-        if [ "$IS_SAFE_CMD" == "true" ] || [ "$FC_SILENT" == "true" ]; then
-            # 1. Silent Execution for safe or explicitly silent commands
+        if [ "$IS_SAFE_CMD" == "true" ]; then
+            # Silent Execution for safe auto-approved commands (internal noise reduction)
             bash -c "$FC_CMD" > "$TEMP_OUT" 2>&1
             EXIT_CODE=$?
         else
-            # 2. Streamed Execution for confirmed commands
-            {
-                echo -e "\033[0;33mExecuting... (Output shown below)\033[0m"
-                echo -e "\033[90m------------------------------------------------------------\033[0m"
-            } > "$TTY_OUT"
-            
-            # Stream with indentation and dim color
-            bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT" | while IFS= read -r line; do
-                printf "  \033[90m%s\033[0m\n" "$line" > "$TTY_OUT"
-            done
-            EXIT_CODE=${PIPESTATUS[0]}
-            
-            echo -e "\033[90m------------------------------------------------------------\033[0m" > "$TTY_OUT"
+            # Confirmed commands ALWAYS show an indicator
+            if [ "$FC_SILENT" == "true" ]; then
+                echo -e "\033[0;33mExecuting in background...\033[0m" > "$TTY_OUT"
+                bash -c "$FC_CMD" > "$TEMP_OUT" 2>&1
+                EXIT_CODE=$?
+            else
+                {
+                    echo -e "\033[0;33mExecuting... (Output shown below)\033[0m"
+                    echo -e "\033[90m------------------------------------------------------------\033[0m"
+                } > "$TTY_OUT"
+                
+                # Stream with indentation and dim color
+                bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT" | while IFS= read -r line; do
+                    printf "  \033[90m%s\033[0m\n" "$line" > "$TTY_OUT"
+                done
+                EXIT_CODE=${PIPESTATUS[0]}
+                
+                echo -e "\033[90m------------------------------------------------------------\033[0m" > "$TTY_OUT"
+            fi
         fi
         
         local CMD_OUTPUT=$(cat "$TEMP_OUT")
         rm "$TEMP_OUT"
         
+        # If a silent command failed, show the error output anyway so the user knows why
+        if [ "$FC_SILENT" == "true" ] && [ $EXIT_CODE -ne 0 ] && [ "$IS_SAFE_CMD" == "false" ]; then
+            {
+                echo -e "\033[0;31mCommand Failed. Error Output:\033[0m"
+                echo -e "\033[90m------------------------------------------------------------\033[0m"
+                echo "$CMD_OUTPUT" | sed 's/^/  /'
+                echo -e "\033[90m------------------------------------------------------------\033[0m"
+            } > "$TTY_OUT"
+        fi
+
         # Truncate if too long (100 lines) for the model's benefit
         local LINE_COUNT=$(echo "$CMD_OUTPUT" | wc -l)
         if [ "$LINE_COUNT" -gt 100 ]; then
