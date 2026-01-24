@@ -680,5 +680,13 @@
         "prompt"
       ]
     }
+  },
+  {
+    "name": "estimate_cost",
+    "description": "Calculates the estimated USD cost of the current session based on token usage and grounding queries recorded in the log file.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {}
+    }
   }
 ]
