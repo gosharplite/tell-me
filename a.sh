@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) 2026  <gosharplite@gmail.com>
+# SPDX-License-Identifier: MIT
+
 # a.sh: Final verified script with all fixes and original features.
 
 # Resolve Script Directory
@@ -367,4 +370,3 @@ DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - st
 START_TIME_FMT=$(date -d "@${START_TIME%.*}" +%H:%M:%S 2>/dev/null || date -r "${START_TIME%.*}" +%H:%M:%S)
 END_TIME_FMT=$(date -d "@${END_TIME%.*}" +%H:%M:%S 2>/dev/null || date -r "${END_TIME%.*}" +%H:%M:%S)
 printf "\033[0;35m[Total Duration] %.2f seconds [%s] [%s]\033[0m\n" "$DURATION" "$START_TIME_FMT" "$END_TIME_FMT"
-

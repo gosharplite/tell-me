@@ -24,6 +24,7 @@ Before any public release, perform a mandatory security scan:
 #### 2. Documentation & Compliance Review
 - **License**: Verify `LICENSE` (MIT) is present in the root.
 - **SPDX Headers**: Ensure all core scripts (`.sh`) and YAML files contain the standard SPDX-License-Identifier header.
+    - **⚠️ CRITICAL**: Modifications to core scripts (`a.sh`, `tell-me.sh`, etc.) **MUST** follow the atomic swap procedure in `SOP/core/self_update_safety.md`. Do not use in-place editing tools.
 - **SOP Sync**: Verify that the `SOP/` directory reflects the current system architecture.
 - **Version Bump**: Update any version strings (if applicable) in `tell-me.sh` or the welcome header.
 
