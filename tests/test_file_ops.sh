@@ -14,16 +14,16 @@ set -e
 # Setup temp environment
 TEST_DIR=$(mktemp -d)
 ORIGINAL_DIR=$(pwd)
-cp lib/*.sh "$TEST_DIR/"
+cp -r lib "$TEST_DIR/"
 cp lib/tools.json "$TEST_DIR/"
 
 cd "$TEST_DIR"
 
 # Source dependencies
-source ./utils.sh
-source ./file_edit.sh
-source ./file_search.sh
-source ./read_file.sh
+source lib/core/utils.sh
+source lib/tools/fs/file_edit.sh
+source lib/tools/fs/file_search.sh
+source lib/tools/fs/read_file.sh
 
 # Mocks
 export CURRENT_TURN=1
@@ -49,7 +49,7 @@ echo "Testing rollback_file..."
 
 # To test rollback, we need `backup_file` and `restore_backup` to be defined.
 # They are typically in `utils.sh` or `scratchpad.sh` but `file_edit.sh` sources nothing.
-# Let's check `lib/file_edit.sh` calls `backup_file` if defined.
+# Let's check `lib/tools/fs/file_edit.sh` calls `backup_file` if defined.
 # We need to mock these functions.
 
 BACKUP_DIR=".backups"

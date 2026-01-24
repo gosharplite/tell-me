@@ -3,8 +3,8 @@
 
 # Setup Environment
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$BASE_DIR/lib/utils.sh"
-source "$BASE_DIR/lib/history_manager.sh"
+source "$BASE_DIR/lib/core/utils.sh"
+source "$BASE_DIR/lib/core/history_manager.sh"
 
 TEST_DIR=$(mktemp -d)
 trap 'rm -rf "$TEST_DIR"' EXIT

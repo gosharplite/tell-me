@@ -14,7 +14,7 @@ set -e
 # Setup temp environment
 TEST_DIR=$(mktemp -d)
 ORIGINAL_DIR=$(pwd)
-cp lib/*.sh "$TEST_DIR/"
+find lib -name "*.sh" -exec cp {} "$TEST_DIR/" \;
 cp lib/tools.json "$TEST_DIR/"
 
 cd "$TEST_DIR"

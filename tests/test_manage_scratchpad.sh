@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test script for lib/scratchpad.sh
+# Test script for lib/tools/sys/scratchpad.sh
 
 # Setup isolated environment
 TEST_DIR=$(mktemp -d)
@@ -17,8 +17,8 @@ export file="$TEST_DIR/session.yaml"
 SCRATCHPAD_PATH="$TEST_DIR/session.scratchpad.md"
 
 # Load source
-source lib/utils.sh
-source lib/scratchpad.sh
+source lib/core/utils.sh
+source lib/tools/sys/scratchpad.sh
 
 test_write() {
     echo "------------------------------------------------"

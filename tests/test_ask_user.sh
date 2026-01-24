@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test script for lib/ask_user.sh
+# Test script for lib/tools/sys/ask_user.sh
 
 # Setup isolated environment
 TEST_DIR=$(mktemp -d)
@@ -26,10 +26,10 @@ read() {
 # Source dependencies
 # We need to source utils.sh because ask_user.sh might use it
 # But ask_user.sh sources utils.sh internally? No, usually tools expect utils to be sourced.
-# Let's check imports. `lib/ask_user.sh` might rely on `tool_ask_user`.
+# Let's check imports. `lib/tools/sys/ask_user.sh` might rely on `tool_ask_user`.
 # We source from the real lib directory.
-source lib/utils.sh
-source lib/ask_user.sh
+source lib/core/utils.sh
+source lib/tools/sys/ask_user.sh
 
 test_normal_usage() {
     echo "------------------------------------------------"

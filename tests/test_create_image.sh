@@ -21,8 +21,8 @@ export MAX_TURNS=10
 export AIURL="https://mock-api.com"
 export TOKEN="mock-token"
 
-source lib/utils.sh
-source lib/create_image.sh
+source lib/core/utils.sh
+source lib/tools/media/create_image.sh
 
 # Mock curl
 CURL_RESPONSE_BODY=""

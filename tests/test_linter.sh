@@ -15,7 +15,7 @@ trap cleanup EXIT
 cp -r lib "$TEST_DIR/"
 cd "$TEST_DIR"
 
-source "lib/utils.sh"
+source "lib/core/utils.sh"
 source "lib/linter.sh"
 
 # --- Helper Function ---

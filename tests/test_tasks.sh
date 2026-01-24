@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test script for manage_tasks tool in lib/task_manager.sh
+# Test script for manage_tasks tool in lib/tools/sys/task_manager.sh
 
 # Setup isolated environment
 TEST_DIR=$(mktemp -d)
@@ -14,8 +14,8 @@ trap cleanup EXIT
 
 # Mock Environment
 BASE_DIR="$(pwd)"
-source "lib/utils.sh"
-source "lib/task_manager.sh"
+source "lib/core/utils.sh"
+source "lib/tools/sys/task_manager.sh"
 
 # Mock Global 'file' variable to simulate agent environment
 export file="$TASKS_DIR/mock_history.json"

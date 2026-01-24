@@ -5,6 +5,13 @@ This SOP defines the standard structure and process for documentating procedures
 ---
 
 ### 1. Structure of an SOP
+
+#### File Criticality Levels
+To ensure stability, files are categorized by risk:
+- **Core Scripts** (`a.sh`, `tell-me.sh`, `recap.sh`, `aa.sh`): **HIGH RISK**. Modifications require atomic swap and syntax validation as per `SOP/core/self_update_safety.md`.
+- **Library Scripts** (`lib/**/*.sh`): **MEDIUM RISK**. Sourced at startup. Verify syntax before committing.
+- **Configurations/Tools** (`yaml/*.yaml`, `lib/tools.json`): **LOW RISK**. Ensure valid JSON/YAML syntax.
+
 Every SOP should follow a consistent Markdown structure:
 
 - **Title**: A clear, descriptive title prefixed with "Standard Operating Procedure (SOP):".
@@ -42,6 +49,7 @@ Every SOP should follow a consistent Markdown structure:
 
 ### 4. Implementation Checklist
 - [ ] Is the title clear?
+- [ ] Does this impact **Core Scripts**? (If yes, follow `SOP/core/self_update_safety.md`)
 - [ ] Are all dependencies listed?
 - [ ] Is the logic broken down into digestible numbered steps?
 - [ ] Are there example code blocks?

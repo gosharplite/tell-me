@@ -35,6 +35,22 @@ Inform the user of the update:
 
 ---
 
+### ⚠️ AI Agent Implementation Guide
+When an AI assistant (like Gemini) is performing the update, it **MUST NOT** use in-place editing tools (`apply_patch`, `replace_text`, `insert_text`, `append_file`) on core scripts. Instead, follow this exact sequence:
+
+1.  **Read**: Use `read_file` to capture the current content.
+2.  **Local Edit**: Prepare the full new content in the thinking process.
+3.  **Validate & Atomic Swap**: Use `execute_command` to run a single safe sequence:
+    ```bash
+    cat <<'EOF' > <script>.tmp
+    [FULL CONTENT HERE]
+    EOF
+    bash -n <script>.tmp && mv <script>.tmp <script>
+    ```
+4.  **Verification**: Confirm the file was updated and remains valid.
+
+---
+
 ### Code Templates
 
 #### Safe Update Pattern (Bash):
@@ -58,4 +74,4 @@ fi
 - **Library Focus**: Whenever possible, move logic into the `lib/` directory. Modifying library files is inherently safer as they are sourced at the start of the script's execution.
 - **Rollback Readiness**: Keep the `.bak` file until the user confirms the system is still functional.
 - **Minimalism**: Keep the core loop in `a.sh` as slim as possible to reduce the frequency of needed updates to the execution heart.
-
+- **Atomic Tool Choice**: Prefer `update_file` over partial edits for core files, as it ensures the entire file state is known and controlled.

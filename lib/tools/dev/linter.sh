@@ -1,4 +1,4 @@
-# Requires: lib/utils.sh for check_path_safety
+# Requires: lib/core/utils.sh for check_path_safety
 
 tool_validate_syntax() {
     local FC_DATA="$1"

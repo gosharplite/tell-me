@@ -25,8 +25,8 @@ for cmd in jq curl gcloud awk python3 patch; do
     fi
 done
 
-source "$BASE_DIR/lib/history_manager.sh"
-source "$BASE_DIR/lib/utils.sh"
+source "$BASE_DIR/lib/core/history_manager.sh"
+source "$BASE_DIR/lib/core/utils.sh"
 
 # --- Configuration Setup ---
 if [ -n "$1" ] && [ -f "$1" ]; then
@@ -77,10 +77,15 @@ if [ -n "$MAX_HISTORY_TOKENS" ]; then
 fi
 
 # --- Load Tools ---
-source "$BASE_DIR/lib/auth.sh"
-for lib in "$BASE_DIR"/lib/*.sh; do
-    [ -f "$lib" ] && source "$lib"
-done
+source "$BASE_DIR/lib/core/auth.sh"
+# Source all library files recursively from lib/core and lib/tools
+while IFS= read -r -d '' lib; do
+    # Skip files already sourced explicitly
+    case "$(basename "$lib")" in
+        history_manager.sh|utils.sh|auth.sh) continue ;;
+    esac
+    source "$lib"
+done < <(find "$BASE_DIR/lib" -maxdepth 3 -name "*.sh" -print0)
 
 # --- Helper Functions ---
 update_history() {

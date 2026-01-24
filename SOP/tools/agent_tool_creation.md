@@ -6,7 +6,7 @@ This SOP defines the process for adding new agentic capabilities (tools) to the 
 ---
 
 ### Prerequisites
-- Access to the `lib/` directory.
+- Access to the `lib/` directory and its subfolders (`core/`, `tools/`).
 - `jq` installed for JSON processing.
 - Basic knowledge of the Gemini Tool Use (Function Calling) schema.
 - Familiarity with the project's global variables (`$file`, `$AIMODEL`, etc.).
@@ -29,13 +29,13 @@ Register the tool in the centralized schema file:
 
 #### 3. Implement the Tool Logic
 Create the Bash function to handle the execution:
-- **Location**: Create a new file in `lib/` (e.g., `lib/hash_tool.sh`) or append to an existing library.
+- **Location**: Create a new file in an appropriate subdirectory of `lib/tools/` (e.g., `lib/tools/sys/hash_tool.sh`).
 - **Function Name**: Prefix with `tool_` (e.g., `tool_calculate_hash`).
 - **Signature**: `tool_name "$FC_DATA" "$RESP_PARTS_FILE"`
 
 #### 4. Integration
 Verify the tool is sourced:
-- The `a.sh` script automatically sources all `*.sh` files in `lib/`. No manual registration is required if the file is named correctly.
+- The `a.sh` script automatically sources all `*.sh` files recursively within `lib/` (up to 3 levels deep). No manual registration is required if the file is placed in a `lib/` subdirectory.
 
 ---
 
