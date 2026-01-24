@@ -54,5 +54,7 @@ Every SOP should follow a consistent Markdown structure:
 - [ ] Is the logic broken down into digestible numbered steps?
 - [ ] Are there example code blocks?
 - [ ] Is the file saved in `SOP/` or a sub-folder?
-- [ ] Has the file been committed to the repository?
+- [ ] Has the quality been verified? (Run `./run_tests.sh` before committing)
+- [ ] Is the commit message structured according to `SOP/core/git_workflow.md`?
+- [ ] Has the file been committed and pushed to the repository?
 
