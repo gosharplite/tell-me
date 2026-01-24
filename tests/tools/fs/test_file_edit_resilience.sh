@@ -1,10 +1,20 @@
 #!/bin/bash
 # Resilience and Security tests for file_edit.sh
+# Optimized version
 
 # 1. Setup Environment
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../" && pwd)"
 TEST_DIR=$(mktemp -d)
 trap 'rm -rf "$TEST_DIR"' EXIT
+
+# --- OPTIMIZATION: Mock date to avoid process overhead ---
+mkdir -p "$TEST_DIR/bin"
+cat <<EOF > "$TEST_DIR/bin/date"
+#!/bin/bash
+if [[ "\$1" == "+%s" ]]; then echo "1700000000"; else echo "12:00:00"; fi
+EOF
+chmod +x "$TEST_DIR/bin/date"
+export PATH="$TEST_DIR/bin:$PATH"
 
 # Mocking parts of a.sh environment
 export CURRENT_TURN=1
@@ -32,6 +42,15 @@ RESP_FILE="$TEST_DIR/response.json"
 pass() { echo -e "\033[0;32mPASS:\033[0m $1"; }
 fail() { echo -e "\033[0;31mFAIL:\033[0m $1"; exit 1; }
 
+# Helper to run tool with string input (saves jq -n overhead)
+run_tool_update() {
+    local fp="$1"
+    local c="$2"
+    local ARGS="{\"args\": {\"filepath\": \"$fp\", \"content\": \"$c\"}}"
+    echo "[]" > "$RESP_FILE"
+    tool_update_file "$ARGS" "$RESP_FILE"
+}
+
 # Test 1: Permission Preservation
 test_permission_preservation() {
     echo "Testing Permission Preservation..."
@@ -39,10 +58,7 @@ test_permission_preservation() {
     echo "original" > "$FILE"
     chmod 755 "$FILE"
     
-    local ARGS=$(jq -n --arg fp "$FILE" --arg c "updated" '{"args": {"filepath": $fp, "content": $c}}')
-    echo "[]" > "$RESP_FILE"
-    
-    tool_update_file "$ARGS" "$RESP_FILE"
+    run_tool_update "$FILE" "updated"
     
     if [ "$(cat "$FILE")" != "updated" ]; then fail "Update failed (content mismatch)"; fi
 
@@ -60,15 +76,12 @@ test_rollback_resilience() {
     local FILE="$TEST_DIR/rollback_test.txt"
     echo "v1" > "$FILE"
     
-    # Trigger backup via tool call
-    local ARGS_V2=$(jq -n --arg fp "$FILE" --arg c "v2" '{"args": {"filepath": $fp, "content": $c}}')
-    echo "[]" > "$RESP_FILE"
-    tool_update_file "$ARGS_V2" "$RESP_FILE"
+    run_tool_update "$FILE" "v2"
     
     if [ "$(cat "$FILE")" != "v2" ]; then fail "Update failed"; fi
     
     # Rollback
-    local ROLL_ARGS=$(jq -n --arg fp "$FILE" '{"args": {"filepath": $fp}}')
+    local ROLL_ARGS="{\"args\": {\"filepath\": \"$FILE\"}}"
     echo "[]" > "$RESP_FILE"
     tool_rollback_file "$ROLL_ARGS" "$RESP_FILE"
     
@@ -82,21 +95,27 @@ test_rollback_resilience() {
 # Test 3: Path Security (CWD enforcement)
 test_path_security() {
     echo "Testing Path Security..."
-    local OUTSIDE="/tmp/tellme_security_test_$(date +%s)"
-    touch "$OUTSIDE"
+    local OUTSIDE="$TEST_DIR/outside_security_test"
+    echo "original" > "$OUTSIDE"
     
-    local ARGS=$(jq -n --arg fp "$OUTSIDE" --arg c "hack" '{"args": {"filepath": $fp, "content": $c}}')
+    # Try to write to it using full path (should be safe if we are in TEST_DIR)
+    # Wait, check_path_safety checks if it starts with CWD.
+    # To test failure, we need something OUTSIDE TEST_DIR.
+    local ABS_OUTSIDE="/tmp/tellme_outside_$(date +%s)"
+    touch "$ABS_OUTSIDE"
+    
+    local ARGS="{\"args\": {\"filepath\": \"$ABS_OUTSIDE\", \"content\": \"hack\"}}"
     echo "[]" > "$RESP_FILE"
     
-    # This should be blocked by check_path_safety
     tool_update_file "$ARGS" "$RESP_FILE"
     
-    if grep -q "original" "$OUTSIDE" 2>/dev/null || [ "$(cat "$OUTSIDE" 2>/dev/null)" == "hack" ]; then
+    if [ "$(cat "$ABS_OUTSIDE" 2>/dev/null)" == "hack" ]; then
+        rm -f "$ABS_OUTSIDE"
         fail "Security Breach: Wrote outside CWD!"
     else
         pass "Security Blocked outside write"
     fi
-    rm -f "$OUTSIDE"
+    rm -f "$ABS_OUTSIDE"
 }
 
 echo "Running file_edit Resilience Tests..."
@@ -114,9 +133,8 @@ test_replace_permission_preservation() {
     echo "Line 1" > "$FILE"
     chmod 755 "$FILE"
     
-    local ARGS=$(jq -n --arg fp "$FILE" --arg o "Line 1" --arg n "Line 1 mod" '{"args": {"filepath": $fp, "old_text": $o, "new_text": $n}}')
+    local ARGS="{\"args\": {\"filepath\": \"$FILE\", \"old_text\": \"Line 1\", \"new_text\": \"Line 1 mod\"}}"
     echo "[]" > "$RESP_FILE"
-    
     tool_replace_text "$ARGS" "$RESP_FILE"
     
     local NEW_PERMS=$(stat -c %a "$FILE" 2>/dev/null || stat -f %Lp "$FILE")
@@ -137,9 +155,8 @@ test_insert_permission_preservation() {
     echo "Line 1" > "$FILE"
     chmod 755 "$FILE"
     
-    local ARGS=$(jq -n --arg fp "$FILE" --arg t "A.5" --arg ln "1" --arg p "after" '{"args": {"filepath": $fp, "text": $t, "line_number": $ln, "placement": $p}}')
+    local ARGS="{\"args\": {\"filepath\": \"$FILE\", \"text\": \"A.5\", \"line_number\": 1, \"placement\": \"after\"}}"
     echo "[]" > "$RESP_FILE"
-    
     tool_insert_text "$ARGS" "$RESP_FILE"
     
     local NEW_PERMS=$(stat -c %a "$FILE" 2>/dev/null || stat -f %Lp "$FILE")
@@ -160,15 +177,9 @@ test_patch_permission_preservation() {
     echo "Line 1" > "$FILE"
     chmod 755 "$FILE"
     
-    local PATCH="--- a/patch_perm_test.sh
-+++ b/patch_perm_test.sh
-@@ -1 +1 @@
--Line 1
-+Line 1 mod
-"
-    local ARGS=$(jq -n --arg pc "$PATCH" '{"args": {"patch_content": $pc}}')
+    local PATCH="--- a/patch_perm_test.sh\n+++ b/patch_perm_test.sh\n@@ -1 +1 @@\n-Line 1\n+Line 1 mod\n"
+    local ARGS="{\"args\": {\"patch_content\": \"$PATCH\"}}"
     echo "[]" > "$RESP_FILE"
-    
     tool_apply_patch "$ARGS" "$RESP_FILE"
     
     local NEW_PERMS=$(stat -c %a "$FILE" 2>/dev/null || stat -f %Lp "$FILE")
@@ -189,9 +200,8 @@ test_append_permission_preservation() {
     echo "Line 1" > "$FILE"
     chmod 755 "$FILE"
     
-    local ARGS=$(jq -n --arg fp "$FILE" --arg c "Line 2" '{"args": {"filepath": $fp, "content": $c}}')
+    local ARGS="{\"args\": {\"filepath\": \"$FILE\", \"content\": \"Line 2\"}}"
     echo "[]" > "$RESP_FILE"
-    
     tool_append_file "$ARGS" "$RESP_FILE"
     
     local NEW_PERMS=$(stat -c %a "$FILE" 2>/dev/null || stat -f %Lp "$FILE")

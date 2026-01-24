@@ -7,6 +7,15 @@ TEST_DIR=$(mktemp -d)
 RESP_PARTS_FILE="$TEST_DIR/test_resp_parts.json"
 TASKS_DIR="$TEST_DIR/test_output"
 
+# --- OPTIMIZATION: Mock date to avoid process overhead ---
+mkdir -p "$TEST_DIR/bin"
+cat <<EOF > "$TEST_DIR/bin/date"
+#!/bin/bash
+echo "12:00:00"
+EOF
+chmod +x "$TEST_DIR/bin/date"
+export PATH="$TEST_DIR/bin:$PATH"
+
 cleanup() {
     rm -rf "$TEST_DIR"
 }
@@ -43,7 +52,8 @@ echo "=== Starting Task Manager Tests ==="
 
 # Test 1: Add Task
 echo -e "\n--- Test 1: Add Task ---"
-ARGS=$(jq -n '{args: {action: "add", content: "Buy milk"}}')
+# Optimization: Hardcode JSON instead of calling jq -n
+ARGS='{"args": {"action": "add", "content": "Buy milk"}}'
 OUTPUT=$(run_tool "$ARGS")
 echo "$OUTPUT" | grep -q "Task added with ID: 1" && echo "PASS" || echo "FAIL"
 
@@ -55,34 +65,34 @@ fi
 
 # Test 2: List Tasks
 echo -e "\n--- Test 2: List Tasks ---"
-ARGS=$(jq -n '{args: {action: "list"}}')
+ARGS='{"args": {"action": "list"}}'
 OUTPUT=$(run_tool "$ARGS")
 echo "$OUTPUT" | grep -q "Buy milk" && echo "PASS" || echo "FAIL"
 
 # Test 3: Update Task
 echo -e "\n--- Test 3: Update Task ---"
-ARGS=$(jq -n '{args: {action: "update", task_id: 1, status: "completed"}}')
+ARGS='{"args": {"action": "update", "task_id": 1, "status": "completed"}}'
 OUTPUT=$(run_tool "$ARGS")
 echo "$OUTPUT" | grep -q "Task 1 updated" && echo "PASS" || echo "FAIL"
 
 # Verify update
-ARGS=$(jq -n '{args: {action: "list"}}')
+ARGS='{"args": {"action": "list"}}'
 OUTPUT=$(run_tool "$ARGS")
-echo "$OUTPUT" | grep -q "[completed]" && echo "PASS" || echo "FAIL"
+echo "$OUTPUT" | grep -q "\[completed\]" && echo "PASS" || echo "FAIL"
 
 # Test 4: Delete Task
 echo -e "\n--- Test 4: Delete Task ---"
-ARGS=$(jq -n '{args: {action: "delete", task_id: 1}}')
+ARGS='{"args": {"action": "delete", "task_id": 1}}'
 OUTPUT=$(run_tool "$ARGS")
 echo "$OUTPUT" | grep -q "Task 1 deleted" && echo "PASS" || echo "FAIL"
 
 # Test 5: Clear Tasks
 echo -e "\n--- Test 5: Clear Tasks ---"
 # Add one first
-ARGS=$(jq -n '{args: {action: "add", content: "Temp"}}')
+ARGS='{"args": {"action": "add", "content": "Temp"}}'
 run_tool "$ARGS" > /dev/null
 
-ARGS=$(jq -n '{args: {action: "clear"}}')
+ARGS='{"args": {"action": "clear"}}'
 OUTPUT=$(run_tool "$ARGS")
 echo "$OUTPUT" | grep -q "All tasks cleared" && echo "PASS" || echo "FAIL"
 
@@ -94,7 +104,7 @@ export AIT_HOME="$TEST_DIR"
 GLOBAL_TASKS_FILE="$TEST_DIR/output/global-tasks.json"
 mkdir -p "$TEST_DIR/output"
 
-ARGS=$(jq -n '{args: {action: "add", content: "Global task", scope: "global"}}')
+ARGS='{"args": {"action": "add", "content": "Global task", "scope": "global"}}'
 OUTPUT=$(run_tool "$ARGS")
 
 if [ -f "$GLOBAL_TASKS_FILE" ] && grep -q "Global task" "$GLOBAL_TASKS_FILE"; then
@@ -107,6 +117,7 @@ fi
 # Test 7: Special Characters in Content (Regression for commit a19f3ba)
 echo -e "\n--- Test 7: Special Characters in Content ---"
 TRICKY_CONTENT='Finish the "Project" & '\''fix'\'' it; (maybe) $100%!'
+# We still need jq here for safe escaping
 ARGS=$(jq -n --arg content "$TRICKY_CONTENT" '{args: {action: "add", content: $content}}')
 OUTPUT=$(run_tool "$ARGS")
 TASK_ID=$(echo "$OUTPUT" | grep -o "ID: [0-9]*" | head -n 1 | cut -d' ' -f2)
