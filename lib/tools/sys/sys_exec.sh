@@ -37,16 +37,26 @@ tool_execute_command() {
     local DUR=""
     
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-        echo -e "\033[0;33mExecuting... (Output shown below)\033[0m"
-        echo "------------------------------------------------------------"
+        # Determine if we have a TTY for visual streaming
+        local TTY_OUT="/dev/null"
+        [ -t 1 ] && TTY_OUT="/dev/stdout"
+        # Fallback to /dev/tty if it exists and we are interactive
+        [ -c /dev/tty ] && TTY_OUT="/dev/tty"
+
+        {
+            echo -e "\033[0;33mExecuting... (Output shown below)\033[0m"
+            echo "------------------------------------------------------------"
+        } > "$TTY_OUT"
         
-        # Execute and capture stdout + stderr while streaming to the user's terminal
+        # Execute and capture stdout + stderr while streaming to the TTY
         local TEMP_OUT=$(mktemp)
         # Use PIPESTATUS to get the exit code of the command, not tee
-        bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT"
+        # Stream to both the temp file and the terminal
+        bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT" > "$TTY_OUT"
         local EXIT_CODE=${PIPESTATUS[0]}
         
-        echo "------------------------------------------------------------"
+        echo "------------------------------------------------------------" > "$TTY_OUT"
+        
         local CMD_OUTPUT=$(cat "$TEMP_OUT")
         rm "$TEMP_OUT"
         
