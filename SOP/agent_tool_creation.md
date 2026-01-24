@@ -1,43 +1,62 @@
 # Standard Operating Procedure (SOP): Creating Agent Tools for "tell-me"
 
-This SOP outlines the process for adding new agentic capabilities (tools) to the `tell-me` project.
+### Objective
+This SOP defines the process for adding new agentic capabilities (tools) to the `tell-me` project, ensuring they are correctly defined for the AI and robustly implemented in Bash.
 
 ---
 
-### 1. Define the Tool Interface
-Identify the functionality you want to add and define how the AI will interact with it.
+### Prerequisites
+- Access to the `lib/` directory.
+- `jq` installed for JSON processing.
+- Basic knowledge of the Gemini Tool Use (Function Calling) schema.
+- Familiarity with the project's global variables (`$file`, `$AIMODEL`, etc.).
+
+---
+
+### Step-by-Step Instructions
+
+#### 1. Define the Tool Interface
+Identify the functionality and define the AI interaction schema:
 - **Name**: A clear, snake_case name (e.g., `calculate_hash`).
-- **Description**: A concise explanation of what the tool does and when the AI should use it.
-- **Parameters**: A list of arguments the tool accepts, including their types (STRING, INTEGER, etc.) and descriptions.
+- **Description**: A concise explanation of the tool's purpose and usage context.
+- **Parameters**: A JSON-compatible list of arguments (type, description, required fields).
 
-### 2. Update Tool Definitions
-Add the tool's schema to the centralized definitions file so the Gemini model becomes aware of it.
+#### 2. Update Tool Definitions
+Register the tool in the centralized schema file:
 - **File**: `lib/tools.json`
-- **Action**: Append a new JSON object to the array. **Ensure valid JSON syntax (commas between objects).**
-- **Example**:
-  ```json
-  {
-    "name": "calculate_hash",
-    "description": "Calculates the SHA-256 hash of a file.",
-    "parameters": {
-      "type": "OBJECT",
-      "properties": {
-        "filepath": { "type": "STRING", "description": "Path to the file." }
-      },
-      "required": ["filepath"]
-    }
+- **Action**: Append the new JSON definition object to the array.
+- **Constraint**: Ensure valid JSON syntax (objects must be comma-separated).
+
+#### 3. Implement the Tool Logic
+Create the Bash function to handle the execution:
+- **Location**: Create a new file in `lib/` (e.g., `lib/hash_tool.sh`) or append to an existing library.
+- **Function Name**: Prefix with `tool_` (e.g., `tool_calculate_hash`).
+- **Signature**: `tool_name "$FC_DATA" "$RESP_PARTS_FILE"`
+
+#### 4. Integration
+Verify the tool is sourced:
+- The `a.sh` script automatically sources all `*.sh` files in `lib/`. No manual registration is required if the file is named correctly.
+
+---
+
+### Code Templates
+
+#### Tool Definition (lib/tools.json):
+```json
+{
+  "name": "calculate_hash",
+  "description": "Calculates the SHA-256 hash of a file.",
+  "parameters": {
+    "type": "OBJECT",
+    "properties": {
+      "filepath": { "type": "STRING", "description": "Path to the file." }
+    },
+    "required": ["filepath"]
   }
-  ```
+}
+```
 
-### 3. Implement the Tool Logic
-Create the Bash function that executes the actual operation.
-- **Location**: Create a new script (e.g., `lib/hash_tool.sh`) or add to an existing relevant file in `lib/`.
-- **Function Name**: Must be prefixed with `tool_` followed by the name defined in step 2 (e.g., `tool_calculate_hash`).
-- **Function Signature**: `tool_name "$FC_DATA" "$RESP_PARTS_FILE"`
-  - `$1` (`FC_DATA`): The raw JSON tool call from the API.
-  - `$2` (`RESP_PARTS_FILE`): The temp file where the result must be appended.
-
-#### Implementation Template:
+#### Implementation Boilerplate:
 ```bash
 tool_calculate_hash() {
     local FC_DATA="$1"
@@ -46,42 +65,36 @@ tool_calculate_hash() {
     # 1. Extract Arguments
     local FILEPATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
-    # 2. Logic & Execution
-    # Tip: Use python3 -c "..." for complex math or data processing.
+    # 2. Logic (Use python3 for complex processing)
     if [[ -f "$FILEPATH" ]]; then
-        local HASH=$(sha256sum "$FILEPATH" | awk '{print $1}')
-        local RESULT="SHA256: $HASH"
+        local RESULT=$(sha256sum "$FILEPATH" | awk '{print $1}')
     else
         local RESULT="Error: File not found."
     fi
 
-    # 3. Format and Save Response
-    # Always use 'jq' to build the JSON response to handle special characters safely.
+    # 3. Save Response (Atomic Update)
     jq -n --arg name "calculate_hash" --arg res "$RESULT" \
         '{functionResponse: {name: $name, response: {result: $res}}}' > "${RESP_PARTS_FILE}.part"
     
-    # 4. Append to the shared response array (Atomic Update)
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" \
         && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }
 ```
 
-### 4. Integration
-The tool will be automatically loaded because `a.sh` sources all `.sh` files in the `lib/` directory during startup.
-- **Available Globals**: Your tool can access global variables like `$file` (history path), `$AIMODEL`, `$MODE`, and `$BASE_DIR`.
+---
 
-### 5. Verification & Testing
-1. **Syntax Check**: Run `bash -n lib/your_new_script.sh`.
-2. **Functional Test**: Start a session (`ait`) and prompt the AI to use the tool:
-   - *User: "What is the hash of the README.md file?"*
-3. **Check Logs**: Ensure the tool call appears correctly in the terminal output and the sidecar `.log` file.
-4. **Regression**: (Optional) Add a dedicated test case in the `tests/` directory to ensure future changes don't break the tool.
+### Verification & Testing
+1. **Linter**: Run `bash -n lib/your_script.sh` to check for syntax errors.
+2. **Integration Test**: Start a session (`ait`) and ask the AI to perform the task.
+3. **Log Review**: Check the sidecar `.log` file to ensure the `functionCall` and `functionResponse` were logged correctly.
+4. **Tool Metadata**: Verify the tool appears in the prompt by checking the payload log in the terminal.
 
 ---
 
-### 💡 Best Practices
-- **Handle Errors Gracefully**: Always return a JSON response, even on failure (e.g., `{"result": "Error: ..."}`).
-- **Python for Complexity**: If the logic involves floating-point math or complex string manipulation, wrap it in a `python3 -c` block.
-- **Log Visibility**: Use `echo -e` within the tool to provide immediate visual feedback to the user if the tool performs a slow or critical operation.
+### Best Practices
+- **Atomic Operations**: Always use temporary files (`.part`, `.tmp`) when updating the shared response array to prevent race conditions.
+- **Input Validation**: Check for file existence or empty arguments before executing logic.
+- **Error Feedback**: If a tool fails, return an informative error message in the JSON `result` field so the AI can explain the failure to the user.
+- **UI Feedback**: Use `echo -e` for long-running tools to keep the user informed during execution.
 
