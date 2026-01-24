@@ -5,6 +5,7 @@ tool_execute_command() {
     # Extract Arguments
     local FC_CMD=$(echo "$FC_DATA" | jq -r '.args.command')
     local FC_REASON=$(echo "$FC_DATA" | jq -r '.args.reason // empty')
+    local FC_SILENT=$(echo "$FC_DATA" | jq -r '.args.silent // false')
 
     local TS=$(get_log_timestamp)
     echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Execute Command: $FC_CMD\033[0m"
@@ -47,23 +48,24 @@ tool_execute_command() {
         local TEMP_OUT=$(mktemp)
         local EXIT_CODE=0
 
-        if [ "$IS_SAFE_CMD" == "true" ]; then
-            # 1. Silent Execution for safe, auto-approved commands
-            # They only capture output for the AI; they do not stream to the terminal.
+        if [ "$IS_SAFE_CMD" == "true" ] || [ "$FC_SILENT" == "true" ]; then
+            # 1. Silent Execution for safe or explicitly silent commands
             bash -c "$FC_CMD" > "$TEMP_OUT" 2>&1
             EXIT_CODE=$?
         else
-            # 2. Streamed Execution for confirmed commands (e.g., git, tests)
+            # 2. Streamed Execution for confirmed commands
             {
                 echo -e "\033[0;33mExecuting... (Output shown below)\033[0m"
-                echo "------------------------------------------------------------"
+                echo -e "\033[90m------------------------------------------------------------\033[0m"
             } > "$TTY_OUT"
             
-            # Use PIPESTATUS to get the exit code of the command, not tee
-            bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT" > "$TTY_OUT"
+            # Stream with indentation and dim color
+            bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT" | while IFS= read -r line; do
+                printf "  \033[90m%s\033[0m\n" "$line" > "$TTY_OUT"
+            done
             EXIT_CODE=${PIPESTATUS[0]}
             
-            echo "------------------------------------------------------------" > "$TTY_OUT"
+            echo -e "\033[90m------------------------------------------------------------\033[0m" > "$TTY_OUT"
         fi
         
         local CMD_OUTPUT=$(cat "$TEMP_OUT")
