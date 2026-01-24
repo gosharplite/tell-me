@@ -6,7 +6,7 @@ This SOP defines the requirements and steps for publishing a new public release 
 ---
 
 ### Prerequisites
-- All tests must pass: `./run_tests.sh`.
+- All tests must pass: `./tests/run_tests.sh`.
 - The `README.md` must be updated with the latest features and tools.
 - A clean Git state (no uncommitted or untracked experimental files).
 - Access to the repository with permission to push tags.
@@ -31,7 +31,7 @@ Before any public release, perform a mandatory security scan:
 #### 3. Final Functional Verification
 Run the full suite in a clean environment:
 ```bash
-./run_tests.sh
+./tests/run_tests.sh
 ./tests/infra/check_coverage.sh
 ```
 *Note: The Git pre-commit hook (installed via `./tests/infra/setup-git-hooks.sh`) provides a final safety gate during the merge to `main`. The coverage report ensures all core modules are officially supported by tests.*
@@ -58,7 +58,7 @@ Follow Semantic Versioning (vMAJOR.MINOR.PATCH):
 
 ### Release Checklist
 - [ ] Security audit completed (no secrets found).
-- [ ] `./run_tests.sh` returns **PASS**.
+- [ ] `./tests/run_tests.sh` returns **PASS**.
 - [ ] `README.md` includes all new tools and configuration options.
 - [ ] `SOP/` directory is updated to reflect structural changes.
 - [ ] Branch `dev` is successfully merged into `main`.

@@ -48,7 +48,7 @@ Refactoring often changes the "source-of-truth" for dependencies. You must:
 - **Syntax Check**: Ensure all new library files are valid (`bash -n lib/core/*.sh`).
 - **Complexity Check**: Run `wc -l <script>` to confirm the reduction in monolithic size.
 - **Functional Test**: Execute a standard assistant turn to ensure the "plumbing" is correct.
-- **Regression**: Run `./run_tests.sh`. All tests **MUST** pass before committing.
+- **Regression**: Run `./tests/run_tests.sh`. All tests **MUST** pass before committing.
 
 ---
 

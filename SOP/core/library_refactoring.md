@@ -7,7 +7,7 @@ To maintain a clean, structured, and scalable `lib/` directory by categorizing s
 
 ### Prerequisites
 - Core execution script (`a.sh`) must support recursive sourcing.
-- Access to the `run_tests.sh` script for verification.
+- Access to the `tests/run_tests.sh` script for verification.
 
 ---
 
@@ -47,7 +47,7 @@ Reorganization *will* break existing tests and requires structural updates:
 - **Path Updates**: Update all `source` paths in relevant `tests/*.sh` files.
 - **Base Directory**: Recalculate `BASE_DIR` in test scripts to account for the new nesting depth (e.g., change `../` to `../../`).
 - **Logic Updates**: Update any `cp` or `mkdir` logic in tests that mock the library environment.
-- **Verification**: Run the full suite: `./run_tests.sh`.
+- **Verification**: Run the full suite: `./tests/run_tests.sh`.
 
 ---
 
@@ -70,7 +70,7 @@ done < <(find "$BASE_DIR/lib" -maxdepth 3 -name "*.sh" -print0)
 ### Verification & Testing
 1.  **Structure Check**: Run `find lib -maxdepth 3` and `find tests -maxdepth 3` to verify both directories are mirrored correctly.
 2.  **Logic Check**: Start a session with `ait` and verify that basic tools (like `read_file` or `manage_tasks`) are responsive.
-3.  **Full Regression**: Run `./run_tests.sh`. A successful refactor must result in **PASS** for all tests.
+3.  **Full Regression**: Run `./tests/run_tests.sh`. A successful refactor must result in **PASS** for all tests.
 
 ---
 

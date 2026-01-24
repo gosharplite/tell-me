@@ -6,7 +6,7 @@ To ensure that all changes to the `tell-me` repository are verified, logically g
 ---
 
 ### Prerequisites
-- All functional changes must be verified (e.g., via `./run_tests.sh`).
+- All functional changes must be verified (e.g., via `./tests/run_tests.sh`).
 - No sensitive information (API keys, secrets) should be staged.
 - **Git Hooks**: Ensure project hooks are installed via `./tests/infra/setup-git-hooks.sh` to automate these checks.
 
@@ -16,7 +16,7 @@ To ensure that all changes to the `tell-me` repository are verified, logically g
 
 #### 1. Pre-Commit Verification
 Before staging any files:
-- Run the full test suite: `./run_tests.sh`.
+- Run the full test suite: `./tests/run_tests.sh`.
 - **Automated Check**: The pre-commit hook will automatically run syntax validation (`bash -n`) and the test suite. If the hook fails, the commit will be blocked.
 - Ensure all tests pass. Do NOT commit if tests are failing unless the commit is specifically meant to document a broken state (rare).
 - Review current changes: `git status` and `git diff`.

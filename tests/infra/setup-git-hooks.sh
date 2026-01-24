@@ -37,8 +37,8 @@ fi
 
 # 2. Run Test Suite
 echo "Running full test suite..."
-# Since the hook runs from the project root during git commit, we call ./run_tests.sh directly
-if ! ./run_tests.sh; then
+# Since the hook runs from the project root during git commit, we call the runner in tests/
+if ! ./tests/run_tests.sh; then
     echo -e "${RED}Error: Tests failed. Commit aborted.${NC}"
     exit 1
 fi
