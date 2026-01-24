@@ -56,7 +56,7 @@ except Exception as e:
             local RESULT="Calculation $CALC_OUT"
         else
             IFS='|' read -r hit miss completion search thinking total_cost <<< "$CALC_OUT"
-            local RESULT=$(printf "Estimated Cost for Session (%s):\n- Model: %s\n- Tokens: Hit: %'d, Miss: %'d, Comp: %'d, Thinking: %'d\n- Search Queries: %d\n- Total Cost: \$%.4f" \
+            local RESULT=$(printf "Estimated Cost for Session (%s):\n- Model: %s\n- Rates: Verified as of 2026-01-24\n- Tokens: Hit: %'d, Miss: %'d, Comp: %'d, Thinking: %'d\n- Search Queries: %d\n- Total Cost: \$%.4f" \
                 "$MODE" "$AIMODEL" "$hit" "$miss" "$completion" "$thinking" "$search" "$total_cost")
         fi
     fi
