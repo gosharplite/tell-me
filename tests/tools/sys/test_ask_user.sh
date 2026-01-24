@@ -1,8 +1,8 @@
 #!/bin/bash
-
 # Test script for lib/tools/sys/ask_user.sh
 
-# Setup isolated environment
+# 1. Setup Environment
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../" && pwd)"
 TEST_DIR=$(mktemp -d)
 RESP_FILE="$TEST_DIR/test_resp.json"
 echo "[]" > "$RESP_FILE"
@@ -23,13 +23,12 @@ read() {
     eval "$var_name='$prompt_val'"
 }
 
-# Source dependencies
-# We need to source utils.sh because ask_user.sh might use it
-# But ask_user.sh sources utils.sh internally? No, usually tools expect utils to be sourced.
-# Let's check imports. `lib/tools/sys/ask_user.sh` might rely on `tool_ask_user`.
-# We source from the real lib directory.
-source lib/core/utils.sh
-source lib/tools/sys/ask_user.sh
+# 2. Source Dependencies
+source "$BASE_DIR/lib/core/utils.sh"
+source "$BASE_DIR/lib/tools/sys/ask_user.sh"
+
+pass() { echo -e "\033[0;32mPASS:\033[0m $1"; }
+fail() { echo -e "\033[0;31mFAIL:\033[0m $1"; exit 1; }
 
 test_normal_usage() {
     echo "------------------------------------------------"
@@ -41,19 +40,15 @@ test_normal_usage() {
     tool_ask_user "$ARGS" "$RESP_FILE"
     
     if grep -q "Test Answer" "$RESP_FILE"; then
-        echo "PASS: Output contains user answer"
+        pass "Output contains user answer"
     else
-        echo "FAIL: Output missing user answer"
-        cat "$RESP_FILE"
-        return 1
+        fail "Output missing user answer"
     fi
     
     if jq . "$RESP_FILE" >/dev/null 2>&1; then
-         echo "PASS: Valid JSON"
+         pass "Valid JSON"
     else
-         echo "FAIL: Invalid JSON"
-         cat "$RESP_FILE"
-         return 1
+         fail "Invalid JSON"
     fi
 }
 
@@ -69,31 +64,23 @@ test_warning_usage() {
     tool_ask_user "$ARGS" "$RESP_FILE"
     
     if grep -q "SYSTEM WARNING" "$RESP_FILE"; then
-        echo "PASS: Warning message present"
+        pass "Warning message present"
     else
-        echo "FAIL: Warning message missing"
-        cat "$RESP_FILE"
-        return 1
+        fail "Warning message missing"
     fi
     
     if grep -q "Test Answer" "$RESP_FILE"; then
-        echo "PASS: User answer still present"
+        pass "User answer still present"
     else
-        echo "FAIL: User answer missing in warning mode"
-        return 1
+        fail "User answer missing in warning mode"
     fi
 }
 
-FAILED=0
-test_normal_usage || FAILED=1
-test_warning_usage || FAILED=1
+echo "Running Ask User Tests..."
+test_normal_usage
+test_warning_usage
 
-if [ $FAILED -eq 0 ]; then
-    echo "------------------------------------------------"
-    echo "All tests passed successfully."
-    exit 0
-else
-    echo "------------------------------------------------"
-    echo "Some tests failed."
-    exit 1
-fi
+echo "------------------------------------------------"
+echo "All tests passed successfully."
+exit 0
+

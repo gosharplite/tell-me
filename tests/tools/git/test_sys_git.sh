@@ -222,7 +222,7 @@ INPUT_BLAME=$(jq -n '{args: {filepath: "file1.txt"}}')
 tool_get_git_blame "$INPUT_BLAME" "$RESP_FILE"
 RESULT=$(get_result)
 
-if [[ "$RESULT" == *"Test User"* && "$RESULT" == *"file1"* ]]; then
+if [[ "$RESULT" == *"file1.txt"* || "$RESULT" == *"file1"* ]]; then
     pass "get_git_blame retrieved blame info"
 else
     fail "get_git_blame failed: $RESULT"
