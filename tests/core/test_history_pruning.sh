@@ -2,7 +2,7 @@
 # Test script for history pruning logic
 
 # Setup Environment
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
 source "$BASE_DIR/lib/core/utils.sh"
 source "$BASE_DIR/lib/core/history_manager.sh"
 
