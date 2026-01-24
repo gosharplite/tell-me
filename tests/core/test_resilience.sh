@@ -45,10 +45,7 @@ test_pruning() {
     local LIMIT=10000
     
     # 1. Create history with 25 messages
-    echo '{"messages": []}' > "$HIST_FILE"
-    for i in {1..25}; do
-        update_history_file "{\"role\": \"user\", \"parts\": [{\"text\": \"msg $i\"}]}" "$HIST_FILE"
-    done
+    jq -n '{messages: [range(25) | {role: "user", parts: [{text: "msg \(.)"}]}]}' > "$HIST_FILE"
     
     # 2. Mock log indicating 9500 tokens (95% > 90% limit)
     echo "[00:00:00] H: 0 M: 9500 C: 0 T: 9500 N: 9500 S: 0 Th: 0 [1.0s]" > "$LOG_FILE"

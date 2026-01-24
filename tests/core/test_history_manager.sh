@@ -15,11 +15,14 @@ LOG_FILE="${HIST_FILE}.log"
 # Helper to create a fake history with a specific number of turns
 create_fake_history() {
     local turns=$1
-    echo '{"messages": []}' > "$HIST_FILE"
-    for (( i=0; i<turns; i++ )); do
-        update_history_file "{\"role\": \"user\", \"parts\": [{\"text\": \"user message $i\"}]}" "$HIST_FILE"
-        update_history_file "{\"role\": \"model\", \"parts\": [{\"text\": \"model response $i\"}]}" "$HIST_FILE"
-    done
+    jq -n --argjson n "$turns" '
+    {
+      messages: [
+        range($n) | 
+        {role: "user", parts: [{text: "user message \(.)"}]},
+        {role: "model", parts: [{text: "model response \(.)"}]}
+      ]
+    }' > "$HIST_FILE"
 }
 
 # Helper to mock a log entry
