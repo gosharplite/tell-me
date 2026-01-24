@@ -13,7 +13,7 @@ Identify the functionality you want to add and define how the AI will interact w
 ### 2. Update Tool Definitions
 Add the tool's schema to the centralized definitions file so the Gemini model becomes aware of it.
 - **File**: `lib/tools.json`
-- **Action**: Append a new JSON object to the array.
+- **Action**: Append a new JSON object to the array. **Ensure valid JSON syntax (commas between objects).**
 - **Example**:
   ```json
   {
@@ -47,6 +47,7 @@ tool_calculate_hash() {
     local FILEPATH=$(echo "$FC_DATA" | jq -r '.args.filepath')
 
     # 2. Logic & Execution
+    # Tip: Use python3 -c "..." for complex math or data processing.
     if [[ -f "$FILEPATH" ]]; then
         local HASH=$(sha256sum "$FILEPATH" | awk '{print $1}')
         local RESULT="SHA256: $HASH"
@@ -55,10 +56,11 @@ tool_calculate_hash() {
     fi
 
     # 3. Format and Save Response
+    # Always use 'jq' to build the JSON response to handle special characters safely.
     jq -n --arg name "calculate_hash" --arg res "$RESULT" \
         '{functionResponse: {name: $name, response: {result: $res}}}' > "${RESP_PARTS_FILE}.part"
     
-    # 4. Append to the shared response array
+    # 4. Append to the shared response array (Atomic Update)
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" \
         && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
@@ -67,12 +69,7 @@ tool_calculate_hash() {
 
 ### 4. Integration
 The tool will be automatically loaded because `a.sh` sources all `.sh` files in the `lib/` directory during startup.
-```bash
-# In a.sh:
-for lib in "$BASE_DIR"/lib/*.sh; do
-    [ -f "$lib" ] && source "$lib"
-done
-```
+- **Available Globals**: Your tool can access global variables like `$file` (history path), `$AIMODEL`, `$MODE`, and `$BASE_DIR`.
 
 ### 5. Verification & Testing
 1. **Syntax Check**: Run `bash -n lib/your_new_script.sh`.
@@ -80,4 +77,11 @@ done
    - *User: "What is the hash of the README.md file?"*
 3. **Check Logs**: Ensure the tool call appears correctly in the terminal output and the sidecar `.log` file.
 4. **Regression**: (Optional) Add a dedicated test case in the `tests/` directory to ensure future changes don't break the tool.
+
+---
+
+### 💡 Best Practices
+- **Handle Errors Gracefully**: Always return a JSON response, even on failure (e.g., `{"result": "Error: ..."}`).
+- **Python for Complexity**: If the logic involves floating-point math or complex string manipulation, wrap it in a `python3 -c` block.
+- **Log Visibility**: Use `echo -e` within the tool to provide immediate visual feedback to the user if the tool performs a slow or critical operation.
 
