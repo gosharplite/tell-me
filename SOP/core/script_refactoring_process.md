@@ -36,17 +36,19 @@ Update the main script (e.g., `a.sh`):
 - Replace the original multi-line logic block with a single call to the new function.
 
 #### 4. The Atomic Deployment Protocol
-Because the script being refactored is often the one running the assistant, follow the safe swap sequence:
-1.  **Draft**: Prepare the full updated content of the orchestrator.
-2.  **Validate**: Run `bash -n <script>.tmp`.
-3.  **Permissions**: Run `chmod +x <script>.tmp`.
-4.  **Atomic Move**: Run `mv <script>.tmp <script>`.
+[... unchanged ...]
 
-#### 5. Verification & Metrics
+#### 5. Test Context Alignment
+Refactoring often changes the "source-of-truth" for dependencies. You must:
+- **Audit Mocks**: Check `tests/` for any scripts that manually copy or mock the refactored files.
+- **Update Setup Logic**: Ensure test setup scripts (using `cp` or `mktemp`) are updated to include the new library modules.
+- **Dynamic Copying**: Transition tests from copying specific files (e.g., `cp lib/core/utils.sh`) to dynamic wildcards (e.g., `cp lib/core/*.sh`) to future-proof the test suite.
+
+#### 6. Verification & Metrics
 - **Syntax Check**: Ensure all new library files are valid (`bash -n lib/core/*.sh`).
 - **Complexity Check**: Run `wc -l <script>` to confirm the reduction in monolithic size.
 - **Functional Test**: Execute a standard assistant turn to ensure the "plumbing" is correct.
-- **Regression**: Run `./run_tests.sh`.
+- **Regression**: Run `./run_tests.sh`. All tests **MUST** pass before committing.
 
 ---
 

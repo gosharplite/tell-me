@@ -31,8 +31,10 @@ New tests must be placed in a subdirectory that mirrors the location of the logi
 Tests should not modify the user's actual environment or history. Every test script should:
 1.  **Create a temporary workspace**: Use `mktemp -d`.
 2.  **Use Traps**: Ensure the temporary directory is deleted on exit: `trap 'rm -rf "$TEST_DIR"' EXIT`.
-3.  **Mock Dependencies**: Copy necessary `lib/` files or `tools.json` into the temporary workspace to simulate a clean state.
-4.  **Localize Paths**: Define `BASE_DIR` relative to the script's location to correctly source library files (e.g., `BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"`).
+3.  **Mock Dependencies (Dynamic)**: Instead of hardcoding specific library files, use wildcards to ensure new modules are automatically included:
+    - *Bad*: `cp lib/core/utils.sh lib/core/history_manager.sh "$TEST_DIR/"`
+    - *Good*: `cp lib/core/*.sh "$TEST_DIR/"`
+4.  **Localize Paths**: Define `BASE_DIR` relative to the script's location to correctly source library files.
 
 #### 4. Test Execution
 - Tests are executed via the root `./run_tests.sh` script.
