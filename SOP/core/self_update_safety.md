@@ -75,6 +75,6 @@ fi
 ### Best Practices
 - **Library Focus**: Whenever possible, move logic into the `lib/` directory. Modifying library files is inherently safer as they are sourced at the start of the script's execution.
 - **Rollback Readiness**: Keep the `.bak` file until the user confirms the system is still functional.
-- **Minimalism**: Keep the core loop in `a.sh` as slim as possible to reduce the frequency of needed updates to the execution heart.
+- **Minimalism**: Keep the core loop in `a.sh` as slim as possible (minimalist orchestrator) to reduce the frequency of needed updates to the execution heart. The bulk of logic should reside in the `lib/` directory.
 - **Atomic Tool Choice**: Prefer `update_file` over partial edits for core files, as it ensures the entire file state is known and controlled.
 - **Permission Preservation**: Always verify that the final file is executable (`[ -x <file> ]`) after a swap.

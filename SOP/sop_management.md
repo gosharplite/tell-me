@@ -8,8 +8,8 @@ This SOP defines the standard structure and process for documentating procedures
 
 #### File Criticality Levels
 To ensure stability, files are categorized by risk:
-- **Core Scripts** (`a.sh`, `tell-me.sh`, `recap.sh`, `aa.sh`, `hack.sh`, `dump.sh`): **HIGH RISK**. Modifications require atomic swap and syntax validation as per `SOP/core/self_update_safety.md`.
-- **Library Scripts** (`lib/**/*.sh`): **MEDIUM RISK**. Sourced at startup. Verify syntax before committing.
+- **Core Scripts** (`a.sh`, `tell-me.sh`, `recap.sh`, `aa.sh`, `hack.sh`, `dump.sh`): **HIGH RISK**. These are minimalist orchestrators; modifications require atomic swap and syntax validation as per `SOP/core/self_update_safety.md`.
+- **Library Scripts** (`lib/**/*.sh`): **MEDIUM RISK**. These contain the bulk of the system logic (API handling, payload construction, metrics). Sourced at startup. Verify syntax before committing.
 - **Configurations/Tools** (`yaml/*.yaml`, `lib/tools.json`): **LOW RISK**. Ensure valid JSON/YAML syntax.
 
 Every SOP should follow a consistent Markdown structure:
