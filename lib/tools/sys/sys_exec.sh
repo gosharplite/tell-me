@@ -10,6 +10,7 @@ tool_execute_command() {
     echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Execute Command: $FC_CMD\033[0m"
 
     local CONFIRM="n"
+    local IS_SAFE_CMD="false"
     local SAFE_COMMANDS="grep|ls|pwd|cat|echo|head|tail|wc|stat|date|whoami|diff|awk|sed"
     
     # Extract the first word of the command to check against whitelist
@@ -21,6 +22,7 @@ tool_execute_command() {
     if [[ "$CMD_BASE" =~ ^($SAFE_COMMANDS)$ ]] && [[ ! "$FC_CMD" =~ [\|\&\;\>\<] ]] && [[ ! "$FC_CMD" =~ \$\( ]] && [[ ! "$FC_CMD" =~ \` ]]; then
          echo -e "\033[0;32m[Auto-Approved] Safe read-only command detected.\033[0m"
          CONFIRM="y"
+         IS_SAFE_CMD="true"
     elif [ -t 0 ]; then
         # Interactive mode: Ask user
         if [ -n "$FC_REASON" ]; then
@@ -40,22 +42,25 @@ tool_execute_command() {
         # Determine if we have a TTY for visual streaming
         local TTY_OUT="/dev/null"
         [ -t 1 ] && TTY_OUT="/dev/stdout"
-        # Fallback to /dev/tty if it exists and we are interactive
         [ -c /dev/tty ] && TTY_OUT="/dev/tty"
 
-        {
-            echo -e "\033[0;33mExecuting... (Output shown below)\033[0m"
-            echo "------------------------------------------------------------"
-        } > "$TTY_OUT"
+        # Only show "Executing..." headers for non-safe (confirmed) commands
+        if [ "$IS_SAFE_CMD" == "false" ]; then
+            {
+                echo -e "\033[0;33mExecuting... (Output shown below)\033[0m"
+                echo "------------------------------------------------------------"
+            } > "$TTY_OUT"
+        fi
         
-        # Execute and capture stdout + stderr while streaming to the TTY
+        # Execute and capture stdout + stderr
         local TEMP_OUT=$(mktemp)
-        # Use PIPESTATUS to get the exit code of the command, not tee
         # Stream to both the temp file and the terminal
         bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT" > "$TTY_OUT"
         local EXIT_CODE=${PIPESTATUS[0]}
         
-        echo "------------------------------------------------------------" > "$TTY_OUT"
+        if [ "$IS_SAFE_CMD" == "false" ]; then
+            echo "------------------------------------------------------------" > "$TTY_OUT"
+        fi
         
         local CMD_OUTPUT=$(cat "$TEMP_OUT")
         rm "$TEMP_OUT"
