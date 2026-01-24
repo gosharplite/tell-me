@@ -55,6 +55,7 @@ Every SOP should follow a consistent Markdown structure:
 - [ ] Are there example code blocks?
 - [ ] Is the file saved in `SOP/` or a sub-folder?
 - [ ] Has the quality been verified? (Run `./run_tests.sh` before committing)
+- [ ] Does this impact **Testing**? (If yes, follow `SOP/core/testing_standards.md`)
 - [ ] Is the commit message structured according to `SOP/core/git_workflow.md`?
 - [ ] Has the file been committed and pushed to the repository?
 

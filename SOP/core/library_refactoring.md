@@ -31,11 +31,13 @@ Move the script and update its internal references:
 - Verify `a.sh` uses a recursive sourcing loop (typically using `find -maxdepth 3 -name "*.sh"`).
 - Ensure core files sourced explicitly at the top of `a.sh` (like `utils.sh` or `history_manager.sh`) are excluded from the loop to prevent double-sourcing.
 
-#### 4. Test Suite Alignment
-Reorganization *will* break existing tests. You must:
-- Update all `source` paths in relevant `tests/*.sh` files.
-- Update any `cp` or `mkdir` logic in tests that mock the library environment.
-- Run the full suite: `./run_tests.sh`.
+#### 4. Test Suite Alignment and Mirroring
+Reorganization *will* break existing tests and requires structural updates:
+- **Mirroring**: Move the corresponding test files in `tests/` to subdirectories that match the new `lib/` structure (e.g., if a tool moves to `lib/tools/fs/`, its test should move to `tests/tools/fs/`).
+- **Path Updates**: Update all `source` paths in relevant `tests/*.sh` files.
+- **Base Directory**: Recalculate `BASE_DIR` in test scripts to account for the new nesting depth (e.g., change `../` to `../../`).
+- **Logic Updates**: Update any `cp` or `mkdir` logic in tests that mock the library environment.
+- **Verification**: Run the full suite: `./run_tests.sh`.
 
 ---
 
@@ -56,14 +58,15 @@ done < <(find "$BASE_DIR/lib" -maxdepth 3 -name "*.sh" -print0)
 ---
 
 ### Verification & Testing
-1.  **Structure Check**: Run `find lib -maxdepth 3` to verify files are in the correct subfolders.
+1.  **Structure Check**: Run `find lib -maxdepth 3` and `find tests -maxdepth 3` to verify both directories are mirrored correctly.
 2.  **Logic Check**: Start a session with `ait` and verify that basic tools (like `read_file` or `manage_tasks`) are responsive.
 3.  **Full Regression**: Run `./run_tests.sh`. A successful refactor must result in **PASS** for all tests.
 
 ---
 
 ### Best Practices
+- **Mirroring**: Always keep the `tests/` folder structure in sync with `lib/` as per `SOP/core/testing_standards.md`.
 - **Depth Limit**: Keep the hierarchy shallow (maximum 3 levels) to maintain visibility.
 - **Naming Consistency**: Keep filenames lowercase with underscores.
-- **Atomic Commits**: Commit the directory move and the corresponding test fixes in a single logical block to keep the repository in a "green" state.
+- **Atomic Commits**: Commit the library moves, the directory mirroring in tests, and the corresponding path fixes in a single logical block.
 
