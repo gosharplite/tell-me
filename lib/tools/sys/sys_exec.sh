@@ -1,3 +1,5 @@
+# Copyright (c) 2026 gosharplite@gmail.com
+# SPDX-License-Identifier: MIT
 tool_execute_command() {
     local FC_DATA="$1"
     local RESP_PARTS_FILE="$2"

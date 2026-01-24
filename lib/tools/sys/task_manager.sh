@@ -1,3 +1,5 @@
+# Copyright (c) 2026 gosharplite@gmail.com
+# SPDX-License-Identifier: MIT
 # Requires: jq
 
 tool_manage_tasks() {
