@@ -96,3 +96,14 @@ fi
 - **No Side Effects**: Never write to the project's real `output/` or `yaml/` directories during a test.
 - **Mock External APIs**: For tools that call external services (like Gemini or Search), mock the `curl` response or the tool's inner logic to verify the *handling* of data without incurring costs.
 
+
+#### 5. Handling Styled Output (ANSI Colors)
+If a function returns styled text (using ANSI escape codes), assertions should strip these codes to ensure reliability across different environments and to simplify string matching.
+
+- **Recommended Stripping Pattern (sed)**:
+  ```bash
+  # Strip ANSI escape codes
+  CLEAN_OUTPUT=$(echo "$OUTPUT" | sed 's/\x1b\[[0-9;]*m//g')
+  ```
+- **Assertion**: Perform all `grep` or equality checks on the `$CLEAN_OUTPUT` variable.
+
