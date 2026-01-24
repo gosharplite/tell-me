@@ -7,7 +7,7 @@ To maintain a clean, structured, and scalable `lib/` directory by categorizing s
 
 ### Prerequisites
 - Core execution script (`a.sh`) must support recursive sourcing.
-- Access to the `run_tests.sh` script for verification.
+- Access to the `tests/run_tests.sh` script for verification.
 
 ---
 
@@ -15,7 +15,17 @@ To maintain a clean, structured, and scalable `lib/` directory by categorizing s
 
 #### 1. Categorization
 Identify the appropriate functional directory for the script:
-- **`lib/core/`**: Scripts required for the assistant's basic operation (auth, history, utils).
+- **`lib/core/`**: Scripts required for the assistant's basic operation.
+    - `auth.sh`: Authentication and token management.
+    - `history_manager.sh`: JSON history manipulation and pruning.
+    - `utils.sh`: Common utility functions (logging, timestamps).
+    - `config_loader.sh`: Configuration discovery and YAML parsing.
+    - `metrics.sh`: Token usage and session statistics.
+    - `input_handler.sh`: User prompt processing.
+    - `payload_manager.sh`: API payload construction and safety checks.
+    - `api_client.sh`: HTTP communication with retry logic.
+    - `tool_executor.sh`: Orchestration of model-requested tool calls.
+    - `session_manager.sh`: Session initialization and configuration mapping.
 - **`lib/tools/fs/`**: File system manipulation.
 - **`lib/tools/git/`**: Version control integration.
 - **`lib/tools/media/`**: Multimedia generation and analysis.
@@ -29,7 +39,7 @@ Move the script and update its internal references:
 
 #### 3. Core Sourcing Check
 - Verify `a.sh` uses a recursive sourcing loop (typically using `find -maxdepth 3 -name "*.sh"`).
-- Ensure core files sourced explicitly at the top of `a.sh` (like `utils.sh` or `history_manager.sh`) are excluded from the loop to prevent double-sourcing.
+- Ensure core files sourced explicitly at the top of `a.sh` are excluded from the loop to prevent double-sourcing.
 
 #### 4. Test Suite Alignment and Mirroring
 Reorganization *will* break existing tests and requires structural updates:
@@ -37,7 +47,7 @@ Reorganization *will* break existing tests and requires structural updates:
 - **Path Updates**: Update all `source` paths in relevant `tests/*.sh` files.
 - **Base Directory**: Recalculate `BASE_DIR` in test scripts to account for the new nesting depth (e.g., change `../` to `../../`).
 - **Logic Updates**: Update any `cp` or `mkdir` logic in tests that mock the library environment.
-- **Verification**: Run the full suite: `./run_tests.sh`.
+- **Verification**: Run the full suite: `./tests/run_tests.sh`.
 
 ---
 
@@ -49,7 +59,7 @@ Reorganization *will* break existing tests and requires structural updates:
 while IFS= read -r -d '' lib; do
     # Skip files already sourced explicitly
     case "$(basename "$lib")" in
-        history_manager.sh|utils.sh|auth.sh) continue ;;
+        history_manager.sh|utils.sh|auth.sh|config_loader.sh|session_manager.sh) continue ;;
     esac
     source "$lib"
 done < <(find "$BASE_DIR/lib" -maxdepth 3 -name "*.sh" -print0)
@@ -60,7 +70,7 @@ done < <(find "$BASE_DIR/lib" -maxdepth 3 -name "*.sh" -print0)
 ### Verification & Testing
 1.  **Structure Check**: Run `find lib -maxdepth 3` and `find tests -maxdepth 3` to verify both directories are mirrored correctly.
 2.  **Logic Check**: Start a session with `ait` and verify that basic tools (like `read_file` or `manage_tasks`) are responsive.
-3.  **Full Regression**: Run `./run_tests.sh`. A successful refactor must result in **PASS** for all tests.
+3.  **Full Regression**: Run `./tests/run_tests.sh`. A successful refactor must result in **PASS** for all tests.
 
 ---
 

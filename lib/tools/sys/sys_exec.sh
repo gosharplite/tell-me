@@ -1,3 +1,5 @@
+# Copyright (c) 2026 gosharplite@gmail.com
+# SPDX-License-Identifier: MIT
 tool_execute_command() {
     local FC_DATA="$1"
     local RESP_PARTS_FILE="$2"
@@ -5,11 +7,13 @@ tool_execute_command() {
     # Extract Arguments
     local FC_CMD=$(echo "$FC_DATA" | jq -r '.args.command')
     local FC_REASON=$(echo "$FC_DATA" | jq -r '.args.reason // empty')
+    local FC_SILENT=$(echo "$FC_DATA" | jq -r '.args.silent // false')
 
     local TS=$(get_log_timestamp)
     echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Execute Command: $FC_CMD\033[0m"
 
     local CONFIRM="n"
+    local IS_SAFE_CMD="false"
     local SAFE_COMMANDS="grep|ls|pwd|cat|echo|head|tail|wc|stat|date|whoami|diff|awk|sed"
     
     # Extract the first word of the command to check against whitelist
@@ -21,6 +25,7 @@ tool_execute_command() {
     if [[ "$CMD_BASE" =~ ^($SAFE_COMMANDS)$ ]] && [[ ! "$FC_CMD" =~ [\|\&\;\>\<] ]] && [[ ! "$FC_CMD" =~ \$\( ]] && [[ ! "$FC_CMD" =~ \` ]]; then
          echo -e "\033[0;32m[Auto-Approved] Safe read-only command detected.\033[0m"
          CONFIRM="y"
+         IS_SAFE_CMD="true"
     elif [ -t 0 ]; then
         # Interactive mode: Ask user
         if [ -n "$FC_REASON" ]; then
@@ -37,21 +42,63 @@ tool_execute_command() {
     local DUR=""
     
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-        # Execute and capture stdout + stderr
-        local CMD_OUTPUT
-        CMD_OUTPUT=$(bash -c "$FC_CMD" 2>&1)
-        local EXIT_CODE=$?
+        # Determine if we have a TTY for visual streaming
+        local TTY_OUT="/dev/null"
+        [ -t 1 ] && TTY_OUT="/dev/stdout"
+        [ -c /dev/tty ] && TTY_OUT="/dev/tty"
+
+        local TEMP_OUT=$(mktemp)
+        local EXIT_CODE=0
+
+        if [ "$IS_SAFE_CMD" == "true" ]; then
+            # Silent Execution for safe auto-approved commands (internal noise reduction)
+            bash -c "$FC_CMD" > "$TEMP_OUT" 2>&1
+            EXIT_CODE=$?
+        else
+            # Confirmed commands ALWAYS show an indicator
+            if [ "$FC_SILENT" == "true" ]; then
+                echo -e "\033[0;33mExecuting in background...\033[0m" > "$TTY_OUT"
+                bash -c "$FC_CMD" > "$TEMP_OUT" 2>&1
+                EXIT_CODE=$?
+            else
+                {
+                    echo -e "\033[0;33mExecuting... (Output shown below)\033[0m"
+                    echo -e "\033[90m------------------------------------------------------------\033[0m"
+                } > "$TTY_OUT"
+                
+                # Stream with indentation and dim color
+                bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT" | while IFS= read -r line; do
+                    printf "  \033[90m%s\033[0m\n" "$line" > "$TTY_OUT"
+                done
+                EXIT_CODE=${PIPESTATUS[0]}
+                
+                echo -e "\033[90m------------------------------------------------------------\033[0m" > "$TTY_OUT"
+            fi
+        fi
         
-        # Truncate if too long (100 lines)
+        local CMD_OUTPUT=$(cat "$TEMP_OUT")
+        rm "$TEMP_OUT"
+        
+        # If a silent command failed, show the error output anyway so the user knows why
+        if [ "$FC_SILENT" == "true" ] && [ $EXIT_CODE -ne 0 ] && [ "$IS_SAFE_CMD" == "false" ]; then
+            {
+                echo -e "\033[0;31mCommand Failed. Error Output:\033[0m"
+                echo -e "\033[90m------------------------------------------------------------\033[0m"
+                echo "$CMD_OUTPUT" | sed 's/^/  /'
+                echo -e "\033[90m------------------------------------------------------------\033[0m"
+            } > "$TTY_OUT"
+        fi
+
+        # Truncate if too long (100 lines) for the model's benefit
         local LINE_COUNT=$(echo "$CMD_OUTPUT" | wc -l)
         if [ "$LINE_COUNT" -gt 100 ]; then
-            CMD_OUTPUT="$(echo "$CMD_OUTPUT" | head -n 100)\n... (Output truncated at 100 lines) ..."
+            CMD_OUTPUT="$(echo "$CMD_OUTPUT" | head -n 100)\n... (Output truncated for AI context at 100 lines) ..."
         fi
 
         if [ $EXIT_CODE -eq 0 ]; then
             RESULT_MSG="Exit Code: 0\nOutput:\n$CMD_OUTPUT"
             DUR=$(get_log_duration)
-            echo -e "${DUR} \033[0;32m[Tool Success] Command executed.\033[0m"
+            echo -e "${DUR} \033[0;32m[Tool Success] Command completed.\033[0m"
         else
             RESULT_MSG="Exit Code: $EXIT_CODE\nError/Output:\n$CMD_OUTPUT"
             DUR=$(get_log_duration)
@@ -78,3 +125,4 @@ tool_execute_command() {
     jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
     rm "${RESP_PARTS_FILE}.part"
 }
+

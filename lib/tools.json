@@ -411,6 +411,10 @@
         "reason": {
           "type": "STRING",
           "description": "A short explanation of why this command needs to be executed."
+        },
+        "silent": {
+          "type": "BOOLEAN",
+          "description": "If true, hides the live output from the terminal (use for boring background tasks). Defaults to false."
         }
       },
       "required": [

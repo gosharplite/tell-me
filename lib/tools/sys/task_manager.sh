@@ -1,11 +1,16 @@
+# Copyright (c) 2026 gosharplite@gmail.com
+# SPDX-License-Identifier: MIT
 # Requires: jq
 
 tool_manage_tasks() {
     local FC_DATA="$1"
     local RESP_PARTS_FILE="$2"
     
+    # Extract all arguments in a single jq call for performance
+    local ACTION SCOPE TASK_ID CONTENT STATUS
+    eval "$(echo "$FC_DATA" | jq -r '.args | @sh "ACTION=\(.action) SCOPE=\(.scope // "session") TASK_ID=\(.task_id // "") CONTENT=\(.content // "") STATUS=\(.status // "")"')"
+
     # Derive tasks filename based on Scope
-    local SCOPE=$(echo "$FC_DATA" | jq -r '.args.scope // "session"')
     local TASKS_FILE
     if [ "$SCOPE" == "global" ]; then
         TASKS_FILE="$AIT_HOME/output/global-tasks.json"
@@ -14,11 +19,6 @@ tool_manage_tasks() {
         local BASE_NAME="${file:-./history.json}"
         TASKS_FILE="${BASE_NAME%.*}.tasks.json"
     fi
-
-    local ACTION=$(echo "$FC_DATA" | jq -r '.args.action')
-    local TASK_ID=$(echo "$FC_DATA" | jq -r '.args.task_id // empty')
-    local CONTENT=$(echo "$FC_DATA" | jq -r '.args.content // empty')
-    local STATUS=$(echo "$FC_DATA" | jq -r '.args.status // empty')
 
     local TS=$(get_log_timestamp)
     echo -e "${TS} \033[0;36m[Tool Action ($CURRENT_TURN/$MAX_TURNS)] Manage Tasks: $ACTION ($SCOPE)\033[0m"
@@ -120,8 +120,8 @@ tool_manage_tasks() {
         RESULT_MSG="${RESULT_MSG} [SYSTEM WARNING]: You have reached the tool execution limit ($MAX_TURNS/$MAX_TURNS). This is your FINAL turn. You MUST provide the final text response now."
         echo -e "\033[1;31m[System] Warning sent to Model: Last turn approaching.\033[0m"
     fi
-    jq -n --arg name "manage_tasks" --rawfile content <(printf "%s" "$RESULT_MSG") \
-        '{functionResponse: {name: $name, response: {result: $content}}}' > "${RESP_PARTS_FILE}.part"
-    jq --slurpfile new "${RESP_PARTS_FILE}.part" '. + $new' "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
-    rm "${RESP_PARTS_FILE}.part"
+    # Atomic update of the response parts file
+    jq --arg name "manage_tasks" --arg res "$RESULT_MSG" \
+        '. + [{functionResponse: {name: $name, response: {result: $res}}}]' \
+        "$RESP_PARTS_FILE" > "${RESP_PARTS_FILE}.tmp" && mv "${RESP_PARTS_FILE}.tmp" "$RESP_PARTS_FILE"
 }

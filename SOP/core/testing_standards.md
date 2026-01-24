@@ -7,7 +7,7 @@ To ensure that the `tell-me` test suite remains modular, isolated, and mirrors t
 
 ### Prerequisites
 - Bash shell.
-- Access to the `tests/` directory and the `run_tests.sh` script.
+- Access to the `tests/` directory and the `tests/run_tests.sh` script.
 - `jq` for JSON manipulation within tests.
 
 ---
@@ -15,28 +15,32 @@ To ensure that the `tell-me` test suite remains modular, isolated, and mirrors t
 ### Step-by-Step Instructions
 
 #### 1. Directory Mapping (Mirroring)
-New tests must be placed in a subdirectory that mirrors the location of the logic being tested:
-- **`tests/core/`**: Tests for authentication, history management, configuration parsing, and core loop drivers.
+New tests must follow the **Mirroring Principle**: place the test in a subdirectory that matches the location of the logic being tested.
+- **`tests/core/`**: Tests for authentication, cost estimation, history management, and core loop drivers.
 - **`tests/tools/fs/`**: Tests for file system tools (`read`, `write`, `patch`, etc.).
 - **`tests/tools/git/`**: Tests for Git-related toolsets.
 - **`tests/tools/media/`**: Tests for image and video generation tools.
 - **`tests/tools/dev/`**: Tests for code analysis, linting, and development helpers.
 - **`tests/tools/sys/`**: Tests for system execution, tasks, and scratchpad memory.
+- **`tests/infra/`**: Setup, automation, and coverage scripts (non-test utilities).
 
 #### 2. Naming Conventions
 - All test files must use the prefix `test_` and the extension `.sh` (e.g., `test_file_ops.sh`).
-- Files must be marked as executable: `chmod +x tests/.../test_*.sh`.
+- Infrastructure scripts should use descriptive names without the `test_` prefix (e.g., `setup-git-hooks.sh`).
+- Files must be marked as executable: `chmod +x tests/.../*.sh`.
 
 #### 3. Environment Isolation
-Tests should not modify the user's actual environment or history. Every test script should:
+Every test script should:
 1.  **Create a temporary workspace**: Use `mktemp -d`.
 2.  **Use Traps**: Ensure the temporary directory is deleted on exit: `trap 'rm -rf "$TEST_DIR"' EXIT`.
-3.  **Mock Dependencies**: Copy necessary `lib/` files or `tools.json` into the temporary workspace to simulate a clean state.
-4.  **Localize Paths**: Define `BASE_DIR` relative to the script's location to correctly source library files (e.g., `BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"`).
+3.  **Mock Dependencies (Dynamic)**: Use wildcards to ensure new modules are included: `cp lib/core/*.sh "$TEST_DIR/"`.
+4.  **Localize Paths**: Define `BASE_DIR` relative to the script's location.
 
-#### 4. Test Execution
-- Tests are executed via the root `./run_tests.sh` script.
-- The runner automatically discovers tests recursively using `find tests -type f -name "*.sh"`.
+#### 4. Test Execution & The Runner
+- Tests are executed via the `./tests/run_tests.sh` script.
+- **Runner Lessons**: 
+    - The runner must explicitly `cd` to the project root before executing sub-tests to ensure path consistency.
+    - **Stdin Isolation**: The runner must redirect stdin from `/dev/null` (e.g., `bash "$test" < /dev/null`) to prevent sub-tests from consuming the runner's loop stream.
 - Tests must return exit code `0` for success and non-zero for failure.
 
 ---
@@ -83,14 +87,24 @@ fi
 
 ### Verification & Testing
 1.  **Syntax Check**: Run `bash -n tests/.../test_name.sh`.
-2.  **Execution**: Run `./run_tests.sh` from the project root.
+2.  **Execution**: Run `./tests/run_tests.sh` from the project root.
 3.  **Summary Check**: Ensure your new test is listed in the output and marked as **PASS**.
+4.  **Automated Enforcement**: Install the Git pre-commit hook via `./tests/infra/setup-git-hooks.sh`.
+5.  **Coverage Analysis**: Run `./tests/infra/check_coverage.sh` to verify structural mapping.
 
 ---
 
 ### Best Practices
-- **Atomic Tests**: Test one specific function or tool per assertion if possible.
-- **Quiet by Default**: Tests should only output "PASS" or "FAIL" unless run with the `-v` (verbose) flag in the runner.
-- **No Side Effects**: Never write to the project's real `output/` or `yaml/` directories during a test.
-- **Mock External APIs**: For tools that call external services (like Gemini or Search), mock the `curl` response or the tool's inner logic to verify the *handling* of data without incurring costs.
+- **Resilience Testing**: Do not just test "Happy Paths". Mock API failures (429, 500) and history overflows to verify system recovery.
+- **Quiet by Default**: Tests should only output "PASS" or "FAIL" unless run with `-v`.
+- **No Side Effects**: Never write to the project's real `output/` or `yaml/` directories.
+- **Mock External APIs**: For tools that call Gemini or Search, mock `curl` to verify handling without costs.
+
+#### 5. Handling Styled Output (ANSI Colors)
+If a function returns styled text, assertions should strip these codes:
+```bash
+# Strip ANSI escape codes
+CLEAN_OUTPUT=$(echo "$OUTPUT" | sed 's/\x1b\[[0-9;]*m//g')
+```
+Assertion checks should be performed on the `$CLEAN_OUTPUT` variable.
 

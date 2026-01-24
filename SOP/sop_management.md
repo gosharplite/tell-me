@@ -8,8 +8,8 @@ This SOP defines the standard structure and process for documentating procedures
 
 #### File Criticality Levels
 To ensure stability, files are categorized by risk:
-- **Core Scripts** (`a.sh`, `tell-me.sh`, `recap.sh`, `aa.sh`, `hack.sh`, `dump.sh`): **HIGH RISK**. Modifications require atomic swap and syntax validation as per `SOP/core/self_update_safety.md`.
-- **Library Scripts** (`lib/**/*.sh`): **MEDIUM RISK**. Sourced at startup. Verify syntax before committing.
+- **Core Scripts** (`a.sh`, `tell-me.sh`, `recap.sh`, `aa.sh`, `hack.sh`, `dump.sh`): **HIGH RISK**. These are minimalist orchestrators; modifications require atomic swap and syntax validation as per `SOP/core/self_update_safety.md`.
+- **Library Scripts** (`lib/**/*.sh`): **MEDIUM RISK**. These contain the bulk of the system logic (API handling, payload construction, metrics). Sourced at startup. Verify syntax before committing.
 - **Configurations/Tools** (`yaml/*.yaml`, `lib/tools.json`): **LOW RISK**. Ensure valid JSON/YAML syntax.
 
 Every SOP should follow a consistent Markdown structure:
@@ -39,6 +39,7 @@ Every SOP should follow a consistent Markdown structure:
 #### Step 4: Verification
 - Follow your own draft as if you were a new user.
 - Fix any ambiguities or missing steps discovered during the walkthrough.
+- **Hook Integration**: Ensure the new SOP's verification steps are covered by the pre-commit hook installed via `./tests/infra/setup-git-hooks.sh`.
 
 ### 3. Maintenance & Revision
 - **Evolution**: When a codebase change breaks a documented procedure, the corresponding SOP **must** be updated immediately.
@@ -54,7 +55,8 @@ Every SOP should follow a consistent Markdown structure:
 - [ ] Is the logic broken down into digestible numbered steps?
 - [ ] Are there example code blocks?
 - [ ] Is the file saved in `SOP/` or a sub-folder?
-- [ ] Has the quality been verified? (Run `./run_tests.sh` before committing)
+- [ ] Has the quality been verified? (Run `./tests/run_tests.sh` and `./tests/infra/check_coverage.sh` before committing)
+- [ ] Are there logic gaps? If no unit test exists for a new module, add it to the technical debt list in the scratchpad.
 - [ ] Does this impact **Testing**? (If yes, follow `SOP/core/testing_standards.md`)
 - [ ] Is the commit message structured according to `SOP/core/git_workflow.md`?
 - [ ] Has the file been committed and pushed to the repository?

@@ -26,6 +26,10 @@ tool_update_file() {
         # Use jq to write directly to avoid stripping newlines via command substitution
         local TEMP_WRITE=$(mktemp)
         if echo "$FC_DATA" | jq -r '.args.content' > "$TEMP_WRITE"; then
+            if [ -f "$FC_PATH" ]; then
+                local PERMS=$(stat -c %a "$FC_PATH" 2>/dev/null || stat -f %Lp "$FC_PATH")
+                chmod "$PERMS" "$TEMP_WRITE"
+            fi
             mv "$TEMP_WRITE" "$FC_PATH"
             RESULT_MSG="File updated successfully."
             DUR=$(get_log_duration)
@@ -465,14 +469,21 @@ tool_append_file() {
         fi
         # -------------------
 
-        # Use jq to write directly to avoid stripping newlines via command substitution
-        echo "$FC_DATA" | jq -r '.args.content' >> "$FC_PATH"
-        
-        if [ $? -eq 0 ]; then
+        # Use atomic write via temp file
+        local TEMP_APP=$(mktemp)
+        if [ -f "$FC_PATH" ]; then
+            cp "$FC_PATH" "$TEMP_APP"
+            local PERMS=$(stat -c %a "$FC_PATH" 2>/dev/null || stat -f %Lp "$FC_PATH")
+            chmod "$PERMS" "$TEMP_APP"
+        fi
+
+        if echo "$FC_DATA" | jq -r '.args.content' >> "$TEMP_APP"; then
+            mv "$TEMP_APP" "$FC_PATH"
             RESULT_MSG="File appended successfully."
             DUR=$(get_log_duration)
             echo -e "${DUR} \033[0;32m[Tool Success] File appended.\033[0m"
         else
+            rm -f "$TEMP_APP"
             RESULT_MSG="Error: Failed to append to file."
             DUR=$(get_log_duration)
             echo -e "${DUR} \033[0;31m[Tool Failed] Could not append to file.\033[0m"

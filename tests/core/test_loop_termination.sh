@@ -22,8 +22,7 @@ MAX_TURNS: 1
 EOF
 
 # Mock dependencies
-cp "$ORIGINAL_DIR/lib/core/utils.sh" "$TEST_DIR/lib/core/utils.sh"
-cp "$ORIGINAL_DIR/lib/core/history_manager.sh" "$TEST_DIR/lib/core/history_manager.sh"
+cp "$ORIGINAL_DIR/lib/core/"*.sh "$TEST_DIR/lib/core/"
 echo 'export TOKEN="mock-token"' > "$TEST_DIR/lib/core/auth.sh"
 echo '[]' > "$TEST_DIR/lib/tools.json"
 cat <<EOF > "$TEST_DIR/recap.sh"

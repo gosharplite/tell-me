@@ -1,31 +1,34 @@
 #!/bin/bash
-# Test for lib/testing.sh (run_tests)
+# Test for lib/tools/dev/testing.sh (run_tests)
 
-# Setup isolated environment
+# 1. Setup Environment
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../" && pwd)"
 TEST_DIR=$(mktemp -d)
 RESP_FILE="$TEST_DIR/resp.json"
+echo "[]" > "$RESP_FILE"
+
+# Mock Environment
+export CURRENT_TURN=1
+export MAX_TURNS=10
 
 cleanup() {
     rm -rf "$TEST_DIR"
 }
 trap cleanup EXIT
 
-# Copy lib to use locally if needed, but we source from absolute path or relative to original.
-# We will CD into TEST_DIR, so we need to know where lib is.
-ORIGINAL_DIR="$(pwd)"
-cp -r lib "$TEST_DIR/"
+# Copy lib to use locally if needed
+cp -r "$BASE_DIR/lib" "$TEST_DIR/"
 
 cd "$TEST_DIR"
 
-source "lib/core/utils.sh"
-source "lib/tools/dev/testing.sh"
+# 2. Source Dependencies
+source "$TEST_DIR/lib/core/utils.sh"
+source "$TEST_DIR/lib/tools/dev/testing.sh"
 
-# Mock variables
-CURRENT_TURN=1
-MAX_TURNS=10
+pass() { echo -e "\033[0;32mPASS:\033[0m $1"; }
+fail() { echo -e "\033[0;31mFAIL:\033[0m $1"; exit 1; }
 
-echo "[]" > "$RESP_FILE"
-FAILED=0
+echo "Running Testing Tool Tests..."
 
 # Create dummy test script named exactly as the allowed command
 cat <<EOF > "run_tests.sh"
@@ -36,17 +39,15 @@ chmod +x "run_tests.sh"
 
 # Test 1: Passing Test
 echo "Test 1: Passing Test"
-# Command must match whitelist exactly: ./run_tests.sh
 ARGS=$(jq -n --arg command "./run_tests.sh" '{args: {command: $command}}')
 tool_run_tests "$ARGS" "$RESP_FILE"
 
 RESULT=$(jq -r '.[-1].functionResponse.response.result' "$RESP_FILE")
 
 if [ "$RESULT" == "PASS" ]; then
-    echo "PASS: Correctly identified success"
+    pass "Correctly identified success"
 else
-    echo "FAIL: Expected PASS, got '$RESULT'"
-    FAILED=1
+    fail "Expected PASS, got '$RESULT'"
 fi
 
 # Test 2: Failing Test
@@ -64,23 +65,18 @@ tool_run_tests "$ARGS" "$RESP_FILE"
 RESULT=$(jq -r '.[-1].functionResponse.response.result' "$RESP_FILE")
 
 if echo "$RESULT" | grep -q "FAIL"; then
-    echo "PASS: Correctly identified failure"
+    pass "Correctly identified failure"
 else
-    echo "FAIL: Expected FAIL, got '$RESULT'"
-    FAILED=1
+    fail "Expected FAIL, got '$RESULT'"
 fi
 
 if echo "$RESULT" | grep -q "Bad error"; then
-    echo "PASS: Captured stderr"
+    pass "Captured stderr"
 else
-    echo "FAIL: Missing stderr output"
-    FAILED=1
+    fail "Missing stderr output"
 fi
 
-# Return to original dir (though script exit handles it)
-cd "$ORIGINAL_DIR"
-
-if [ $FAILED -eq 1 ]; then
-    exit 1
-fi
+echo "------------------------------------------------"
+echo "All tests passed successfully."
+exit 0
 

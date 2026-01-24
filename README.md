@@ -28,7 +28,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `stats`, `dump`, `h`). The welcome header provides instant visibility into active limits and settings (`MAX_TURNS`, `THINKING_BUDGET`, etc.).
 *   **Continuous Workflow**: Navigate your filesystem with `cd` and analyze multiple projects back-to-back within a single, persistent chat session.
 *   **Agentic Capabilities**: Equipped with powerful native tools for file manipulation (`read`, `write`, `patch`, `insert`), code analysis (`grep_definitions`), and memory management (`scratchpad`).
-*   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
+*   **Developer Friendly**: Includes `dump.sh` to bundle projects, `tests/run_tests.sh` to execute the full suite, and `tests/infra/check_coverage.sh` to identify logic gaps.
 *   **Precise Usage Metrics**: Logs API token usage (Hit/Miss/New), costs, and **Search Counts** in a sidecar `.log` file.
 
 ## ⚡ Praise by gemini-3-flash-preview
@@ -99,10 +99,16 @@ Ensure the following tools are installed and available in your `$PATH`:
 2.  **Make scripts executable**:
     This command ensures all necessary scripts in the project are runnable.
     ```bash
-    chmod +x *.sh
+    chmod +x *.sh tests/infra/*.sh
     ```
 
-3.  **Global Alias Setup (Required)**
+3.  **Install Git Hooks (Recommended)**:
+    Automate code quality checks (syntax and tests) before every commit.
+    ```bash
+    ./tests/infra/setup-git-hooks.sh
+    ```
+
+4.  **Global Alias Setup (Required)**
     To run the assistant, you **must** set the `AIT_HOME` environment variable and create aliases. Add the following to your shell configuration file (e.g., `~/.bashrc` or `~/.zshrc`).
 
     **Remember to replace `/path/to/your/clone` with the actual path to the directory from step 1.**

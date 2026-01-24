@@ -236,7 +236,7 @@ case "$ACTION" in
         ;;
 
     "understand-tell-me")
-        send_prompt "Please list the project files, read the README.md, and all SOP files to understand the 'tell-me' project's architecture, safety protocols, and operational procedures."
+        send_prompt "Please list the project files, read the README.md, and all SOP files to understand the 'tell-me' project's architecture, safety protocols, and operational procedures. As a test, tell me if you're to update or rollback a.sh, which SOP will you follow?"
         ;;
 
     "cheat-sheet")
