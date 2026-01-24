@@ -1,12 +1,12 @@
 #!/bin/bash
 # setup-git-hooks.sh: Installs project-specific Git hooks.
 
-# 1. Setup Environment
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 1. Setup Environment - Adjusted to find root from tests/infra/
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HOOK_DIR="$BASE_DIR/.git/hooks"
 
 if [ ! -d "$HOOK_DIR" ]; then
-    echo "Error: .git directory not found. Please run this from the project root."
+    echo "Error: .git directory not found at $BASE_DIR. Please ensure this script is in the project's tests/infra/ directory."
     exit 1
 fi
 
@@ -37,6 +37,7 @@ fi
 
 # 2. Run Test Suite
 echo "Running full test suite..."
+# Since the hook runs from the project root during git commit, we call ./run_tests.sh directly
 if ! ./run_tests.sh; then
     echo -e "${RED}Error: Tests failed. Commit aborted.${NC}"
     exit 1
