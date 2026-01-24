@@ -20,6 +20,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Run From Anywhere**: Set up a global alias to call the assistant from any directory on your system.
 *   **Context-Aware**: Maintains conversation history, session-specific notes/tasks, and **Global persistent memory** (tasks and scratchpad) across all modes.
 *   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last 3 conversation turns.
+*   **Formalized Procedures**: A comprehensive set of **Standard Operating Procedures (SOPs)** in the `SOP/` directory covering library refactoring, git workflows, safety protocols, and testing standards.
 *   **System Prompts**: Customizable persona and instructions via YAML configuration.
 *   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors). Internal reasoning (Thinking) is robustly cleaned of hidden characters and excessive whitespace for a professional UI.
 *   **Safety & Reliability**: Automatically checkpoints history and **rolls back** to a last known good state if a payload exceeds model limits. Employs **atomic file writes** and **resilient patching** (ignoring whitespace hallucinations) to prevent context poisoning or data loss.
@@ -207,7 +208,7 @@ The AI is equipped with a suite of Bash-native tools it can invoke to assist you
 *   **Media Generation**: `create_video` (Veo 3.1), `create_image` (Gemini 3 Pro Image).
 *   **Code Analysis**: `get_file_skeleton`, `grep_definitions`, `find_usages`, `validate_syntax`, `read_url`.
 *   **Git / Version Control**: `get_git_status`, `get_git_diff`, `get_git_log`, `get_git_commit`, `get_git_blame`.
-*   **System & Execution**: `execute_command`, `run_tests`.
+*   **System & Execution**: `execute_command`, `run_tests`, `estimate_cost`.
 *   **Communication & Memory**: `ask_user`, `manage_scratchpad`, `manage_tasks`.
     *   *Note: Memory tools support both `session` (default) and `global` scopes.*
 
