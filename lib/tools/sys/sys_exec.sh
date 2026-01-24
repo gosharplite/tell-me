@@ -44,21 +44,25 @@ tool_execute_command() {
         [ -t 1 ] && TTY_OUT="/dev/stdout"
         [ -c /dev/tty ] && TTY_OUT="/dev/tty"
 
-        # Only show "Executing..." headers for non-safe (confirmed) commands
-        if [ "$IS_SAFE_CMD" == "false" ]; then
+        local TEMP_OUT=$(mktemp)
+        local EXIT_CODE=0
+
+        if [ "$IS_SAFE_CMD" == "true" ]; then
+            # 1. Silent Execution for safe, auto-approved commands
+            # They only capture output for the AI; they do not stream to the terminal.
+            bash -c "$FC_CMD" > "$TEMP_OUT" 2>&1
+            EXIT_CODE=$?
+        else
+            # 2. Streamed Execution for confirmed commands (e.g., git, tests)
             {
                 echo -e "\033[0;33mExecuting... (Output shown below)\033[0m"
                 echo "------------------------------------------------------------"
             } > "$TTY_OUT"
-        fi
-        
-        # Execute and capture stdout + stderr
-        local TEMP_OUT=$(mktemp)
-        # Stream to both the temp file and the terminal
-        bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT" > "$TTY_OUT"
-        local EXIT_CODE=${PIPESTATUS[0]}
-        
-        if [ "$IS_SAFE_CMD" == "false" ]; then
+            
+            # Use PIPESTATUS to get the exit code of the command, not tee
+            bash -c "$FC_CMD" 2>&1 | tee "$TEMP_OUT" > "$TTY_OUT"
+            EXIT_CODE=${PIPESTATUS[0]}
+            
             echo "------------------------------------------------------------" > "$TTY_OUT"
         fi
         
