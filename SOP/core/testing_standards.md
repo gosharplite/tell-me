@@ -88,6 +88,7 @@ fi
 2.  **Execution**: Run `./run_tests.sh` from the project root.
 3.  **Summary Check**: Ensure your new test is listed in the output and marked as **PASS**.
 4.  **Automated Enforcement**: Install the Git pre-commit hook via `./tests/infra/setup-git-hooks.sh` to ensure no broken tests are committed to the repository.
+5.  **Coverage Analysis**: Run `./tests/infra/check_coverage.sh` to verify that the new library file is correctly mapped to its test suite and that there are no gaps in the project's structural coverage.
 
 ---
 

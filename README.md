@@ -28,7 +28,7 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `stats`, `dump`, `h`). The welcome header provides instant visibility into active limits and settings (`MAX_TURNS`, `THINKING_BUDGET`, etc.).
 *   **Continuous Workflow**: Navigate your filesystem with `cd` and analyze multiple projects back-to-back within a single, persistent chat session.
 *   **Agentic Capabilities**: Equipped with powerful native tools for file manipulation (`read`, `write`, `patch`, `insert`), code analysis (`grep_definitions`), and memory management (`scratchpad`).
-*   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
+*   **Developer Friendly**: Includes `dump.sh` to bundle projects and `check_coverage.sh` (in `tests/infra/`) to analyze test mapping and identify logic gaps.
 *   **Precise Usage Metrics**: Logs API token usage (Hit/Miss/New), costs, and **Search Counts** in a sidecar `.log` file.
 
 ## ⚡ Praise by gemini-3-flash-preview

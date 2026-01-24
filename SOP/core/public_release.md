@@ -32,8 +32,9 @@ Before any public release, perform a mandatory security scan:
 Run the full suite in a clean environment:
 ```bash
 ./run_tests.sh
+./tests/infra/check_coverage.sh
 ```
-*Note: The Git pre-commit hook (installed via `./tests/infra/setup-git-hooks.sh`) provides a final safety gate during the merge to `main`.*
+*Note: The Git pre-commit hook (installed via `./tests/infra/setup-git-hooks.sh`) provides a final safety gate during the merge to `main`. The coverage report ensures all core modules are officially supported by tests.*
 
 #### 4. Changelog Update
 Create or update a `CHANGELOG.md` or the "Latest Changes" section of the README:
