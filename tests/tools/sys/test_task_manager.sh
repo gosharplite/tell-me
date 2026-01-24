@@ -7,19 +7,9 @@ TEST_DIR=$(mktemp -d)
 RESP_PARTS_FILE="$TEST_DIR/test_resp_parts.json"
 TASKS_DIR="$TEST_DIR/test_output"
 
-# --- OPTIMIZATION: Mock date to avoid process overhead ---
-mkdir -p "$TEST_DIR/bin"
-cat <<EOF > "$TEST_DIR/bin/date"
-#!/bin/bash
-echo "12:00:00"
-EOF
-chmod +x "$TEST_DIR/bin/date"
-export PATH="$TEST_DIR/bin:$PATH"
-
-cleanup() {
-    rm -rf "$TEST_DIR"
-}
-trap cleanup EXIT
+# --- OPTIMIZATION: Mock logging to avoid process overhead ---
+get_log_timestamp() { echo "[12:00:00]"; }
+get_log_duration() { echo "[12:00:00]"; }
 
 # Mock Environment
 BASE_DIR="$(pwd)"
@@ -35,26 +25,15 @@ mkdir -p "$TASKS_DIR"
 # --- Helper Function ---
 run_tool() {
     local json_args="$1"
-    
     echo "[]" > "$RESP_PARTS_FILE"
-
     tool_manage_tasks "$json_args" "$RESP_PARTS_FILE"
-    
-    if [ -f "$RESP_PARTS_FILE" ]; then
-        cat "$RESP_PARTS_FILE"
-        rm "$RESP_PARTS_FILE"
-    else
-        echo "Error: No response file created."
-    fi
 }
 
 echo "=== Starting Task Manager Tests ==="
 
 # Test 1: Add Task
 echo -e "\n--- Test 1: Add Task ---"
-# Optimization: Hardcode JSON instead of calling jq -n
-ARGS='{"args": {"action": "add", "content": "Buy milk"}}'
-OUTPUT=$(run_tool "$ARGS")
+OUTPUT=$(run_tool '{"args": {"action": "add", "content": "Buy milk"}}')
 echo "$OUTPUT" | grep -q "Task added with ID: 1" && echo "PASS" || echo "FAIL"
 
 if [ -f "$TASKS_FILE" ]; then
@@ -65,35 +44,28 @@ fi
 
 # Test 2: List Tasks
 echo -e "\n--- Test 2: List Tasks ---"
-ARGS='{"args": {"action": "list"}}'
-OUTPUT=$(run_tool "$ARGS")
+OUTPUT=$(run_tool '{"args": {"action": "list"}}')
 echo "$OUTPUT" | grep -q "Buy milk" && echo "PASS" || echo "FAIL"
 
 # Test 3: Update Task
 echo -e "\n--- Test 3: Update Task ---"
-ARGS='{"args": {"action": "update", "task_id": 1, "status": "completed"}}'
-OUTPUT=$(run_tool "$ARGS")
+OUTPUT=$(run_tool '{"args": {"action": "update", "task_id": 1, "status": "completed"}}')
 echo "$OUTPUT" | grep -q "Task 1 updated" && echo "PASS" || echo "FAIL"
 
 # Verify update
-ARGS='{"args": {"action": "list"}}'
-OUTPUT=$(run_tool "$ARGS")
+OUTPUT=$(run_tool '{"args": {"action": "list"}}')
 echo "$OUTPUT" | grep -q "\[completed\]" && echo "PASS" || echo "FAIL"
 
 # Test 4: Delete Task
 echo -e "\n--- Test 4: Delete Task ---"
-ARGS='{"args": {"action": "delete", "task_id": 1}}'
-OUTPUT=$(run_tool "$ARGS")
+OUTPUT=$(run_tool '{"args": {"action": "delete", "task_id": 1}}')
 echo "$OUTPUT" | grep -q "Task 1 deleted" && echo "PASS" || echo "FAIL"
 
 # Test 5: Clear Tasks
 echo -e "\n--- Test 5: Clear Tasks ---"
 # Add one first
-ARGS='{"args": {"action": "add", "content": "Temp"}}'
-run_tool "$ARGS" > /dev/null
-
-ARGS='{"args": {"action": "clear"}}'
-OUTPUT=$(run_tool "$ARGS")
+run_tool '{"args": {"action": "add", "content": "Temp"}}' > /dev/null
+OUTPUT=$(run_tool '{"args": {"action": "clear"}}')
 echo "$OUTPUT" | grep -q "All tasks cleared" && echo "PASS" || echo "FAIL"
 
 echo -e "\n=== Tests Complete ==="
@@ -104,8 +76,7 @@ export AIT_HOME="$TEST_DIR"
 GLOBAL_TASKS_FILE="$TEST_DIR/output/global-tasks.json"
 mkdir -p "$TEST_DIR/output"
 
-ARGS='{"args": {"action": "add", "content": "Global task", "scope": "global"}}'
-OUTPUT=$(run_tool "$ARGS")
+OUTPUT=$(run_tool '{"args": {"action": "add", "content": "Global task", "scope": "global"}}')
 
 if [ -f "$GLOBAL_TASKS_FILE" ] && grep -q "Global task" "$GLOBAL_TASKS_FILE"; then
     echo "PASS: Global tasks file created and task added"
