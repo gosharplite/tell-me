@@ -17,8 +17,8 @@ cp -r lib "$TEST_DIR/"
 
 cd "$TEST_DIR"
 
-source "lib/utils.sh"
-source "lib/testing.sh"
+source "lib/core/utils.sh"
+source "lib/tools/dev/testing.sh"
 
 # Mock variables
 CURRENT_TURN=1
@@ -83,3 +83,4 @@ cd "$ORIGINAL_DIR"
 if [ $FAILED -eq 1 ]; then
     exit 1
 fi
+

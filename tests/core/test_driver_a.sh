@@ -10,7 +10,8 @@ set -e
 TEST_DIR=$(mktemp -d)
 ORIGINAL_DIR=$(pwd)
 cp a.sh "$TEST_DIR/"
-mkdir -p "$TEST_DIR/lib"
+mkdir -p "$TEST_DIR/lib/core"
+mkdir -p "$TEST_DIR/lib/tools/sys"
 mkdir -p "$TEST_DIR/bin"
 mkdir -p "$TEST_DIR/output"
 
@@ -25,13 +26,13 @@ MAX_TURNS: 5
 EOF
 
 # --- Mocking Libraries ---
-cp "$ORIGINAL_DIR/lib/utils.sh" "$TEST_DIR/lib/utils.sh"
-cp "$ORIGINAL_DIR/lib/history_manager.sh" "$TEST_DIR/lib/history_manager.sh"
+cp "$ORIGINAL_DIR/lib/core/utils.sh" "$TEST_DIR/lib/core/utils.sh"
+cp "$ORIGINAL_DIR/lib/core/history_manager.sh" "$TEST_DIR/lib/core/history_manager.sh"
 
-echo 'export TOKEN="mock-token-123"' > "$TEST_DIR/lib/auth.sh"
+echo 'export TOKEN="mock-token-123"' > "$TEST_DIR/lib/core/auth.sh"
 echo '[]' > "$TEST_DIR/lib/tools.json"
 
-cat <<EOF > "$TEST_DIR/lib/scratchpad.sh"
+cat <<EOF > "$TEST_DIR/lib/tools/sys/scratchpad.sh"
 tool_manage_scratchpad() {
     local FC_DATA="\$1"
     local RESP_FILE="\$2"
@@ -43,8 +44,10 @@ tool_manage_scratchpad() {
 }
 EOF
 
+# Create other empty lib files to satisfy a.sh sourcing
+mkdir -p "$TEST_DIR/lib/tools/fs" "$TEST_DIR/lib/tools/git" "$TEST_DIR/lib/tools/media" "$TEST_DIR/lib/tools/dev"
 TOOLS="read_file read_image read_url sys_exec ask_user git_diff git_status git_blame git_log git_commit file_search file_edit"
-for t in $TOOLS; do touch "$TEST_DIR/lib/${t}.sh"; done
+for t in $TOOLS; do touch "$TEST_DIR/lib/tools/sys/${t}.sh"; done
 
 cat <<EOF > "$TEST_DIR/recap.sh"
 #!/bin/bash

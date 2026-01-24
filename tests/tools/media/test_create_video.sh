@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test script for lib/create_video.sh
+# Test script for lib/tools/media/create_video.sh
 
 # Setup isolated environment
 TEST_DIR=$(mktemp -d)
@@ -28,8 +28,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-source lib/utils.sh
-source lib/create_video.sh
+source lib/core/utils.sh
+source lib/tools/media/create_video.sh
 
 # Mock curl with state persistence
 TEST_MODE="none"

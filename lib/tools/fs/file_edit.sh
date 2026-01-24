@@ -1,4 +1,4 @@
-# Requires: lib/utils.sh for check_path_safety
+# Requires: lib/core/utils.sh for check_path_safety
 
 tool_update_file() {
     local FC_DATA="$1"

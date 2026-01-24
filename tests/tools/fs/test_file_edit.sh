@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test script for lib/file_edit.sh
+# Test script for lib/tools/fs/file_edit.sh
 
 # Setup isolated environment
 TEST_DIR=$(mktemp -d)
@@ -19,8 +19,8 @@ cd "$TEST_DIR"
 export CURRENT_TURN=0
 export MAX_TURNS=10
 
-source lib/utils.sh
-source lib/file_edit.sh
+source lib/core/utils.sh
+source lib/tools/fs/file_edit.sh
 
 # Mock backup_file to verify it's called
 BACKUP_CALLED=0

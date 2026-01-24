@@ -19,8 +19,8 @@ FAIL_COUNT=0
 PASS_COUNT=0
 GLOBAL_START=$(date +%s.%N)
 
-# Loop through all test scripts in the tests directory
-for test_script in tests/*.sh; do
+# Loop through all test scripts in the tests directory recursively
+for test_script in $(find tests -type f -name "*.sh" | sort); do
     TEST_NAME=$(basename "$test_script")
     
     # Skip non-files

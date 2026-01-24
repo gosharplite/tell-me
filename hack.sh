@@ -83,8 +83,9 @@ options=(
     "show-last"
     "read-scratchpad-tasks"
     "restart-session"
-    "combine-tasks"
+    "validate-code"
     "estimate-cost"
+    "understand-tell-me"
     "cheat-sheet"
 )
 
@@ -202,7 +203,7 @@ case "$ACTION" in
         ;;
 
     "estimate-cost")
-        send_prompt "Read the current config file and log file in the output folder. Read the 'Gemini Cost Estimation Procedures' from your global scratchpad. Estimate the cost of the current session."
+        send_prompt "Please estimate the cost of the current session."
         ;;
 
     "code-review")
@@ -230,6 +231,14 @@ case "$ACTION" in
         send_prompt "I need to restart session. Please update global and session scratchpad and tasks so you will remember what is going on. List all your tasks."
         ;;
 
+    "validate-code")
+        send_prompt "Please validate the syntax of all code files in the project using the validate_syntax tool."
+        ;;
+
+    "understand-tell-me")
+        send_prompt "Please list the project files, read the README.md, and all SOP files to understand the 'tell-me' project's architecture, safety protocols, and operational procedures."
+        ;;
+
     "cheat-sheet")
         cat <<'EOF'
 -------------------------------------
@@ -250,3 +259,4 @@ case "$ACTION" in
 EOF
         ;;
 esac
+

@@ -14,19 +14,19 @@ set -e
 # Setup temp environment
 TEST_DIR=$(mktemp -d)
 ORIGINAL_DIR=$(pwd)
-cp lib/*.sh "$TEST_DIR/"
+cp -r lib "$TEST_DIR/"
 cp lib/tools.json "$TEST_DIR/"
 
 cd "$TEST_DIR"
 
 # Source dependencies
-source ./utils.sh
-source ./sys_exec.sh
-source ./git_status.sh
-source ./git_diff.sh
-source ./git_log.sh
-source ./git_commit.sh
-source ./git_blame.sh
+source lib/core/utils.sh
+source lib/tools/sys/sys_exec.sh
+source lib/tools/git/git_status.sh
+source lib/tools/git/git_diff.sh
+source lib/tools/git/git_log.sh
+source lib/tools/git/git_commit.sh
+source lib/tools/git/git_blame.sh
 
 # Mocks
 CURRENT_TURN=1
@@ -233,3 +233,4 @@ cd "$ORIGINAL_DIR"
 rm -rf "$TEST_DIR"
 
 echo "All tests passed."
+

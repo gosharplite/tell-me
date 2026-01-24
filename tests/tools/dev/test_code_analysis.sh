@@ -56,8 +56,8 @@ EOF
 echo "function jsFunc() { return true; }" > "$TEST_DIR/test.js"
 
 # Load library
-source ./lib/utils.sh
-source ./lib/code_analysis.sh
+source ./lib/core/utils.sh
+source ./lib/tools/dev/code_analysis.sh
 
 # Helper to run tool
 run_tool() {

@@ -7,7 +7,7 @@ set -e
 TEST_DIR=$(mktemp -d)
 ORIGINAL_DIR=$(pwd)
 cp a.sh "$TEST_DIR/"
-mkdir -p "$TEST_DIR/lib"
+mkdir -p "$TEST_DIR/lib/core" "$TEST_DIR/lib/tools/sys" "$TEST_DIR/lib/tools/fs" "$TEST_DIR/lib/tools/git" "$TEST_DIR/lib/tools/media" "$TEST_DIR/lib/tools/dev"
 mkdir -p "$TEST_DIR/bin"
 mkdir -p "$TEST_DIR/output"
 
@@ -17,10 +17,10 @@ export BACKUP_DIR="$TEST_DIR/tellme_backups"
 mkdir -p "$BACKUP_DIR"
 
 # Copy libraries
-cp "$ORIGINAL_DIR/lib/utils.sh" "$TEST_DIR/lib/utils.sh"
-cp "$ORIGINAL_DIR/lib/history_manager.sh" "$TEST_DIR/lib/history_manager.sh"
+cp "$ORIGINAL_DIR/lib/core/utils.sh" "$TEST_DIR/lib/core/utils.sh"
+cp "$ORIGINAL_DIR/lib/core/history_manager.sh" "$TEST_DIR/lib/core/history_manager.sh"
 
-echo 'export TOKEN="mock-token"' > "$TEST_DIR/lib/auth.sh"
+echo 'export TOKEN="mock-token"' > "$TEST_DIR/lib/core/auth.sh"
 echo '[]' > "$TEST_DIR/lib/tools.json"
 
 # Mock tool

@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) 2026  <gosharplite@gmail.com>
+# SPDX-License-Identifier: MIT
+
 # a.sh: Final verified script with all fixes and original features.
 
 # Resolve Script Directory
@@ -25,8 +28,8 @@ for cmd in jq curl gcloud awk python3 patch; do
     fi
 done
 
-source "$BASE_DIR/lib/history_manager.sh"
-source "$BASE_DIR/lib/utils.sh"
+source "$BASE_DIR/lib/core/history_manager.sh"
+source "$BASE_DIR/lib/core/utils.sh"
 
 # --- Configuration Setup ---
 if [ -n "$1" ] && [ -f "$1" ]; then
@@ -77,10 +80,15 @@ if [ -n "$MAX_HISTORY_TOKENS" ]; then
 fi
 
 # --- Load Tools ---
-source "$BASE_DIR/lib/auth.sh"
-for lib in "$BASE_DIR"/lib/*.sh; do
-    [ -f "$lib" ] && source "$lib"
-done
+source "$BASE_DIR/lib/core/auth.sh"
+# Source all library files recursively from lib/core and lib/tools
+while IFS= read -r -d '' lib; do
+    # Skip files already sourced explicitly
+    case "$(basename "$lib")" in
+        history_manager.sh|utils.sh|auth.sh) continue ;;
+    esac
+    source "$lib"
+done < <(find "$BASE_DIR/lib" -maxdepth 3 -name "*.sh" -print0)
 
 # --- Helper Functions ---
 update_history() {
@@ -362,4 +370,3 @@ DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - st
 START_TIME_FMT=$(date -d "@${START_TIME%.*}" +%H:%M:%S 2>/dev/null || date -r "${START_TIME%.*}" +%H:%M:%S)
 END_TIME_FMT=$(date -d "@${END_TIME%.*}" +%H:%M:%S 2>/dev/null || date -r "${END_TIME%.*}" +%H:%M:%S)
 printf "\033[0;35m[Total Duration] %.2f seconds [%s] [%s]\033[0m\n" "$DURATION" "$START_TIME_FMT" "$END_TIME_FMT"
-
