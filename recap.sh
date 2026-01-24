@@ -176,12 +176,25 @@ produce_output() {
         (if .role == \"user\" then \"## 👤 USER\" 
          elif .role == \"function\" then \"## ⚙️ TOOL RESPONSE\"
          else \"## 🤖 MODEL\" end) + \"\\n\" +
-        ((.parts // [] | map(select(.thought != true))) | map(
-            .text // 
-            (.functionCall | \"> Calling: **\" + .name + \"**\\n> Args: \`\" + (.args | tojson) + \"\`\") // 
-            (.functionResponse | \"> Tool: **\" + .name + \"**\\n> Result: \" + (.response.result | tostring)) // 
-            \"*[Non-text content]*\"
-        ) | join(\"\")) +
+        (if ((.parts // []) | map(select(.thought != true)) | length > 0) then
+            ((.parts // []) | map(select(.thought != true)) | map(
+                .text // 
+                (if \"$SHOW_TOOLS\" == \"true\" then 
+                    (.functionCall | \"> Calling: **\" + .name + \"**\\n> Args: \`\" + (.args | tojson) + \"\`\") // 
+                    (.functionResponse | \"> Tool: **\" + .name + \"**\\n> Result: \" + (.response.result | tostring))
+                 else empty end) // 
+                \"*[Non-text content]*\"
+            ) | join(\"\")) +
+            (if (\"$SHOW_THOUGHTS\" == \"true\") then
+                ((.parts // []) | map(select(.thought == true)) | map(.text // \"\") | join(\"\\n\") | 
+                 split(\"\\n\") | map(select(test(\"[[:graph:]]\"))) | join(\"\\n\") | if length > 0 then \"\\n\\n> **Thought**\\n\" + . else \"\" end)
+             else \"\" end)
+         elif ((.parts // []) | map(select(.thought == true)) | length > 0) then
+            (if (\"$SHOW_THOUGHTS\" == \"true\") then
+                ((.parts // []) | map(select(.thought == true)) | map(.text // \"\") | join(\"\\n\") | 
+                 split(\"\\n\") | map(select(test(\"[[:graph:]]\"))) | join(\"\\n\") | if length > 0 then \"## 🧠 THOUGHT\\n\" + . else \"\" end)
+             else \"*[Thought Only]*\" end)
+         else \"*[Empty Message]*\" end) +
         \"\\n\\n---\"
       " "$FILERECAP" | apply_filters)
 
@@ -199,12 +212,20 @@ produce_output() {
          elif .role == \"function\" then \$t + \"[TOOL]\"
          else \$m + \"[MODEL]\" end) +
         \$r + \": \" +
-        ((.parts // [] | map(select(.thought != true))) | map(
-            .text // 
-            (.functionCall | \"[Call: \" + .name + \"] \" + (.args | tojson)) // 
-            (.functionResponse | \"[Result: \" + .name + \"] \" + (.response.result | tostring)) //
-            \"<Non-text content>\"
-        ) | join(\"\")) + \"\\n\"
+        (if .parts then
+            ((.parts | map(select(.thought != true))) | map(
+                .text // 
+                (if \"$SHOW_TOOLS\" == \"true\" then
+                    (.functionCall | \"[Call: \" + .name + \"] \" + (.args | tojson)) // 
+                    (.functionResponse | \"[Result: \" + .name + \"] \" + (.response.result | tostring))
+                 else empty end) //
+                \"<Non-text content>\"
+            ) | join(\"\")) +
+            (if (\"$SHOW_THOUGHTS\" == \"true\") then
+                ((.parts // []) | map(select(.thought == true)) | map(.text // \"\") | join(\"\\n\") | 
+                 split(\"\\n\") | map(select(test(\"[[:graph:]]\"))) | join(\"\\n\") | if length > 0 then \"\\n[Thought]\\n\" + . else \"\" end)
+             else \"\" end)
+         else \"<Empty Message>\" end) + \"\\n\"
       " "$FILERECAP" | apply_filters
     fi
 }
@@ -217,3 +238,4 @@ elif [ "$TAIL_LINES" -gt 0 ]; then
 else
     produce_output
 fi
+

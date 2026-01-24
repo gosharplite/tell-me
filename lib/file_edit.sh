@@ -24,13 +24,14 @@ tool_update_file() {
         # -------------------
 
         # Use jq to write directly to avoid stripping newlines via command substitution
-        echo "$FC_DATA" | jq -r '.args.content' > "$FC_PATH"
-        
-        if [ $? -eq 0 ]; then
+        local TEMP_WRITE=$(mktemp)
+        if echo "$FC_DATA" | jq -r '.args.content' > "$TEMP_WRITE"; then
+            mv "$TEMP_WRITE" "$FC_PATH"
             RESULT_MSG="File updated successfully."
             DUR=$(get_log_duration)
             echo -e "${DUR} \033[0;32m[Tool Success] File updated.\033[0m"
         else
+            rm -f "$TEMP_WRITE"
             RESULT_MSG="Error: Failed to write file."
             DUR=$(get_log_duration)
             echo -e "${DUR} \033[0;31m[Tool Failed] Could not write file.\033[0m"
@@ -267,7 +268,7 @@ tool_apply_patch() {
              fi
         fi
 
-        local PATCH_ARGS="--batch --forward --reject-file=-"
+        local PATCH_ARGS="--batch --forward --reject-file=- --ignore-whitespace"
         if patch --help 2>&1 | grep -q "\--no-backup-if-mismatch"; then
             PATCH_ARGS="$PATCH_ARGS --no-backup-if-mismatch"
         fi
@@ -294,7 +295,7 @@ tool_apply_patch() {
             DUR=$(get_log_duration)
             echo -e "${DUR} \033[0;32m[Tool Success] Patch applied.\033[0m"
         else
-            RESULT_MSG="Error applying patch:\n$OUTPUT"
+            RESULT_MSG="Error applying patch:\n$OUTPUT\n\n[SYSTEM ADVICE]: If patching fails repeatedly, try using 'update_file' to overwrite the entire file with the correct content."
             DUR=$(get_log_duration)
             echo -e "${DUR} \033[0;31m[Tool Failed] Patch failed.\033[0m"
         fi

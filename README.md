@@ -21,10 +21,10 @@ A lightweight, terminal-based interface for Google's Gemini models. The `tell-me
 *   **Context-Aware**: Maintains conversation history, session-specific notes/tasks, and **Global persistent memory** (tasks and scratchpad) across all modes.
 *   **Session Resumption**: When resuming a session, it displays previous usage metrics and a summary of the last 3 conversation turns.
 *   **System Prompts**: Customizable persona and instructions via YAML configuration.
-*   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors).
-*   **Safety & Reliability**: Automatically checkpoints history and **rolls back** to a last known good state if a payload exceeds model limits, preventing session "poisoning."
+*   **Rich Output**: Renders Markdown responses using `glow` (with graceful fallback to ANSI colors). Internal reasoning (Thinking) is robustly cleaned of hidden characters and excessive whitespace for a professional UI.
+*   **Safety & Reliability**: Automatically checkpoints history and **rolls back** to a last known good state if a payload exceeds model limits. Employs **atomic file writes** and **resilient patching** (ignoring whitespace hallucinations) to prevent context poisoning or data loss.
 *   **Smart Auth**: Uses `gcloud` for authentication with intelligent token caching to minimize latency.
-*   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `stats`, `dump`, `h`).
+*   **Sandboxed Environment**: Spawns a dedicated sub-shell with custom aliases (`a`, `aa`, `recap`, `stats`, `dump`, `h`). The welcome header provides instant visibility into active limits and settings (`MAX_TURNS`, `THINKING_BUDGET`, etc.).
 *   **Continuous Workflow**: Navigate your filesystem with `cd` and analyze multiple projects back-to-back within a single, persistent chat session.
 *   **Agentic Capabilities**: Equipped with powerful native tools for file manipulation (`read`, `write`, `patch`, `insert`), code analysis (`grep_definitions`), and memory management (`scratchpad`).
 *   **Developer Friendly**: Includes `dump.sh` to bundle any project's code (respecting `.gitignore`) for LLM analysis.
@@ -226,7 +226,7 @@ ait-v
 # Force a new session, deleting old history
 ait-new
 ```
-If an existing session is found, `ait` will ask if you want to continue. Before prompting, it will show you the last few token usage logs and a summary of the last 3 conversation turns along with the session's total turn count. To send a message immediately, you can pass it as an argument:
+If an existing session is found, `ait` will ask if you want to continue. Before prompting, it will show you the last few token usage logs, a summary of the last 3 conversation turns, and the **active session configuration** (limits, model, and UI settings). To send a message immediately, you can pass it as an argument:
 ```bash
 ait "What is the capital of Mongolia?"
 ```
@@ -259,9 +259,15 @@ Once inside the session (prompt: `user@tell-me:gemini$`), use these aliases:
     *   ... and more.
 
 ### 3. Understanding Metrics
-The tool logs usage in a compact format to help you track costs and latency:
-`[HH:MM:SS] H: 0 M: 45201 C: 217 T: 46102 N: 45418(98%) S: 1 Th: 1540 [13.5s]`
+The tool provides two levels of metrics.
 
+**Pre-flight Payload Log:**
+`[HH:MM:SS] [System] Payload: ~120550 tokens | Generated in 0.051s`
+Visible immediately before the API call, this shows the **estimated size** of the data being sent and the time taken to bundle the context.
+
+**Final Usage Log:**
+`[HH:MM:SS] H: 0 M: 45201 C: 217 T: 46102 N: 45418(98%) S: 1 Th: 1540 [13.5s]`
+Logged once the model responds:
 *   **H**: **Hit** (Cached tokens - cheaper). If Grounding (`USE_SEARCH: true`) is enabled, this will likely be 0.
 *   **M**: **Miss** (Prompt/Context tokens - standard cost).
 *   **C**: **Completion** (Output tokens - standard cost).
@@ -314,7 +320,8 @@ Type `exit` or press `Ctrl+D` to leave the chat session.
 *   **Token Caching**: Access tokens are cached in a temporary directory (`$TMPDIR` or `/tmp`) to speed up sequential requests. The tool maintains separate caches for Vertex and Gemini scopes.
 *   **Automatic Archiving**: When starting a new session, existing history, logs, scratchpads, and task files are automatically moved to an `output/backups/` directory with a timestamp.
 *   **Memory Persistence**: Tasks and scratchpads support two scopes: `session` (archived with history) and `global` (persists in `output/global-*` across all modes and sessions).
-*   **Metrics**: Detailed token usage and thinking counts are logged in `<filename>.log`.
+*   **Metrics**: Detailed token usage and thinking counts are logged in `<filename>.log`. Pre-flight estimates help you stay under limits.
+*   **Atomic Operations**: All file edits use temporary buffers to ensure files are never left in a corrupted state if the tool is interrupted.
 
 ## 📜 License
 [MIT](LICENSE)

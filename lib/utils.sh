@@ -79,16 +79,9 @@ get_log_timestamp() {
     printf "[%s]" "$TS"
 }
 
-# Helper: Get Duration for Logging
+# Helper: Get Duration for Logging (Now returns Timestamp as per requirement)
 get_log_duration() {
-    local DUR_MSG="0.00s"
-    # Calculate Duration if START_TIME is set
-    if [ -n "$START_TIME" ]; then
-        local NOW=$(date +%s.%N)
-        local DUR=$(awk -v start="$START_TIME" -v end="$NOW" 'BEGIN { print end - start }')
-        DUR_MSG=$(printf "%.2fs" "$DUR")
-    fi
-    printf "[%s]" "$DUR_MSG"
+    get_log_timestamp
 }
 
 

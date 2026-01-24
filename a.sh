@@ -92,7 +92,7 @@ log_tool_call() {
     local turn_info="$2"
     local f_name=$(echo "$fc_json" | jq -r '.name')
     local f_args=$(echo "$fc_json" | jq -c '.args')
-    local ts=$(date "+%H:%M:%S")
+    local ts=$(get_log_timestamp)
     
     local msg=""
     case "$f_name" in
@@ -155,7 +155,7 @@ log_usage() {
       (.candidatesTokenCountDetails.thinkingTokenCount // .thoughtsTokenCount // 0)
     ' | xargs)
     local miss=$(( prompt_total - hit ))
-    local newtoken=$(( miss + completion ))
+    local newtoken=$(( miss + completion + thinking_tokens ))
     local percent=0
     if [ "$total" -gt 0 ]; then percent=$(( (newtoken * 100) / total )); fi
     local stats_msg=$(printf "[%s] H: %d M: %d C: %d T: %d N: %d(%d%%) S: %d Th: %d [%.2fs]" \
@@ -189,6 +189,7 @@ fi
 while true; do
     CURRENT_TURN=$((CURRENT_TURN + 1))
 
+    PAYLOAD_START=$(date +%s.%N)
     # 3. Build API Payload
     APIDATA=$(jq -c -n \
       --arg person "$PERSON" \
@@ -220,7 +221,8 @@ while true; do
     PAYLOAD_FILE=$(mktemp) || exit 1
     echo "$APIDATA" > "$PAYLOAD_FILE"
 
-    # --- Pre-flight Safety Check ---
+    # --- Pre-flight Safety Check & Logging ---
+    ESTIMATED_TOKENS=0
     if [ -n "$MAX_HISTORY_TOKENS" ]; then
         ESTIMATED_TOKENS=$(python3 -c "import os; print(int(os.path.getsize('$PAYLOAD_FILE') / 3.5))")
         if [ "$ESTIMATED_TOKENS" -gt "$MAX_HISTORY_TOKENS" ]; then
@@ -230,11 +232,15 @@ while true; do
             echo -e "\033[0;33m[System] History restored. You may need to refine your query or reduce the output size.\033[0m"
             exit 1
         fi
-        # Current state is safe for the next iteration's potential rollback
         backup_file "$file"
     fi
 
+    PAYLOAD_END=$(date +%s.%N)
+    PAYLOAD_DUR=$(awk -v start="$PAYLOAD_START" -v end="$PAYLOAD_END" 'BEGIN { print end - start }')
+    echo -e "$(get_log_timestamp) \033[0;90m[System] Payload: ~$ESTIMATED_TOKENS tokens | Generated in ${PAYLOAD_DUR}s\033[0m"
+
     TURN_START=$(date +%s.%N)
+    echo -e "$(get_log_timestamp) \033[0;90m[API] Calling Gemini... (${AIMODEL})\033[0m"
 
     # 4. Call API with Retry Logic
     RETRY_COUNT=0; MAX_RETRIES=3
@@ -243,8 +249,13 @@ while true; do
           -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d @"$PAYLOAD_FILE")
         
         if echo "$RESPONSE_JSON" | jq -e '.error.code == 429 or .error.code == 500' > /dev/null; then
+             ERR_CODE=$(echo "$RESPONSE_JSON" | jq -r '.error.code')
              RETRY_COUNT=$((RETRY_COUNT + 1))
-             [ $RETRY_COUNT -lt $MAX_RETRIES ] && sleep 5 && continue
+             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                 echo -e "\033[33m[Warning] API error $ERR_CODE. Retrying in 5s... ($RETRY_COUNT/$MAX_RETRIES)\033[0m"
+                 sleep 5
+                 continue
+             fi
              echo -e "\033[31mError: API retry limit exhausted.\033[0m"; exit 1
         else break; fi
     done
@@ -257,9 +268,27 @@ while true; do
         exit 1
     fi
 
-    CANDIDATE=$(echo "$RESPONSE_JSON" | jq -c '.candidates[0].content')
-    THOUGHTS=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].content.parts[] | select(.thought == true) | .text' 2>/dev/null)
-    [ -n "$THOUGHTS" ] && echo -e "\033[0;90m[Thinking]\n$THOUGHTS\033[0m\n"
+    CANDIDATE=$(echo "$RESPONSE_JSON" | jq -c '.candidates[0].content // empty')
+    
+    if [ -z "$CANDIDATE" ] || [ "$CANDIDATE" == "null" ]; then
+        FINISH_REASON=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].finishReason // "UNKNOWN"')
+        echo -e "\033[33m[Warning] Model returned no content. Finish Reason: $FINISH_REASON\033[0m"
+        # If blocked by safety, explain why
+        if [ "$FINISH_REASON" == "SAFETY" ]; then
+             echo -e "\033[33m[System] Response was blocked by safety filters.\033[0m"
+        fi
+        # Log usage anyway
+        SEARCH_COUNT=0
+        log_usage "$RESPONSE_JSON" "$TURN_DUR" "0" "${file}.log"
+        break
+    fi
+
+    # Display thoughts if enabled
+    if [ "$SHOW_THOUGHTS" == "true" ]; then
+        THOUGHTS=$(echo "$CANDIDATE" | jq -r '.parts[] | select(.thought == true and .text != null) | .text' 2>/dev/null)
+        CLEAN_THOUGHTS=$(printf "%s" "$THOUGHTS" | tr -d '\r' | python3 -c "import sys; print('\n'.join(line.strip() for line in sys.stdin.read().splitlines() if any(c.isprintable() and not c.isspace() for c in line)))")
+        [ -n "$CLEAN_THOUGHTS" ] && printf "\033[0;90m%s [Thinking]\n%s\033[0m\n" "$(get_log_timestamp)" "$CLEAN_THOUGHTS"
+    fi
 
     # 4.5 Log Usage immediately for this turn
     SEARCH_COUNT=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].groundingMetadata.webSearchQueries | length // 0' 2>/dev/null)
@@ -271,11 +300,14 @@ while true; do
     if [ "$HAS_FUNC" == "yes" ]; then
         update_history "$CANDIDATE"
         RESP_PARTS_FILE=$(mktemp); echo "[]" > "$RESP_PARTS_FILE"
-        PART_COUNT=$(echo "$CANDIDATE" | jq '.parts | length')
-        for (( i=0; i<$PART_COUNT; i++ )); do
+        TOTAL_PARTS=$(echo "$CANDIDATE" | jq '.parts | length')
+        FC_COUNT=$(echo "$CANDIDATE" | jq '[.parts[] | has("functionCall")] | map(select(. == true)) | length')
+        current_fc=0
+        for (( i=0; i<$TOTAL_PARTS; i++ )); do
             FC_DATA=$(echo "$CANDIDATE" | jq -c ".parts[$i].functionCall // empty")
             if [ -n "$FC_DATA" ]; then
-                log_tool_call "$FC_DATA" "[Tool Request ($((i+1))/$PART_COUNT)]"
+                current_fc=$((current_fc + 1))
+                log_tool_call "$FC_DATA" "[Tool Request ($current_fc/$FC_COUNT)]"
                 CMD_NAME="tool_$(echo "$FC_DATA" | jq -r '.name')"
                 if declare -f "$CMD_NAME" > /dev/null; then
                     "$CMD_NAME" "$FC_DATA" "$RESP_PARTS_FILE"
@@ -325,5 +357,9 @@ if [ -f "${file}.log" ]; then
     echo ""
     awk '{ gsub(/\./, ""); h+=$3; m+=$5; c+=$7; t+=$9; s+=$13 } END { printf "\033[0;34m[Session Total]\033[0m Hit: %d | Miss: %d | Comp: %d | \033[1mTotal: %d\033[0m | Search: %d\n", h, m, c, t, s }' "${file}.log"
 fi
-printf "\033[0;35m[Total Duration] %.2f seconds\033[0m\n" "$(awk -v start="$START_TIME" -v end="$(date +%s.%N)" 'BEGIN { print end - start }')"
+END_TIME=$(date +%s.%N)
+DURATION=$(awk -v start="$START_TIME" -v end="$END_TIME" 'BEGIN { print end - start }')
+START_TIME_FMT=$(date -d "@${START_TIME%.*}" +%H:%M:%S 2>/dev/null || date -r "${START_TIME%.*}" +%H:%M:%S)
+END_TIME_FMT=$(date -d "@${END_TIME%.*}" +%H:%M:%S 2>/dev/null || date -r "${END_TIME%.*}" +%H:%M:%S)
+printf "\033[0;35m[Total Duration] %.2f seconds [%s] [%s]\033[0m\n" "$DURATION" "$START_TIME_FMT" "$END_TIME_FMT"
 
