@@ -33,7 +33,7 @@ Run the full suite in a clean environment:
 ```bash
 ./run_tests.sh
 ```
-*Note: If any tests fail, the release must be aborted until resolved.*
+*Note: The Git pre-commit hook (installed via `./tests/infra/setup-git-hooks.sh`) provides a final safety gate during the merge to `main`.*
 
 #### 4. Changelog Update
 Create or update a `CHANGELOG.md` or the "Latest Changes" section of the README:

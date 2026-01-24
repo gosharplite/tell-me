@@ -99,10 +99,16 @@ Ensure the following tools are installed and available in your `$PATH`:
 2.  **Make scripts executable**:
     This command ensures all necessary scripts in the project are runnable.
     ```bash
-    chmod +x *.sh
+    chmod +x *.sh tests/infra/*.sh
     ```
 
-3.  **Global Alias Setup (Required)**
+3.  **Install Git Hooks (Recommended)**:
+    Automate code quality checks (syntax and tests) before every commit.
+    ```bash
+    ./tests/infra/setup-git-hooks.sh
+    ```
+
+4.  **Global Alias Setup (Required)**
     To run the assistant, you **must** set the `AIT_HOME` environment variable and create aliases. Add the following to your shell configuration file (e.g., `~/.bashrc` or `~/.zshrc`).
 
     **Remember to replace `/path/to/your/clone` with the actual path to the directory from step 1.**

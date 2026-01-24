@@ -87,6 +87,7 @@ fi
 1.  **Syntax Check**: Run `bash -n tests/.../test_name.sh`.
 2.  **Execution**: Run `./run_tests.sh` from the project root.
 3.  **Summary Check**: Ensure your new test is listed in the output and marked as **PASS**.
+4.  **Automated Enforcement**: Install the Git pre-commit hook via `./tests/infra/setup-git-hooks.sh` to ensure no broken tests are committed to the repository.
 
 ---
 

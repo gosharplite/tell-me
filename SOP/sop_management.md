@@ -39,6 +39,7 @@ Every SOP should follow a consistent Markdown structure:
 #### Step 4: Verification
 - Follow your own draft as if you were a new user.
 - Fix any ambiguities or missing steps discovered during the walkthrough.
+- **Hook Integration**: Ensure the new SOP's verification steps are covered by the pre-commit hook installed via `./tests/infra/setup-git-hooks.sh`.
 
 ### 3. Maintenance & Revision
 - **Evolution**: When a codebase change breaks a documented procedure, the corresponding SOP **must** be updated immediately.
