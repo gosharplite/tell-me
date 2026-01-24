@@ -26,8 +26,8 @@ Every SOP should follow a consistent Markdown structure:
 - Draft the content following the structure in Section 1.
 
 #### Step 3: Localization
-- **File Path**: Save the file in the `SOP/` directory.
-- **Naming Convention**: Use lowercase with underscores (e.g., `SOP/new_process_definition.md`).
+- **File Path**: Save the file in the `SOP/` directory or an appropriate sub-folder (e.g., `SOP/tools/`).
+- **Naming Convention**: Use lowercase with underscores (e.g., `SOP/tools/new_tool_guide.md`).
 
 #### Step 4: Verification
 - Follow your own draft as if you were a new user.
@@ -36,7 +36,7 @@ Every SOP should follow a consistent Markdown structure:
 ### 3. Maintenance & Revision
 - **Evolution**: When a codebase change breaks a documented procedure, the corresponding SOP **must** be updated immediately.
 - **Versioning**: Use Git commit messages to track the "why" behind SOP revisions.
-- **Consistency**: Periodically review all files in the `SOP/` folder to ensure they don't contradict each other.
+- **Consistency**: Periodically review all files in the `SOP/` tree to ensure they don't contradict each other.
 
 ---
 
@@ -45,6 +45,6 @@ Every SOP should follow a consistent Markdown structure:
 - [ ] Are all dependencies listed?
 - [ ] Is the logic broken down into digestible numbered steps?
 - [ ] Are there example code blocks?
-- [ ] Is the file saved in `SOP/`?
+- [ ] Is the file saved in `SOP/` or a sub-folder?
 - [ ] Has the file been committed to the repository?
 
